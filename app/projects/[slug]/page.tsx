@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { compileMDX } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
+import rehypePrettyCode from "rehype-pretty-code";
 import { getAllProjects, getProject, getProjectArticles } from "@/lib/content";
 import { mdxComponents } from "@/components/mdx-components";
 import { LuminousGradient } from "@/components/LuminousGradient";
@@ -20,7 +21,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
   const { content: body } = await compileMDX({
     source: content,
     components: mdxComponents,
-    options: { mdxOptions: { remarkPlugins: [remarkGfm] } },
+    options: {
+      mdxOptions: {
+        remarkPlugins: [remarkGfm],
+        rehypePlugins: [[rehypePrettyCode, { theme: "github-dark", keepBackground: false }]],
+      },
+    },
   });
 
   return (
