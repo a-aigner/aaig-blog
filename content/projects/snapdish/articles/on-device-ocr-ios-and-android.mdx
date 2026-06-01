@@ -1,0 +1,148 @@
+---
+title: "On-device OCR in Flutter, and why it differs on iOS and Android"
+summary: One Dart interface, two completely different native engines — Apple Vision and Google ML Kit — plus the Gemma recipe-reconstruction feature I built and then cut.
+date: "2026-05-23"
+tags: ["flutter", "ocr", "platform-channels", "local-ai"]
+---
+
+## Why this exists
+
+SnapDish only works if it can read the text *inside* a screenshot. A photo of a
+recipe is, to a phone, just pixels — the title and ingredients a user wants to
+search for aren't text yet. Turning those pixels into searchable text is the
+entire point of the app, and I wanted it done locally: no upload, no API, no
+per-image cost, works on a plane.
+
+## The constraint that shaped everything
+
+There was no Flutter OCR package I trusted to be both accurate and genuinely
+on-device across both platforms. But each operating system already ships an
+excellent text recognizer — Apple's Vision framework and Google's ML Kit — tuned
+for its own hardware. So rather than bolt on a lowest-common-denominator library,
+I went through a **platform channel** to each OS's native engine, and hid the
+difference behind one Dart method.
+
+## The shared Dart interface
+
+From Flutter's side, OCR is a single call. A `PlatformOcrService` talks over a
+`MethodChannel`:
+
+```dart
+static const _channel = MethodChannel('dev.andreaigner.snapdish/ocr');
+
+Future<String> extractText(List<String> imagePaths) async {
+  final text = await _channel.invokeMethod<String>(
+    'extractText',
+    {'imagePaths': imagePaths},
+  );
+  return text?.trim() ?? '';
+}
+```
+
+Hand it the file paths of a recipe's screenshots, get back the recognized text.
+The app never knows or cares which engine produced it. Everything interesting
+happens on the other side of that channel — and it's not the same on each side.
+
+## iOS: Apple Vision
+
+On iOS the handler uses the **Vision** framework:
+
+```swift
+let request = VNRecognizeTextRequest()
+request.recognitionLevel = .accurate
+request.usesLanguageCorrection = true
+
+let handler = VNImageRequestHandler(url: imageUrl, options: [:])
+try handler.perform([request])
+
+let text = (request.results ?? [])
+    .compactMap { $0.topCandidates(1).first?.string }
+    .joined(separator: "\n")
+```
+
+Vision is synchronous, so I run it on a background queue
+(`DispatchQueue.global(qos: .userInitiated)`) and hop back to the main thread to
+return. I ask for the `.accurate` recognition level and turn on language
+correction, because recipe screenshots are full of real words and the correction
+genuinely helps. Each image's recognized lines are joined with `\n`, and the
+images in a recipe are joined with a blank line between them. Minimum target is
+iOS 15.5.
+
+## Android: Google ML Kit
+
+On Android the handler uses **ML Kit Text Recognition**
+(`com.google.mlkit:text-recognition:16.0.1`):
+
+```kotlin
+val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+val image = InputImage.fromFilePath(applicationContext, Uri.fromFile(file))
+
+recognizer.process(image)
+    .addOnSuccessListener { recognizedText -> /* append recognizedText.text */ }
+    .addOnFailureListener { error -> /* surface a typed error */ }
+```
+
+ML Kit is callback-based rather than synchronous, so there's no "run it on a
+background thread" — instead I walk the image list with a small recursive
+`processImageAt(...)` that processes one image, and only on its success listener
+moves to the next. One recognizer instance is reused across the batch and closed
+when the last image is done, and failures come back as typed errors
+(`missing_image`, `image_load_failed`, `ocr_failed`).
+
+## How the two actually differ
+
+Same job, two genuinely different shapes:
+
+- **Engine & tuning.** Vision exposes a recognition *level* and language
+  correction, which I opt into. ML Kit's on-device recognizer runs with its
+  default options — there's no `.accurate` knob to turn.
+- **Concurrency model.** Vision is a synchronous request I push onto a background
+  queue; ML Kit is an async task with success/failure listeners. That difference
+  rewrites the control flow: a straight loop on iOS, a recursive
+  process-then-continue chain on Android.
+- **Output granularity.** Vision hands back observations and I take each one's
+  top candidate; ML Kit hands back one assembled `.text` block. Both get
+  normalized into the same `\n`-within-image, blank-line-between-images string so
+  the Dart side can't tell them apart.
+- **Where the model lives.** Vision is part of the OS. ML Kit's recognizer is a
+  Google library with its own bundled model. Both run fully on-device — no
+  network, which is the part that mattered to me.
+
+The win of the platform-channel approach is that all of this divergence is sealed
+behind `extractText(imagePaths) -> String`. The app gets the best each platform
+offers, and the difference never leaks into the Flutter code.
+
+## The feature I cut: Gemma recipe reconstruction
+
+Raw OCR output is messy — line breaks in odd places, ingredient lists fused into
+prose, the structure of the recipe lost. So I tried to fix that with a model. I
+wired up an on-device **Gemma** model through MediaPipe's LLM inference (the
+GenAI Tasks framework, with the model packaged as a `.task` / `.litertlm` file)
+to take the OCR dump and reconstruct a clean, structured recipe: title,
+ingredients, steps.
+
+It worked, and I cut it anyway. Two reasons, both fatal for a lightweight recipe
+app:
+
+- **Disk.** The model file ran to hundreds of megabytes. Shipping that inside a
+  small utility app — bloating the download and the on-device footprint for a
+  nice-to-have — was a bad trade.
+- **Performance.** On-device generation was slow and heavy enough that the
+  feature felt like a chore rather than a convenience, and it leaned on the
+  battery in a way the rest of the app doesn't.
+
+So I pulled it. All that's left now is the `.gitignore` line excluding the model
+artifacts and the MediaPipe frameworks in old build output — the archaeology of a
+feature that didn't earn its weight. SnapDish stores the raw OCR text instead and
+makes it searchable, which is what users actually came for. Knowing when an AI
+feature isn't worth its cost is its own kind of engineering.
+
+## The lesson
+
+When every platform already ships a great version of the hard thing you need,
+the smart move is to use each one's native strength and unify it behind a single
+interface — not to flatten both to a portable library. The platform channel made
+Vision and ML Kit interchangeable to the rest of the app. And the Gemma
+experiment was a useful reminder that "it works" and "it should ship" are
+different questions: on a phone, model size and inference cost are product
+decisions, not just technical ones.

@@ -1,0 +1,99 @@
+---
+title: "Building SnapDish: a local-only recipe app in plain Flutter"
+summary: No backend, no database, no state-management library — just Flutter fundamentals, file-based storage, and a search index built from OCR text. Here's how it's put together and why I kept it boring.
+date: "2026-05-30"
+tags: ["flutter", "mobile", "offline-first"]
+---
+
+## Why this exists
+
+SnapDish started as a fix for my sister's camera roll: hundreds of recipe
+screenshots she could never search through. The product idea is simple — make the
+text inside those screenshots findable — but I wanted the app underneath it to be
+just as simple. A recipe organizer doesn't need a cloud account, a sync engine,
+or a database server. It needs to be fast, work offline, and never lose your
+data. So I built it on Flutter fundamentals and almost nothing else.
+
+## The constraints I was working inside
+
+- **Local-only, offline-first.** No backend, no account, no network dependency.
+  Everything a user imports stays in the app's own storage.
+- **Ship it fast.** This was a focused consumer app, not a platform. Every
+  dependency I added was a dependency I'd have to carry, so I added very few.
+- **Survive reinstalls and OS quirks.** People delete and reinstall apps; the
+  storage layer couldn't assume absolute file paths stay valid forever.
+
+## How it's built
+
+The whole app runs on plain Flutter, and the choices are deliberately
+conservative:
+
+- **State:** one `RecipeController extends ChangeNotifier`. It owns the recipe
+  list, the search query, the active filter, and the loading/saving flags, and
+  calls `notifyListeners()` when something changes. No Riverpod, no Bloc, no
+  GetX.
+- **Data model:** a `Recipe` (UUID `id`, `title`, `cuisine`, `ingredients`,
+  `tags`, `notes`, `screenshotPaths`, `extractedText`, `searchIndex`,
+  `createdAt`, `updatedAt`, `isFavorite`), plus a `RecipeDraft` for the
+  add/edit flow and a small `RecipeIngredient` value type.
+- **Storage:** file-based JSON behind a `RecipeRepository` interface, implemented
+  by `LocalRecipeRepository`. Recipes live under a `snapdish_storage/` folder in
+  the app documents directory — an index `recipes.json` plus a per-recipe folder
+  holding its copied screenshot images. No SQLite, no ORM.
+- **UI:** a `HomeShell` with three tabs (gallery, add, profile) kept alive in an
+  `IndexedStack`, and a `RecipeDetailScreen` pushed with the plain `Navigator`.
+  No routing package.
+- **Import:** `image_picker` pulls in up to a dozen screenshots per recipe, the
+  images are copied into the recipe's folder, and OCR is kicked off
+  asynchronously to fill `extractedText`.
+
+The dependency list is short on purpose: `image_picker`, `uuid`, `path_provider`,
+`intl`, and Firebase Analytics (which degrades gracefully to a no-op if it can't
+initialize). That's nearly the whole list.
+
+## The challenges, and what I did about them
+
+### Search that's instant and offline
+
+Search has to feel immediate and work with no network. So instead of querying
+anything at search time, I precompute a `searchIndex` string when a recipe is
+saved: title, cuisine, ingredients, tags, notes, and the full OCR `extractedText`
+are concatenated and normalized once —
+
+```dart
+String normalizeSearchText(String value) => value
+    .toLowerCase()
+    .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+    .replaceAll(RegExp(r'\s+'), ' ')
+    .trim();
+```
+
+A query is normalized the same way and matched with a plain `searchIndex.contains(query)`.
+It's case- and diacritic-insensitive for free, it's a substring match (no
+tokenizing, no ranking — overkill for a personal cookbook), and because the index
+is already built, filtering the list is just a fast in-memory pass. Results sort
+favorites first, then most-recently-updated.
+
+### Not losing data across reinstalls
+
+Storing absolute file paths in JSON is a trap: the app's container path can change
+between installs, and suddenly every saved screenshot points at nothing. So the
+repository stores **relative** paths and resolves them against the current
+documents directory on load. The recipes survive even when the absolute path
+underneath them doesn't.
+
+### Resisting the urge to over-build
+
+The hardest engineering decision here was what *not* to add. A sync backend, a
+database, a state-management library, a router — each is justifiable in the
+abstract, and each would have slowed the app down to ship and added surface area
+to maintain. Keeping the stack boring is why one person could build, polish, and
+ship this to two app stores quickly.
+
+## The lesson
+
+Plain Flutter goes a very long way. A `ChangeNotifier`, JSON files, and a
+precomputed search index covered everything SnapDish actually needed, and the
+restraint paid off where it counts: the app shipped fast and crossed a thousand
+downloads in its first two weeks. The interesting complexity in SnapDish isn't in
+the app architecture at all — it's in the OCR, which is its own story.
