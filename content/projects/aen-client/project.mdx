@@ -1,29 +1,36 @@
 ---
 title: "Aeneis API Wrapper"
-summary: "A stable Python client for Aeneis that fed business-process data into an internal AI/LLM chatbot."
+summary: "The Python client Aeneis never had — built so my microservices could talk to it in clean, plain Python instead of hand-rolled HTTP."
 gradient: "violet"
 stack: ["Python", "REST APIs", "OAuth2"]
 links:
   github: "https://github.com/a-aigner/aen_client"
 featured: true
-order: 1
+order: 2
 ---
 
-While working at intellior GmbH, I built a Python client library for **Aeneis**,
-a business-process management platform. The goal was to let one of Germany's
-largest business groups pull process data programmatically and feed it into an
-internal AI/LLM chatbot system.
+While working at intellior GmbH — the company behind **Aeneis**, a
+business-process management platform — I was building microservices that talked
+to the Aeneis servers. The problem: there was no Python client for the Aeneis
+API. Every call meant raw HTTP, with the OAuth2 credentials and headers assembled
+by hand, one endpoint at a time.
 
 ## Motivation
 
-The process data lived behind a REST API that was awkward to consume directly:
-OAuth2 auth, paginated resources, and inconsistent payloads. Every team that
-wanted the data was re-writing the same fragile glue code. A single, stable,
-well-typed client removed that duplication and made the chatbot integration
-possible.
+Written that way, my microservices would have been a pile of near-identical HTTP
+plumbing — credentials, headers, and error handling copy-pasted around every
+endpoint, with the actual intent of the code buried underneath. I didn't want to
+ship that. So in my spare time I wrote `aen_client`: a wrapper that covers all of
+the existing Aeneis endpoints, so I could write what I actually meant in plain
+Python and never drop back down to raw requests.
+
+It paid for itself almost immediately — I shipped the services far faster — and
+later it became the clean ingestion path that fed business-process data from one
+of Germany's largest business groups into an internal AI/LLM chatbot.
 
 ## What it does
 
-- Wraps authentication, pagination, and resource access behind a clean API.
-- Provides a stable surface other internal tools can depend on.
-- Powers the data ingestion path for the LLM chatbot.
+- Covers all existing Aeneis endpoints behind a typed Python API.
+- Centralizes OAuth2 auth, credentials, and headers in one place, handled once.
+- Lets callers express intent in plain Python instead of writing HTTP plumbing.
+- Gives internal tools a single, stable surface to depend on.

@@ -1,0 +1,123 @@
+---
+title: "Building the Python client Aeneis never had"
+summary: There was no Python library for the Aeneis API, so calling it from my microservices meant hand-rolled HTTP everywhere. I wrote one — and stopped re-testing the same plumbing over and over.
+date: "2025-02-18"
+tags: ["python", "api-design", "developer-experience"]
+---
+
+## Why this exists
+
+At intellior GmbH I was building microservices that needed to read from and write
+to the Aeneis servers. Aeneis is a business-process management platform with a
+perfectly good REST API — and no Python client whatsoever. So the only way to talk
+to it from Python was the raw way: build each request by hand, attach the OAuth2
+credentials and headers myself, and do that again for every endpoint I touched.
+
+It would have worked. It also would have turned my services into a pile of
+near-identical HTTP boilerplate, with the thing the code was *actually doing*
+buried under credential-wrangling and header-setting. That bothered me enough
+that, in my spare time, I wrote the library that didn't exist.
+
+## The constraints I was working inside
+
+- **No prior art.** There was no existing Aeneis Python package to extend or
+  borrow from. The wrapper had to cover the surface from scratch.
+- **OAuth2 on every call.** Each request needed authentication and the right
+  headers. Done by hand, that's the same five lines copied in front of every
+  single API call.
+- **It was a side project.** I built this beside my actual job, so it had to be
+  worth the time — the payoff had to be real and quick, not a polishing exercise.
+- **Cover all the endpoints.** A wrapper that only handled the calls I needed
+  this week would just push the raw-HTTP problem one week down the road. To
+  actually replace the manual approach, it had to cover the existing endpoints.
+
+## What writing against the raw API looked like
+
+Without a client, every call was some variation of this — and a real service has
+dozens of them:
+
+```python
+import requests
+
+token = get_oauth_token(client_id, client_secret)
+
+resp = requests.get(
+    f"{BASE_URL}/processes/{process_id}",
+    headers={
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+    },
+    timeout=30,
+)
+resp.raise_for_status()
+process = resp.json()
+```
+
+Multiply that by every endpoint and every service and you get a codebase where
+the auth-and-header ritual outnumbers the business logic, and where a change to
+how authentication works means editing it in twenty places.
+
+## How I solved it
+
+I wrapped the whole thing. One client object holds the base URL and credentials
+and is the single place that knows how to build an authenticated request — so auth
+and headers happen once, internally, instead of at every call site. On top of that
+sits a typed method for each endpoint, so the calling code says what it wants and
+nothing else:
+
+```python
+client = AeneisClient(base_url, credentials)
+
+process = client.get_process(process_id)
+client.update_process(process_id, changes)
+```
+
+Every endpoint follows the same shape, which made covering the full surface
+mechanical rather than creative, and made the library easy to keep in step as the
+API grew. The plumbing lives in one tested place; the call sites read like plain
+Python.
+
+## The challenges, and what I did about them
+
+### The auth-and-header ritual on every call
+
+This was the whole point of friction. Hand-attaching the OAuth2 token and headers
+to each request is the kind of repetition that's individually trivial and
+collectively miserable — it's where copy-paste bugs breed. Centralizing it in the
+client meant there's now exactly one place that authenticates and exactly one
+place to change if auth ever does. Every caller inherits it for free.
+
+### Covering the whole surface without it becoming copy-paste
+
+Covering "all the endpoints" risks just relocating the mess from my services into
+the library. The fix was to give every endpoint the same internal pattern, so
+each one was a small, predictable addition rather than a bespoke chunk of code.
+That consistency is what made it realistic to cover the surface as a side project
+and to maintain it afterward.
+
+### Learning to trust my own API code
+
+The quiet win was psychological as much as technical. With raw HTTP, I'd write a
+call and then write a throwaway script to test *that specific call* — did the URL,
+the headers, the auth, the response parsing all line up? Every endpoint was a
+small experiment. Once the wrapper existed and was tested once, that stopped. I
+could write `client.get_process(...)` and simply trust it, the way you trust any
+library, and spend my attention on the service logic instead of re-verifying
+plumbing I'd already verified.
+
+## The payoff
+
+I shipped the microservices noticeably faster, because I was writing intent in
+plain Python instead of assembling requests. The code was cleaner and far easier
+to review — the API calls stopped drowning out the logic. And because the client
+was a single dependable layer, the same wrapper later became the clean path that
+fed Aeneis process data into an internal AI/LLM chatbot, without any of that
+integration having to relearn how to talk to the API.
+
+## The lesson
+
+A thin client library that absorbs the boring plumbing pays for itself almost
+immediately. There's nothing clever about it — that's the point. The value is that
+you stop re-deriving the same HTTP-and-auth boilerplate, you get one tested layer
+you can actually trust, and your real code gets to be about the problem you're
+solving instead of the transport you're solving it over.
