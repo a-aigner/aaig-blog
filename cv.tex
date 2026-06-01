@@ -1,0 +1,91 @@
+\documentclass[11pt,a4paper,sans]{moderncv}
+
+% ModernCV themes
+\moderncvstyle{banking}
+\moderncvcolor{blue}
+
+% Character encoding
+\usepackage[utf8]{inputenc}
+\usepackage[scale=0.87]{geometry}
+\setlength{\hintscolumnwidth}{2.7cm}
+
+% Personal data
+\name{André}{Aigner}
+\phone[mobile]{+49~174~6131721}
+\email{andreaigner@icloud.com}
+\social[linkedin]{andre-aigner}
+\social[github]{a-aigner}
+\address{}{Ergolding, Germany}{}
+
+\begin{document}
+
+\makecvtitle
+
+% -------------------------
+% SKILLS (Moved to Top)
+% -------------------------
+\section{Technical Skills}
+
+\cvitem{Programming}{Python, JavaScript/TypeScript, C\#, Java, Swift, SQL}
+\cvitem{Frameworks}{flutter, Spring Boot, Selenium, FastAPI, supabase}
+\cvitem{DevOps \& Tools}{Docker, Git, Linux, REST APIs, Scikit-learn}
+\cvitem{Specialties}{Software Development, Testing Automation, Microservices, Machine Learning, LLM Integration}
+
+% -------------------------
+% EXPERIENCE
+% -------------------------
+\section{Professional Experience}
+
+\cventry{Oct 2025 -- Present}{Founder}{ARSoftware UG}{Landshut, Germany}{}{
+\begin{itemize}
+    \item Building and launching Apps focused on automation and AI-driven tooling.
+    \item Managing full-stack development of software releases.
+    \item Delivering custom software solutions and consulting services to SMEs.
+\end{itemize}}
+
+\cventry{Mar 2023 -- Aug 2025}{Working Student – IT Consulting}{intellior GmbH}{Stuttgart, Germany}{}{
+\begin{itemize}
+    \item Developed and deployed \textbf{5+ microservices} with API integrations used for data migrations with major German enterprises.
+    \item Designed process-mining tools that improved business workflows by \textbf{~40\%}.
+    \item Conducted database migrations with zero-downtime rollout.
+    \item Worked with consulting partners and German banks on enterprise software integration and runtime optimization.
+\end{itemize}}
+
+\cventry{Apr 2022 -- Nov 2022}{Intern – Production Technologies}{BMW Group}{Dingolfing, Germany}{}{
+\begin{itemize}
+    \item Participated in innovation project with \textbf{Intel, NTT Data, Microsoft, and Ubisense}.
+    \item Built Python automation scripts reducing manual process effort by \textbf{several hours per week}.
+    \item Improved team workflows and supported data-driven production improvements.
+\end{itemize}}
+
+\cventry{Mar 2021 -- Mar 2022}{Software Developer (Student Worker)}{TRIO Project I}{Landshut, Germany}{}{
+\begin{itemize}
+    \item Developed a generic Selenium automation bot in C\# for large-scale UI testing.
+\end{itemize}}
+
+% -------------------------
+% EDUCATION
+% -------------------------
+\section{Education}
+
+\cventry{Oct 2025 -- Expected 2027}{M.Sc. Applied Artificial Intelligence}{TH Rosenheim}{Rosenheim, Germany}{}{}
+
+\cventry{Mar 2023 -- Sep 2025}{B.Sc. Computer Science}{OTH Regensburg}{Regensburg, Germany}{}{
+\textbf{Graduated successfully}
+}
+
+\cventry{Sep 2019 -- Mar 2023}{Computer Science Studies}{University of Applied Sciences Landshut}{Landshut, Germany}{}{
+\begin{itemize}
+    \item Served one year as \textbf{President of the Student Council}
+\end{itemize}}
+
+% -------------------------
+% PROJECTS
+% -------------------------
+\section{Selected Projects}
+
+\cvitem{\textbf{Aeneis Python API Wrapper}}{Developed a stable Python client library for Aeneis (intellior GmbH), enabling one of Germany’s largest business groups to integrate business-process data into an internal \textbf{AI/LLM chatbot system}.\\
+\textit{Tech: Python, REST APIs, OAuth2} \\
+GitHub: \url{https://github.com/a-aigner/aen_client}
+}
+\end{document}
