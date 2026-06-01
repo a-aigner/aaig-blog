@@ -15,6 +15,21 @@ export const skills: { group: string; items: string[] }[] = [
   { group: "Specialties", items: ["Software Development", "Testing Automation", "Microservices", "Machine Learning", "LLM Integration"] },
 ];
 
+// Curated, AI-engineering-focused keywords shown in the landing "CV at a glance".
+// The full skill set still lives in `skills` (used on /uses). AI terms lead.
+export const aiHighlights: string[] = [
+  "Agentic AI",
+  "LLM Integration",
+  "Machine Learning",
+  "Vector DBs",
+  "Python",
+  "Scikit-learn",
+  "FastAPI",
+  "REST APIs",
+  "Docker",
+  "SQL",
+];
+
 export const experience: { period: string; role: string; org: string; place: string }[] = [
   { period: "Oct 2025 – Present", role: "Founder", org: "ARSoftware UG", place: "Landshut, Germany" },
   { period: "Mar 2023 – Aug 2025", role: "Working Student – IT Consulting", org: "intellior GmbH", place: "Stuttgart, Germany" },

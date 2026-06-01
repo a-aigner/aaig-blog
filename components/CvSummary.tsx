@@ -1,4 +1,4 @@
-import { skills, experience, education, contact } from "@/content/cv";
+import { aiHighlights, experience, education, contact } from "@/content/cv";
 import { Pill } from "./Pill";
 import { Button } from "./Button";
 
@@ -8,7 +8,7 @@ export function CvSummary() {
       <div>
         <h2 className="text-xl font-bold">CV at a glance</h2>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {skills.flatMap((g) => g.items).map((s) => (
+          {aiHighlights.map((s) => (
             <Pill key={s}>{s}</Pill>
           ))}
         </div>
