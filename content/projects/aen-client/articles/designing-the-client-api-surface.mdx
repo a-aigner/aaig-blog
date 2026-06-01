@@ -1,0 +1,33 @@
+---
+title: "Designing a client API surface people actually want to use"
+date: "2025-02-18"
+summary: "How I turned an awkward REST API into a Python client that hides the sharp edges."
+tags: ["challenge", "api-design"]
+---
+
+The Aeneis REST API worked, but using it directly meant every caller had to
+understand OAuth2 token handling, pagination cursors, and a few inconsistent
+response shapes. That is exactly the kind of complexity a client library should
+absorb.
+
+## The challenge
+
+I wanted callers to write code like this:
+
+```python
+client = AeneisClient(base_url, credentials)
+for process in client.processes.iter_all():
+    ingest(process)
+```
+
+…without ever thinking about tokens or page cursors.
+
+## How I solved it
+
+I split the client into a thin transport layer (auth + retries + pagination)
+and a set of resource accessors on top. The transport layer refreshes tokens
+transparently and turns paginated endpoints into lazy iterators, so the public
+surface stays small and predictable.
+
+The result: integrating the chatbot's ingestion pipeline went from days of glue
+code to a handful of lines.

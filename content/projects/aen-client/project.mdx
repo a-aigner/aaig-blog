@@ -1,0 +1,29 @@
+---
+title: "Aeneis API Wrapper"
+summary: "A stable Python client for Aeneis that fed business-process data into an internal AI/LLM chatbot."
+gradient: "violet"
+stack: ["Python", "REST APIs", "OAuth2"]
+links:
+  github: "https://github.com/a-aigner/aen_client"
+featured: true
+order: 1
+---
+
+While working at intellior GmbH, I built a Python client library for **Aeneis**,
+a business-process management platform. The goal was to let one of Germany's
+largest business groups pull process data programmatically and feed it into an
+internal AI/LLM chatbot system.
+
+## Motivation
+
+The process data lived behind a REST API that was awkward to consume directly:
+OAuth2 auth, paginated resources, and inconsistent payloads. Every team that
+wanted the data was re-writing the same fragile glue code. A single, stable,
+well-typed client removed that duplication and made the chatbot integration
+possible.
+
+## What it does
+
+- Wraps authentication, pagination, and resource access behind a clean API.
+- Provides a stable surface other internal tools can depend on.
+- Powers the data ingestion path for the LLM chatbot.
