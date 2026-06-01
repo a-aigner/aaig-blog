@@ -1,0 +1,98 @@
+---
+title: "Hybrid semantic search: meaning and keywords, fused"
+summary: Vector similarity and BM25 run side by side over one local index, then merge — weighted scoring for the human view, Reciprocal Rank Fusion for the model.
+date: "2026-03-04"
+tags: ["search", "rag", "local-ai"]
+---
+
+## Why this exists
+
+Pure semantic search has a blind spot: ask it for a specific term — a method
+name, an author, an acronym — and it'll hand you things that are *about* the
+right topic while missing the exact string you typed. Pure keyword search has the
+opposite blind spot: it finds the string and misses everything phrased
+differently. Research queries need both at once. So note.md runs both and fuses
+them — and the interesting part is that the *right way* to fuse them turned out to
+depend entirely on who's asking.
+
+## The constraints I was working inside
+
+- **One index, built at indexing time.** Both paths read from the same hybrid
+  store — `sqlite-vec` for vectors, FTS5 for keywords — so there's no second
+  pipeline to keep in sync.
+- **Two incompatible score scales.** Cosine similarity and BM25 produce numbers
+  that mean completely different things. Any naive averaging is really just a
+  guess about how to compare apples and oranges.
+- **Two very different consumers.** A human reading a results list wants
+  something readable and deduplicated. A local LLM doing extraction wants tightly
+  scoped, robustly ranked context. The same chunks have to serve both.
+
+## How retrieval works
+
+The query is embedded once, with the `"search_query: "` prefix that matches how
+documents were embedded, and then two strategies diverge.
+
+**For the human Search view**, I over-fetch candidates — roughly **8× the
+requested limit, capped at 1,000** — from both indexes, then score them with a
+weighted composite:
+
+```
+score = 0.72 * semantic + 0.28 * keyword
+        + 0.08  if the query appears verbatim in the chunk
+        + 0.05  if the match is in a heading
+```
+
+It returns up to 120 results. The first 10 slots are filled unconditionally so
+the view is never empty, and everything after that is gated by a similarity
+threshold (default **72%**) so the long tail doesn't fill with near-misses. One
+chunk per source keeps the list from being dominated by a single paper.
+
+**For the LLM features**, weighted sums are exactly the wrong tool, so those paths
+use **Reciprocal Rank Fusion** instead:
+
+```
+score(chunk) = Σ 1 / (k + rank_in_list),   k = 60
+```
+
+Matrix extraction calls `rankedChunks(forSourceID:query:limit:15)`, scoped to a
+single source. Evidence Scan calls
+`rankedChunksAcrossSources(sourceIDs:perSourceLimit:4,totalLimit:12)`, pulling a
+few from each source and fusing to a global top 12.
+
+## The challenges, and what I did about them
+
+### Fusing two score scales that don't compare
+
+This was the real problem hiding behind "just combine the results." For the human
+view I could get away with a tuned weighted sum, because a human is forgiving
+about exact ordering and I could spend time calibrating the 0.72 / 0.28 split and
+the verbatim and heading bonuses by feel. But for the LLM paths, where the
+ranking decides what context the model even sees, a hand-tuned weighting is
+fragile. RRF fixes it by throwing away the scores entirely and using only each
+chunk's **rank** in each list. A chunk that ranks well in either list scores well;
+one that ranks well in both is rewarded twice. Because it's rank-based, it doesn't
+care that cosine distance and BM25 live on different scales — the calibration
+problem just disappears.
+
+### Never handing the model an empty context
+
+A retrieval that comes back empty is worse for an LLM than a mediocre one —
+empty context produces confident nonsense. So when ranking finds nothing above
+the bar, there's a **document-order fallback** that returns the abstract and
+introductory chunks instead of nothing. The model always gets *something*
+grounded to reason over.
+
+### One index, two shapes
+
+The temptation was to build a second retrieval path for the LLM features. Instead
+the same hybrid index serves everyone; only the *shaping* differs. Humans get
+weighted scoring, exact-phrase boosts, one-chunk-per-source dedup, and a readable
+cap. The model gets RRF, source scoping, and the fallback. Same substrate,
+different read.
+
+## The lesson
+
+The shape of a result set should follow its consumer, not the other way around.
+Once I stopped trying to find the single "correct" ranking and started asking
+"who's reading this, and what do they need it to look like," both the human search
+and the LLM retrieval got noticeably better — from the exact same chunks.

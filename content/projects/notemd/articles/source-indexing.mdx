@@ -1,0 +1,112 @@
+---
+title: "Source indexing: turning PDFs into a local knowledge index"
+summary: Every imported PDF is extracted, chunked, embedded, and full-text indexed on-device — the unglamorous pipeline that everything intelligent in note.md is built on.
+date: "2026-02-18"
+tags: ["retrieval", "local-ai", "rag"]
+---
+
+## Why this exists
+
+Every smart thing note.md does — semantic search, Matrix extraction, Evidence
+Scan, the Argument Map — starts from the same question: given some text I'm
+writing or looking for, which passages from my papers are relevant? Answering
+that well, and answering it *locally*, is the whole game. And it all bottoms out
+in one unglamorous pipeline that nobody sees: turning a freshly imported PDF into
+something searchable by both meaning and keyword.
+
+A PDF is hostile to that. The text is trapped in a layout, the structure —
+headings, tables, figures — is implicit, and I can't hand it to a cloud service
+to parse, because the entire premise of note.md is that nothing leaves the Mac.
+So the indexer had to do the heavy lifting itself, on a normal laptop, without
+ever touching the network.
+
+## The constraints I was working inside
+
+A few non-negotiables shaped every decision here:
+
+- **Local-only, no downloads.** Extraction, chunking, and embedding all run from
+  bundled helper binaries. There is no model to fetch at runtime and no API to
+  call.
+- **It has to be idempotent.** People re-import, re-sync, and re-index. Running
+  the pipeline twice on the same document must not produce duplicate chunks or a
+  drifting index.
+- **It has to be polite.** Indexing a large library is heavy work. It can't melt
+  someone's battery or block them from cancelling.
+- **It runs on consumer hardware.** Embedding is CPU / Apple Silicon only, so the
+  model and the batch sizes had to be chosen for a laptop, not a GPU box.
+
+## How the pipeline works
+
+When a PDF is imported it's copied into the knowledge vault, a `KnowledgeSource`
+record is created via `SourceShadowVaultService`, and the work is queued. From
+there it's a fixed sequence:
+
+1. **Power-aware gating.** If the user picked "Only on Power Source," the queue
+   waits on battery and resumes when a charger is connected.
+2. **Cache shortcut.** A content hash of the source is compared against the last
+   indexed hash; if nothing changed, the whole job is skipped.
+3. **Extraction.** A `notemd-extractor` helper spawns per source and runs
+   MinerU's native extractor, producing `fulltext.txt`, a `document.md` that
+   preserves headings, and a `*_content_list.json` listing paragraphs, tables,
+   and headings with their page numbers.
+4. **Chunking.** `SourceChunkingService` groups paragraphs under their headings
+   and splits at **1,200 characters** per chunk, with a markdown-aware fallback
+   splitter that overlaps **220 characters** so a sentence cut across a boundary
+   still lands whole in one chunk.
+5. **Atomic write.** The new chunks are written to `semantic-index.sqlite` in a
+   single transaction, after the source's old chunks are wiped.
+6. **Embedding.** A `llama-embedding` helper processes chunks in **batches of
+   16** with **Nomic Embed Text v1.5** (768-dimensional vectors). Each chunk is
+   prefixed with `"search_document: "`; queries later use `"search_query: "`.
+   Vectors are stored both as binary blobs and in a `sqlite-vec` virtual table.
+7. **Full-text index.** An FTS5 virtual table provides BM25 keyword search, with
+   headings indexed separately so they can be boosted at query time.
+8. **Status.** An `IndexingStatusBanner` reports real-time progress so the work
+   is never a silent spinner.
+
+## The challenges, and what I did about them
+
+### A small model can't read a whole paper
+
+The reason the index exists at all is that no local model can hold a 30-page PDF
+in its context. The answer is to never ask it to: chunk the paper into
+heading-scoped passages now, so that later every feature can retrieve a handful
+of relevant chunks instead of the whole document. The 1,200-character size is a
+deliberate tradeoff — big enough to carry a coherent idea, small enough that a
+fistful of them fits a local model's context with room for the prompt. The
+220-character overlap exists for one reason: claims that straddle a chunk
+boundary shouldn't fall into the crack between two chunks.
+
+### Re-indexing without creating duplicates
+
+The first version happily produced two copies of everything if you re-imported a
+source. The fix was to make chunk IDs **deterministic** — each ID is a hash of
+the chunk's position, its heading, and its text. Re-run the pipeline on an
+unchanged document and you get byte-identical IDs, so there's nothing to
+duplicate. Paired with the content-hash cache that skips unchanged sources
+entirely, re-indexing a vault became boring and predictable, which is exactly
+what you want from infrastructure.
+
+### Keeping the vector and keyword views in sync
+
+Each chunk lives in two representations at once: a vector in `sqlite-vec` and a
+row in the FTS5 table. If those two ever disagree about which chunks exist, search
+gets subtly wrong in ways that are miserable to debug. So indexing wipes a
+source's old chunks and writes the new ones inside a single atomic transaction —
+the two views can never be observed half-updated.
+
+### Making it something you'd actually leave running
+
+The difference between a demo and a tool is the boring stuff. Power-aware gating
+means indexing a big library won't strand someone on battery. Every long-running
+step is wrapped so it can be cancelled cleanly. The status banner means you can
+see what it's doing. None of this is clever; all of it is why people can trust the
+indexer to chew through a real library in the background.
+
+## The lesson
+
+Everything downstream is only as good as this layer. Retrieval quality, the
+trustworthiness of an extracted matrix cell, whether the Argument Map can find a
+quote on a page — all of it inherits from how the source was indexed. The
+glamorous features get the screenshots, but the work that decides whether they
+feel solid happens here, in the part nobody sees.

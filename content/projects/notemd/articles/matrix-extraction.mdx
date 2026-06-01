@@ -1,0 +1,100 @@
+---
+title: "Matrix extraction: filling research tables with local AI"
+summary: A row-by-row local-LLM pipeline that fills a literature matrix with structured, verifiable extractions — every cell grounded in a verbatim quote and a real page.
+date: "2026-03-25"
+tags: ["local-llm", "rag", "research-tools"]
+---
+
+## Why this exists
+
+A literature matrix — papers down the side, questions across the top — is one of
+the most useful artifacts in a literature review and one of the most tedious to
+build. You read paper after paper pulling out the same handful of facts:
+sample size, method, outcome, limitation. I wanted note.md to fill that table for
+you. But I had a hard precondition: I'd only ship it if every cell could be
+traced back to a real quote on a real page, and if the whole thing ran on a local
+model. An extraction tool you can't verify is worse than no tool, because it
+launders guesses into a table that *looks* authoritative.
+
+## The constraints I was working inside
+
+- **The model is small and local.** A Gemma-class model is doing the reading,
+  with no cloud fallback. Memory is tight and output is not always well-formed.
+- **One bad cell can't sink the table.** A matrix might be dozens of cells. A
+  single timeout or malformed response has to stay contained.
+- **The human is the authority.** If someone edits a cell by hand, the pipeline
+  must never quietly overwrite it.
+
+## How the pipeline works
+
+The engine builds a queue from every source-and-column pair, and queues only the
+cells that actually need work: empty cells, cells with a previous error, or cells
+whose column prompt has changed (detected via a stored prompt hash). Cells the
+user has edited (`isUserEdited == true`) are skipped entirely. Then:
+
+1. **Cells run one at a time, not in parallel** — partly to keep memory pressure
+   off the local model, partly so the UI can fill the matrix row by row in front
+   of you instead of freezing and dumping everything at the end.
+2. **Model resolution** picks a Gemma 4 variant through a three-tier fallback:
+   per-feature override → global default → first installed model.
+3. **Source-scoped retrieval** pulls the top 15 chunks *from that one paper*
+   matching the column prompt — never project-wide, so a cell can only ever be
+   answered by its own source.
+4. **The prompts** mandate verbatim quotes, 1-indexed page numbers, and an
+   explicit `N/A` (confidence 0) when the answer simply isn't in the paper.
+5. **The call** runs the bundled `llama-cli` under a strict JSON schema:
+
+   ```
+   llama-cli --temp 0.1 -n 800 -c 16384 \
+     --json-schema '{ value, source_quote, source_page, confidence }'
+   ```
+
+   Low temperature for near-deterministic output, an 800-token budget, a 16k
+   context window, and a schema so the result is structured data, not prose.
+6. **Write-back** stores a `MatrixCell` with the value, confidence, the
+   quote-and-page anchor, the model ID, the prompt hash, and a timestamp — so
+   every cell is auditable after the fact.
+
+## The challenges, and what I did about them
+
+### Making every cell verifiable
+
+This is the constraint the whole design serves. Source-scoping retrieval means a
+cell about Paper A can only be filled from Paper A's text — there's no way for it
+to bleed in a fact from a neighbour. The schema *requires* a verbatim quote and a
+page, and the prompt forbids guessing by making `N/A` with confidence 0 the
+explicit, sanctioned answer when the paper doesn't say. The result is that
+checking a cell is a small question — "is this quote really on page 7?" — instead
+of a large one — "do I trust this table?"
+
+### Local models emit messy JSON
+
+A small model under a token cap will wrap its JSON in stray commentary, or stop
+mid-object. Throwing the whole response away on the first malformed character
+would have made the feature flaky. So the engine parses the output
+character-by-character, tracking brace depth and string state, and slices out the
+first balanced JSON object it can find. It survives the model's quirks instead of
+being defeated by them.
+
+### Containing failure to a single cell
+
+Extraction is a long batch, and things go wrong: a process hangs, a response is
+unparseable, a retrieval comes up dry. A 300-second watchdog kills hung processes,
+and — crucially — failure is isolated per cell. If one cell fails, only that one
+cell shows an error indicator; the rest of the table fills normally. You re-run
+the one cell, not the whole matrix.
+
+### Keeping the human in charge
+
+Anything a user has touched is marked `isUserEdited` and skipped by every
+subsequent run. And because requeueing keys off a prompt hash, the only thing
+that re-triggers a cell is a real change to its column prompt — not a stray
+re-index. The tool does the grunt work and then gets out of the way.
+
+## The lesson
+
+Reliability here was never about a cleverer prompt. It's a property of the
+pipeline: contained failures, deterministic settings, a parser that tolerates
+mess, and an audit trail on every cell. Get those right and a small local model
+becomes something you can actually depend on for structured extraction — quote by
+quote, page by page.

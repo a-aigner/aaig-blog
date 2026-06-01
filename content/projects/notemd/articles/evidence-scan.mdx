@@ -1,0 +1,94 @@
+---
+title: "Evidence Scan: finding support and contradictions for any claim"
+summary: Type /scan on a sentence and note.md checks it against your indexed literature, classifies each passage, and inserts typed citations — contradictions first.
+date: "2026-04-12"
+tags: ["local-llm", "rag", "research-tools"]
+---
+
+## Why this exists
+
+The most nerve-wracking sentence to write in any paper is the one that asserts
+something. Is it actually supported by what I've read? Worse: does anything I've
+read quietly *contradict* it? Normal citation workflows don't help with that
+second question at all — you cite the things you remember agreeing with you and
+hope nothing in your own library says otherwise. Evidence Scan is my attempt to
+make that check a single keystroke, and to make the uncomfortable half — the
+contradictions — the thing it shows you first.
+
+## The constraints I was working inside
+
+- **Classification has to be reliable on a small local model.** A Gemma-class
+  model is judging each passage, on-device, with no cloud to defer to.
+- **One bad inference can't sink the scan.** A claim might be checked against a
+  dozen passages; a single dropped response shouldn't reduce the result to zero.
+- **The knowledge graph has to stay consistent.** Inserting evidence creates
+  links between the article and its sources, and those links can't drift out of
+  sync with what's already in the document.
+
+## How it works
+
+You type `/scan` on a block or a selection; that text becomes the claim, and any
+citation links already in it are preserved. A folder picker lets you scope the
+scan to a subset or run it across the whole project (the default). Before any
+retrieval, the engine backfills `KnowledgeConnection` records for citations
+already present in the article, so the graph starts from a consistent state.
+
+Retrieval uses the cross-source path —
+`rankedChunksAcrossSources`, **4 candidates per source**, fused via RRF (k = 60),
+top **12** chunks. An empty result raises `noCandidatesFound` rather than guessing.
+
+Then each of the 12 candidates is classified by its **own** inference call to the
+local Gemma 4 model (256 output tokens each). Each call returns a structured
+verdict — one of `supports`, `contradicts`, `nuanced`, `irrelevant` — plus a
+one-sentence explanation and a confidence, with a standing instruction to default
+to `irrelevant` when it isn't sure. Results sort
+`contradicts < supports < nuanced < irrelevant`, ties broken by descending
+confidence, so disagreement floats to the top.
+
+## The challenges, and what I did about them
+
+### Batching the classifications broke on real machines
+
+The obvious design is one prompt: "here are 12 passages and a claim, classify each
+one." It's cheaper and it's what I built first. It also proved unreliable on
+smaller Macs — cramming all 12 into a single prompt put enough pressure on the
+local KV-cache that responses got dropped or mangled. So I split it into 12
+separate calls. It costs more latency, but it buys partial success: if 11
+passages classify cleanly and one fails, you get 11 verdicts instead of a blank
+panel. On a resource-constrained local model, contained failure beat raw speed.
+
+### Avoiding confident, wrong labels
+
+A model that wants to be helpful will force every passage into "supports" or
+"contradicts" even when it's reaching. That's the worst failure mode here,
+because a wrong verdict on evidence is actively misleading. Two things push
+against it: four explicit verdicts including an honest `nuanced` and an honest
+`irrelevant`, and a prompt that tells the model to fall back to `irrelevant`
+whenever it's unclear. A shrug is a perfectly good answer; a confident
+misclassification is not.
+
+### Showing the thing people most need to see
+
+Most citation tools surface agreement and bury disagreement. I inverted that. The
+sort order puts `contradicts` first on purpose — a paper in your own library that
+undercuts your claim is almost always the most important thing for you to know
+about before you commit the sentence to the page.
+
+### Making the citation carry its meaning
+
+When you insert a result, it doesn't just drop a footnote. A `KnowledgePDFAnchor`
+is created for the verbatim quote (deduplicated if an identical anchor already
+exists), and a `KnowledgeConnection` records the relation *type* derived from the
+verdict — supports becomes a supporting link, contradicts a contradicting link,
+nuanced an extending link — along with the explanation, the claim snippet, the
+confidence, and the AI-provenance metadata. Irrelevant verdicts aren't insertable,
+because there's no honest relation to record. Because the citations are *typed*,
+the support-or-contradiction signal travels with them through the knowledge graph
+instead of evaporating the moment they're inserted.
+
+## The lesson
+
+A citation should carry whether it agrees with you, not just that it exists. Once
+the verdict is part of the link, the graph knows the difference between a source
+that backs a claim and one that fights it — and the most valuable thing the
+feature does is refuse to let a contradiction stay quiet.

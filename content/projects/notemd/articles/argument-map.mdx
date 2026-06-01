@@ -1,0 +1,118 @@
+---
+title: Building the Argument Map
+summary: How notemd grew an on-device feature that reads a paper for its claims, evidence, limitations, and assumptions — and what it took to fit it into the architecture that was already there.
+date: "2026-05-17"
+tags: ["notemd", "local-llm", "rag", "research-tools"]
+---
+
+## Why this exists
+
+When you read an academic paper as a researcher, the first thing you really want to extract is its **shape**: what is the author actually claiming, on what grounds, with what caveats? That shape is what survives into your thesis, your literature review, your notes. The PDF, the highlights, the margin scribbles — those are scaffolding. The shape is the thing.
+
+notemd already had most of the machinery a reader needs: a Reading Studio for working through PDFs, bookmarks anchored to page-and-quote, semantic indexing of every source, and a Gemma-based local model pipeline driving the Matrix and Evidence Scan features. What was missing was a view that answered, for a single paper: *what is being argued here, and how well does it hold up?*
+
+The Argument Map feature is that view. You open a PDF, click the toolbar button, and a side panel builds — locally, on your machine — a structured outline of the paper's central claim(s), the sub-claims that defend them, the evidence marshalled, the limitations the authors acknowledge, the assumptions they take for granted, and the external sources they lean on. Every node is anchored to a verbatim quote and a page number. Nothing is invented.
+
+## Constraints I was working inside
+
+A few things were already true about notemd, and they shaped every design choice:
+
+- **Everything runs locally.** notemd is built around on-device Gemma models. There is no cloud LLM to fall back on. A 4B–9B model is doing the reading.
+- **Semantic chunks already exist.** Every imported source is chunked, embedded, and stored via `SemanticSearchService`. Asking for the top-N chunks for a query is cheap. This is the only sensible way to feed a long PDF to a small local model.
+- **Anchors are the unit of trust.** The Reading Studio's bookmark system already uses `(pageIndex, sourceQuote)` as the canonical anchor. Reusing that shape meant the Argument Map could plug into the same "jump to passage" infrastructure with no new plumbing.
+- **The Reading Studio is the home.** Argument maps belong next to the paper, not in a separate workspace. So the entry point had to be a toolbar item on the Reading Studio window, and the panel had to live as a floating inspector attached to that window.
+
+These weren't blockers — they were the reason the feature was tractable at all. A small local model can't read a 30-page PDF in one shot, but it *can* answer a focused question about six retrieved chunks. The Argument Map is, in essence, a sequence of those focused questions arranged into a graph.
+
+## The shape of the data
+
+Before any extraction, the schema. `ArgumentMapDocument` is a typed graph of nodes and edges, persisted as one JSON file per source under `<vault>/ArgumentMaps/<sourceID>.json`. The node kinds are:
+
+- `centralClaim` — the paper's thesis
+- `subClaim` — supporting reasons
+- `evidence` — what the paper marshals for a sub-claim, with a kind (`empirical_own`, `empirical_cited`, `logical`, `authority`, `definitional`, `anecdotal`) and a polarity (`supports`, `qualifies`, `contradicts`)
+- `assumption` — premises the paper takes for granted
+- `limitation` and `scopeCondition` — what the authors say doesn't generalize
+- `counterargument` and `rebuttal` — objections the paper raises and then answers
+- `citedWarrant` — an external work the paper leans on
+
+Every node carries an optional `ArgumentNodeAnchor { sourceQuote, pageIndex }`. That field is doing a lot of work: it is the trust signal (no anchor → the model invented it → drop the node), it is the deep link into the PDF, and it is the input to the regex pass that builds cited-warrant nodes later.
+
+Edges carry a kind (`supports`, `qualifies`, `rebuts`, `assumes`, `evidences`) and a confidence. The graph is small — typically 15–30 nodes — but having it typed meant the UI could render hierarchy, filter by chip, and stay honest about what each node *is*.
+
+## The extraction pipeline
+
+A single LLM call asking "extract the argument map for this paper" would have failed for two reasons: the context window can't hold the paper, and a small local model can't juggle that many sub-tasks in one shot. So the pipeline is a sequence of small, focused passes, each retrieving its own chunks via the existing `SemanticSearchService`:
+
+1. **Triage.** Pull chunks for "abstract introduction central claim main contribution". Ask the model: what kind of paper is this, does it have a defensible central claim, how suitable is it for an argument map (`high` / `medium` / `low` / `unsupported`), how many central claims to expect? This is the cheap gate. If the paper is a data descriptor or a math-heavy theorem-proof paper, the UI surfaces the verdict and asks the user before paying for the rest.
+2. **Skeleton.** Retrieve chunks for "main claim contribution thesis findings conclusion", then extract 1–3 central claims and up to 6 sub-claims. Every claim must come back with a verbatim source quote and a page number. The schema enforces this; the prune step at the end drops anything without an anchor.
+3. **Grounding.** For *each* sub-claim, do its own retrieval — the sub-claim's label and summary become the query — and ask for up to 4 evidence items from those chunks. Each evidence node gets a kind and a polarity. This is the most expensive stage (N sequential calls) and the one the progress bar weights heaviest.
+4. **Limitations & counterarguments.** One call with a retrieval over "limitations scope future work however but caveats threats to validity counterargument objection". Returns limitations, scope conditions, and objection/rebuttal pairs — all anchored to the primary claim.
+5. **Assumptions.** A separate call with a retrieval biased toward intro and discussion material. Assumptions are *implicit*, so the prompt asks for the "trigger passage" — the closest place in the text where the assumption becomes visible — and that trigger is treated as the anchor. Same anchor discipline, no exception.
+6. **Cited warrants.** No LLM call. A regex pass over every evidence node's verbatim quote, picking up both `Author (Year)` inline and `(Author, Year; Author, Year)` parenthesized forms, normalizing to a canonical `Author, Year` label, and deduplicating across the document. One `citedWarrant` node per unique citation, with edges to every evidence node that cites it. This is what gives the side panel its "Cited X times" signal — and it costs zero tokens.
+
+Each stage has fixed weights in an overall 0.0–1.0 progress fraction, so the UI doesn't have to think — it just renders. The grounding stage gets the largest slice (0.26 → 0.78) because it's the only one that scales with the paper.
+
+## The challenges, and what I did about them
+
+### Small local models hallucinate when they're allowed to
+
+The first version produced beautiful-looking argument maps that were partially wrong. The model would happily invent a quote that sounded right but did not appear in the paper. The fix was structural, not prompty:
+
+- Every node's JSON schema **requires** a `source_quote` and a `source_page`.
+- The prune step rejects any node where the anchor is missing or the quote is empty, unless the user has manually edited it.
+- The system prompts repeat the rule and reject confidence-free output (every node also reports a 0.0–1.0 confidence; anything below 0.2 is pruned).
+- The UI shows the verbatim quote in the selection footer with a "Jump to page" button. If the model lied, the user sees it instantly because the quote won't be there.
+
+This isn't bulletproof — a model can still paraphrase a quote close enough to slip through — but it converts the problem from "do I trust this map?" to "can I find this quote in the paper?", which is a much smaller question.
+
+### JSON output gets truncated mid-stream
+
+Local models hit their `-n` token cap in the middle of a JSON object more often than you'd hope, especially when they fall into a repetition loop. The first version would just throw `responseMalformed` and lose the whole pass. The fix was to add `salvageTruncatedJSONObject` to the local-llama provider: walk the partial stream, track container depth, remember the deepest point at which the JSON could have been closed safely (right after a comma at depth ≥ 1, or right after a child container closed), and synthesize the missing `]`/`}` characters to produce a valid object containing only complete elements. A `--repeat-penalty 1.15` on llama.cpp cut the loops down, and the salvage handles whatever still slips through. Together they turned a class of hard failures into degraded successes.
+
+### Hierarchy doesn't map onto a list
+
+A list view would have flattened the structure that makes an argument map useful. The inspector renders the central claim as a header, sub-claims under it as collapsible rows, and evidence nodes nested under each sub-claim. Limitations, assumptions, counterarguments, and cited warrants are siblings in their own sections below. A row of filter chips lets the user collapse the whole view to one node kind. The selection footer shows the verbatim quote and a jump button — so the panel is both an outline and a launchpad back into the PDF.
+
+### Connecting the panel back to the page
+
+This was the part I was most worried about and that ended up being the most satisfying. Every node with an anchor draws a small `PDFAnnotation` circle in the margin of its page, at the y-position of the quote (found by string-matching against `page.string` and taking the selection's bounds). Multiple badges near the same y position fan horizontally so they don't collapse into a blob. The badges' colors carry a four-step opacity hierarchy — central claim is solid black, scope conditions and rebuttals are 35% — so the eye can scan a page and see "this passage is load-bearing" without reading labels.
+
+Clicking a badge posts a notification (`argumentMapNodeSelected`) that the Reading Studio view receives and forwards to the panel controller, which opens the panel (if it isn't already) and selects the matching node. Clicking a row in the panel goes the other way: it posts a `knowledgeReadingStudioJumpRequest` with the page index and the quote text, and the existing jump machinery scrolls and highlights. The two views point at each other through a notification bus that was already there for bookmarks.
+
+### Keeping the toolbar honest
+
+The toolbar button on the Reading Studio has three states: absent (no map on disk), generating (extraction is running), ready (a map exists). It picks its icon, tooltip, and menu items from that. The state is computed from two things: the in-memory view-model's busy flag (if the panel is open) and the on-disk presence of `<vault>/ArgumentMaps/<sourceID>.json` (always). So even if you've never opened the panel for this PDF, the toolbar already knows whether a map exists. The view-model posts a notification when its state changes; the window manager listens and refreshes the toolbar item. No polling.
+
+### Two papers open, two pipelines running
+
+Reading Studio windows are independent — each PDF gets its own window, and a user might run extractions on more than one at a time. The `ArgumentMapPanelController` keeps a per-pdfID dictionary of `{panel, viewModel, closeObserver}` entries, so each panel has its own state and its own background task. When the Reading Studio for a PDF closes, the panel closes with it and the entry is dropped. No global state to coordinate, no risk of one paper's extraction stomping on another's.
+
+## What it doesn't try to do
+
+A few things the feature deliberately leaves alone:
+
+- **No canvas.** The graph is conceptually a graph, but the UI renders it as an outline. A canvas was tempting and would have added weeks. The outline answers the same questions (what's the shape, what supports what, where does this come from) with less code and a much better scrolling story on a side panel.
+- **No editing — yet.** Nodes are user-flaggable via `isUserEdited` (which exempts them from pruning), but the v1 inspector doesn't let you rewrite labels or rewire edges. The hooks are in the model.
+- **No cross-paper synthesis.** Each map belongs to one source. Comparing argument structures across a literature is the next interesting problem, but it would have made v1 unshippable.
+
+## How it sits in the codebase
+
+Six new files, totaling around 2,500 lines, plus targeted edits to the Reading Studio view, the window manager, the local-llama provider, the AI feature registry, and the premium store:
+
+- `Models/ArgumentMapModels.swift` — the typed graph.
+- `Services/ArgumentMapStorageService.swift` — JSON-per-source under the project vault. Same vault folder pattern as the rest of the app.
+- `Services/ArgumentMapExtractionEngine.swift` — the pipeline. Where most of the work is.
+- `Services/ArgumentMapPanelController.swift` — `NSPanel` lifecycle, paywall gate, per-PDF state.
+- `ViewModels/ArgumentMapInspectorViewModel.swift` — busy / idle / unsupported / failed state machine, progress callback, status notifications.
+- `Views/ArgumentMapInspectorView.swift` — outline, filter chips, selection footer.
+
+The two existing files that grew the most were the Reading Studio view (toolbar wiring, badge rendering on the PDF, jump notifications) and the local-llama provider (the JSON salvage and the repeat-penalty tweak). Everything else — semantic chunk retrieval, citation metadata, the PDF view, the bookmark notification bus, the premium store, the model registry — was already there.
+
+## What this taught me about building on what you have
+
+The feature shipped at the size it did because almost everything it needed already existed. Semantic chunks meant retrieval was a one-line call. The bookmark anchor format meant the jump UX was free. The Reading Studio window manager already knew how to attach floating panels. The local-model provider already handled JSON schemas. The premium store already had a paywall presentation flow. The work was almost entirely in the new layer: the schema, the pipeline, the inspector, the badge rendering. The rest was wiring.
+
+The lesson I keep relearning is that the slow part of building a feature like this isn't the LLM prompts. It's the data discipline — what's the node schema, what's the anchor contract, when do we prune, what counts as truth — and then making the UI render that discipline back to the user so they can verify it at a glance. The map is only as useful as the user's ability to trust it, and the only reliable basis for trust here is "show me the quote, on the page where it appears."
+
+That's what the verbatim anchor and the page badge are doing. Everything else is decoration.

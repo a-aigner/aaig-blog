@@ -1,0 +1,47 @@
+---
+title: "note.md"
+summary: "A local-first academic IDE for Mac — read papers, manage sources, and write with cited evidence, with every AI feature running entirely on-device."
+gradient: "green"
+stack: ["Swift", "SwiftUI", "llama.cpp", "sqlite-vec", "Local AI"]
+links:
+  live: "https://notemd.org"
+featured: true
+order: 1
+---
+
+note.md is the project I started because my own research workflow was driving me
+up the wall. I'd read a PDF in one app, take notes in a second, manage citations
+in a third, and write in a fourth — re-deriving the same context every time I
+switched windows. The friction wasn't the writing. It was everything around it.
+
+Then the cloud AI tools arrived and offered to make the friction disappear by
+doing the thinking for me: summarize this, draft that. But the deliberate
+thinking *is* the research. Outsourcing it doesn't speed you up, it hollows out
+the part that matters. So I set out to build the opposite tool.
+
+## What it is
+
+note.md folds the whole research loop — reading, sourcing, note-taking, citing,
+and writing — into a single Mac app. It's **Zotero + Obsidian + your PDF reader
+in one**, built around a few stubborn principles:
+
+- **Local-first.** Notes, sources, the search index, and every AI feature run on
+  your machine. No claim, document, embedding, or model output leaves the device.
+- **AI as a librarian, not a ghostwriter.** The AI surfaces passages you've
+  already read and the evidence for and against your claims. It doesn't write
+  your prose for you.
+- **You own your markdown.** Everything is stored as plain markdown files you
+  control, so you can walk away with your work at any time.
+- **Deliberate craft over feature count.** I'd rather ship a handful of features
+  that are genuinely trustworthy than a long list that isn't.
+
+## Where the hard parts were
+
+Most of the engineering depth lives in making "local-first AI" actually work on
+a consumer Mac — on-device PDF extraction, embeddings, hybrid retrieval, and a
+local LLM doing structured extraction, all fast and private enough to be usable.
+The articles below are my notes from building that: the problems I hit and how I
+solved them.
+
+note.md is the debut product of [ARSoftware UG](https://notemd.org), the company
+I founded in 2025.
