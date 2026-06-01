@@ -6,7 +6,7 @@ export interface ProjectMeta {
   summary: string;
   gradient: GradientKey;
   stack: string[];
-  links: { github?: string; live?: string };
+  links: { github?: string; live?: string; appStore?: string; playStore?: string };
   featured: boolean;
   order: number;
 }

@@ -82,7 +82,7 @@ function toProjectMeta(slug: string, data: Record<string, unknown>): ProjectMeta
     summary: String(data.summary ?? ""),
     gradient: (data.gradient as GradientKey) ?? "violet",
     stack: (data.stack as string[]) ?? [],
-    links: (data.links as { github?: string; live?: string }) ?? {},
+    links: (data.links as ProjectMeta["links"]) ?? {},
     featured: Boolean(data.featured),
     order: Number(data.order ?? 999),
   };

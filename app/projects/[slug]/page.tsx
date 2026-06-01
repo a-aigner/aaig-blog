@@ -40,10 +40,28 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       <div className="mt-4 flex flex-wrap gap-1.5">
         {meta.stack.map((s) => <Pill key={s}>{s}</Pill>)}
       </div>
-      <div className="mt-3 flex gap-3">
-        {meta.links.github && <Button href={meta.links.github} external>GitHub ↗</Button>}
-        {meta.links.live && <Button href={meta.links.live} variant="ghost" external>Live ↗</Button>}
-      </div>
+      {(meta.links.github || meta.links.live) && (
+        <div className="mt-3 flex gap-3">
+          {meta.links.github && <Button href={meta.links.github} external>GitHub ↗</Button>}
+          {meta.links.live && <Button href={meta.links.live} variant="ghost" external>Live ↗</Button>}
+        </div>
+      )}
+      {(meta.links.appStore || meta.links.playStore) && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          {meta.links.appStore && (
+            <a href={meta.links.appStore} target="_blank" rel="noopener noreferrer" className="transition-opacity hover:opacity-80">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/badges/app-store.svg" alt="Download on the App Store" className="h-12 w-auto" />
+            </a>
+          )}
+          {meta.links.playStore && (
+            <a href={meta.links.playStore} target="_blank" rel="noopener noreferrer" className="transition-opacity hover:opacity-80">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/badges/google-play.svg" alt="Get it on Google Play" className="h-12 w-auto" />
+            </a>
+          )}
+        </div>
+      )}
 
       <section className="mt-8">
         <h2 className="text-xl font-bold">The story</h2>
