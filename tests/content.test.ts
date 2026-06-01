@@ -30,7 +30,7 @@ describe("content layer", () => {
     const articles = getProjectArticles("alpha", FIXTURES);
     expect(articles.map((a) => a.slug)).toEqual(["second", "first"]);
     expect(articles[0].title).toBe("Second Article");
-    expect(articles[1].readingTime).toMatch(/min read$/);
+    expect(articles[1].readingTime).toBe("1 min read");
   });
 
   it("reads a single article", () => {
@@ -45,6 +45,12 @@ describe("content layer", () => {
     const adj = getAdjacentArticles("alpha", "second", FIXTURES);
     expect(adj.next).toBeNull();
     expect(adj.prev?.slug).toBe("first");
+  });
+
+  it("computes next as the newer neighbor", () => {
+    const adj = getAdjacentArticles("alpha", "first", FIXTURES);
+    expect(adj.next?.slug).toBe("second");
+    expect(adj.prev).toBeNull();
   });
 
   it("returns empty article list for a project with none", () => {
