@@ -1,0 +1,81 @@
+---
+title: "Two things I shipped this week: a logo filter and a scroll fix"
+description: "How I stopped my uni's logo from being indexed 400 times, and why Knowledge Management stuttered until I moved one ObservedObject."
+date: "2026-06-07"
+author: Andre
+tags: [notemd, indexing, performance, swiftui]
+---
+
+So this week was kind of a grab-bag of fixes, but both of them turned out to be way more interesting than I expected when I started. I figured I'd write them up because honestly, I'm still a bit proud.
+
+## The slides that made me build a redundancy filter
+
+A bit of context: notemd indexes every image it finds inside a PDF so you can later search for them semantically. That worked fine for screenshots, diagrams, and the occasional cat picture in someone's lecture notes. Then I imported an entire semester of slides from my university.
+
+And the index just *exploded*.
+
+Every slide deck had the university logo in the top right corner. Every. Single. Slide. So a 90-page deck would produce ~90 entries for the same logo. Multiply that by the 30-or-so decks I had, and suddenly my embeddings store thought my favorite image in the world was a small blue crest.
+
+It also slowed down search a ton, because the nearest-neighbour results were just walls of identical logos pushed ahead of anything actually useful.
+
+### The (almost) naive idea
+
+My first instinct was: hash the image bytes, drop duplicates. Done.
+
+That lasted about ten minutes. Of course PDFs don't store the exact same image bytes per slide — sometimes the logo is re-rasterised at a different size, sometimes there's a 2px white border, sometimes the background got blended in. SHA-256 was never going to catch any of that.
+
+So I went with a **perceptual hash** (dHash, specifically). The idea is:
+
+1. Downscale the image to a tiny grayscale thumbnail (I use 9×8).
+2. Compare each pixel to the one on its right.
+3. Encode that as a 64-bit number where each bit is "left brighter than right? yes/no".
+
+Two images that *look* the same to a human end up with hashes that are nearly identical. The number of bits that differ between two hashes is called the **Hamming distance**, and I treat anything ≤ 5 bits as "same image". That little budget is what lets it catch the resized-with-a-border versions of the same logo.
+
+There's a fun little gotcha I ran into: some logos came out of the PDF with random amounts of near-white padding around them. So I added a pre-step that strips any border that's ≥ RGB 240 before hashing. That single change took my "duplicate group" detection from "good" to "actually reliable".
+
+The implementation lives in [`ImagePerceptualHasher.swift`](notemd/Services/ImagePerceptualHasher.swift) and the grouping/collapsing happens in [`SourceShadowAssetService.swift`](notemd/Services/SourceShadowAssetService.swift). Once a group is detected, I keep one canonical asset and stash the other page numbers on it as `duplicatePageNumbers`, so the UI can say "this image also appears on pages 2, 3, 4, 5…" instead of pretending the logo is 90 unrelated things.
+
+Oh — and I cache the hash + group ID in a sidecar `dedup.json`, so I don't recompute it every time a project opens. Re-indexing a deck used to be painful; now it's basically free.
+
+### Did it work?
+
+A 90-slide deck that used to produce 92 image entries now produces 3 (the logo, a footer mark, and the one actual diagram on the title slide). Search results stopped being a parade of crests. Hugely satisfying.
+
+---
+
+## Knowledge Management was stuttering. It shouldn't have been.
+
+The second thing is more of a "how did I not catch this earlier" story.
+
+For a while now, the **Knowledge Management** view in notemd would get janky as soon as background indexing kicked in. Trackpad scroll? Choppy. Tag filter change? Half-second freeze. It got worse the more documents you had in a project, which obviously made it worse for exactly the people you'd want it to work best for.
+
+I assumed it was the indexer hogging the CPU. So I went hunting with Instruments first — and the indexer was barely on the timeline. The hot path was *SwiftUI re-renders*.
+
+### What was actually happening
+
+The `KnowledgeModeView` held `shadowService` as an `@ObservedObject`. Every time the indexer made progress on a single image — which happens dozens of times per second — SwiftUI dutifully invalidated the whole view body. Inside that body, I was running a filter + sort over the entire document list, including a bunch of `localizedCaseInsensitiveCompare` calls. Sixty to a hundred times a second. While the user was *also* scrolling.
+
+So the indexer wasn't slow. The list was *recomputing itself constantly* for no good reason.
+
+### The fixes (none of them clever, all of them effective)
+
+I did four things, in roughly this order:
+
+1. **Moved the subscription down to where it actually mattered.** The list container doesn't care about per-image indexing progress; only the little status badge on each row does. So I downgraded `shadowService` to a plain property on the parent, and introduced a tiny leaf view, `SourceStatusBadgeView`, that subscribes to it directly. Now indexing publishes only re-render the badges, not the entire list.
+
+2. **Memoised the displayed list.** I made a struct called `DisplayedPDFsSignature` that captures every input to the filter/sort step — the search query, the sort mode, the active tags, the folder, the semantic results, the source ID set. The actual filtered/sorted list is cached and only recomputes when that signature changes. If something *unrelated* triggers a re-render (it shouldn't, but defense in depth), the cache short-circuits it.
+
+3. **Gave gallery rows a fixed height.** The image gallery rows were variable-height because of semantic match snippets and thumbnail loading. `LazyVStack` hates that — it can't cache row positions and ends up re-measuring on every layout pass. Locking each row to `.frame(height: 126)` let `LazyVStack` actually do its job.
+
+4. **Took one snapshot of `displayedPDFs` per render.** I was calling the computed property in three places (`.isEmpty`, the `ForEach`, the `List`). Now I grab it once at the top of the body and reuse it, so even when the cache *does* miss, it only misses once per render.
+
+### Result
+
+Smooth scrolling during indexing. Tag filter changes feel instant. The whole view stopped fighting itself.
+
+There's a slightly humbling lesson buried in here: **the bug wasn't in the slow code, it was in how often I was running the fast code.** The filter itself was fine. I was just running it five thousand times more than I had any right to.
+
+---
+
+That's it for this week. Next up I want to look at the embedding queue — I have a hunch we're flushing too eagerly, which means the GPU spends half its time spinning up and shutting down instead of actually doing work. But that's a problem for next-week-me.

@@ -1,0 +1,139 @@
+---
+title: "I Built a Social Media Fleet Manager (So My Apps Could Actually Get Seen)"
+date: "2026-06-02"
+author: "Andre"
+tags: ["i-built-this", "typescript", "react", "side-project", "social-media", "devlog"]
+description: "A student devlog about building Fleet — a tool to plan a post once and fan it out across many TikTok and Instagram accounts. The motivation, the architecture, and the stuff that broke."
+draft: false
+---
+
+# I Built a Social Media Fleet Manager
+
+I keep building apps. That's the fun part. The not-fun part is that I'd ship something,
+tell three friends, and then watch it get exactly zero traffic. Turns out "build it and
+they will come" is not a distribution strategy. They do not come. You have to go get
+them.
+
+So this project started from a pretty selfish place: **I needed reach.** If I want
+people to actually see the things I make, I need to be posting — consistently, on the
+channels where attention lives, which right now means TikTok and Instagram. And not from
+one lonely account. Real visibility comes from pushing content across *many* accounts and
+channels at once: a main brand account, niche spin-offs, regional ones, experimental
+"seed" accounts for testing what sticks.
+
+Doing that by hand is miserable. Log into account one, upload, write the caption, set the
+time. Log out. Log into account two. Repeat twenty times. I caught myself spending more
+time *posting about* my projects than *building* them. That's backwards.
+
+So I built **Fleet** — a tool where I plan a post **once**, pick which accounts or groups
+should publish it, and let it fan out on a schedule across the whole fleet.
+
+## What it actually does
+
+- **Library** — every piece of content lives in one place. Create once, reuse everywhere.
+- **Composer** — pick a format (TikTok Video/Photo, IG Reel/Feed/Story), write the caption
+  with a live phone-style preview, add hashtags.
+- **Assign** — the heart of it. Select individual accounts or toggle whole groups, pick a
+  time (with optimal-time suggestions per platform), and choose how to stagger:
+  same time, auto-stagger, or manual per-account delays.
+- **Calendars** — a master calendar plus per-group and per-account views, with
+  drag-to-reschedule.
+- **Accounts Overview** — the whole fleet as a hierarchy tree (workspace → category →
+  group → subgroup → accounts) that you can drag things around in.
+- **Analytics** — reach, engagement, and growth, scopable from the whole fleet down to a
+  single account.
+
+## How I approached it
+
+I did something I don't usually do: I designed it *before* I coded it. I mocked the whole
+thing up as a clickable prototype first, wrote down what I actually wanted, then turned
+that into a spec and a set of plans. Past me would have opened a blank `index.js` and
+started flailing. This time I had a map.
+
+The stack ended up being a TypeScript monorepo:
+
+- **`apps/web`** — React + Vite for the UI.
+- **`apps/api`** — an Express REST API (because I wanted the whole thing to be drivable
+  programmatically too, not just through the UI).
+- **`apps/worker`** — a background worker that does the actual scheduled publishing.
+- **`packages/core`** and **`packages/db`** — shared domain logic and the Prisma/Postgres
+  database.
+
+Everything runs with one `docker compose up`: Postgres, Redis, object storage, the API,
+and the worker. That part felt genuinely professional and I was a little proud of it.
+
+## The challenges (a.k.a. where I lost an evening each)
+
+### 1. Neither platform lets you schedule
+
+This was the big one, and I didn't see it coming. I assumed "scheduling" was a feature
+the platforms offered and I'd just call it. Nope. The Instagram and TikTok publishing
+APIs both post **immediately** when you call them. There is no `scheduledTime` field.
+
+That flips the whole design: *my* app has to be the scheduler. So every planned post
+becomes a delayed job in a queue, and a worker wakes up at the right moment and fires the
+publish call itself. Researching that one fact reshaped the entire backend.
+
+### 2. The media has to live on a public URL
+
+You can't just upload a video file in the publish request. Both platforms want a
+**publicly reachable URL** they can fetch the media from — and TikTok additionally makes
+you *verify the domain* that URL lives on before it'll touch it. So I had to add real
+object storage and serve media over a public, verifiable address. Another thing I'd have
+discovered the hard way at the worst possible moment.
+
+### 3. OAuth tokens that expire and rotate
+
+Connecting an account is OAuth, fine. But the tokens expire — Instagram's after ~60 days,
+TikTok's access token after a day — and TikTok *rotates the refresh token* every time you
+use it, so you have to save the new one or you're locked out. That meant a scheduled job
+just to keep tokens alive, and storing them encrypted at rest. Security I would have
+absolutely hand-waved a year ago.
+
+### 4. You can't even test it for real without approval
+
+Here's the humbling part. Both platforms gate live posting behind app review. TikTok
+forces unaudited apps to post privately (`SELF_ONLY`); Instagram needs business
+verification and advanced access. As a student with no registered business, I *cannot*
+fully flip this on yet.
+
+So I built a **sandbox mode** with a mock publisher that simulates the entire
+publish lifecycle. The whole app runs and demos end-to-end with zero credentials, and the
+real adapters are drop-in for when I have approval. Designing for "I can't actually run
+this part yet" was a weirdly mature constraint to work around.
+
+### 5. The small stuff that still ate hours
+
+- A **session cookie marked `Secure`** silently refused to send over plain
+  `http://localhost`, so login "worked" but every next request was unauthorized. Classic.
+- Two different versions of the same Redis library got pulled in and TypeScript yelled
+  about incompatible types until I pinned one.
+- I wanted **groups to contain subgroups** (a real org chart, not a flat list), which
+  meant a self-referencing tree in the database and resolving group scopes *recursively*
+  everywhere.
+- Porting the prototype's pixel-perfect inline-styled components into a real typed React
+  app without it turning into mush.
+
+## What I learned
+
+The biggest lesson wasn't technical. It was that **reading the docs before designing**
+saves you from building the wrong thing. The "no native scheduling" and "public media
+URL" facts weren't edge cases — they were load-bearing walls. If I'd coded first and read
+later, I'd have rebuilt the backend twice.
+
+The second lesson: building the boring infrastructure (a job queue, token refresh,
+encrypted storage, a REST layer with real auth) is what separates "a demo" from
+"a tool." It's not glamorous, but it's where the project grew up.
+
+## What's next
+
+- Get the platform app reviews done so I can flip off sandbox and actually post.
+- Wire up real media upload from the composer (right now it's a placeholder).
+- A "bulk assign by rule" mode for when the fleet gets big.
+- And, you know — actually use it to get my *other* projects seen. Which was the whole
+  point.
+
+If you also build things nobody sees, maybe the answer isn't another landing page. Maybe
+it's a fleet.
+
+*— Andre, still a student, now with a job queue.*
