@@ -1,0 +1,160 @@
+---
+title: "The week I accidentally taught my matrix to say 'N/A' to everything"
+description: "A week after the quality bundle, I opened my own matrix and almost every cell was N/A. Here's what I'd built into the prompts without realizing it, and how I unwound it."
+date: "2026-06-22"
+author: Andre
+tags: [notemd, llm, prompting, gemma, matrix]
+---
+
+Yesterday I wrote about making the matrix not stutter. Before that (I did not write a blog post about that) I was working on adding a verbatim-quote validator, calibrating confidence, the whole "make Gemma stop hallucinating" stack. (Planned for note.md version 1.3.3)
+
+I felt pretty good about it.
+
+Then I opened my thesis folder, hit *Run*, came back ten minutes later, and saw a wall of `N/A`.
+
+Not "some cells are N/A". Almost **every** cell was N/A. The papers I'd been reading for weeks — the ones I could practically recite the methodology of — were apparently telling Gemma nothing. Even the cells that had been *fine* before the quality bundle came back blank.
+
+This is the story of how I figured out I'd written four sentences across three prompts that all conspired to make Gemma abstain.
+
+## "I tested this"
+
+The first thing you do when something breaks is bargain. "I tested this on a small folder. It worked." Yes, I did. And it did work — for the kind of cell I had on a small folder, which is to say, cells where Gemma could find a clean verbatim quote.
+
+The papers I tested on were short, clean PDF preprints with nice prose abstracts. The thesis-folder papers? Older scans, dense methodology sections, multi-column layouts. The text the OCR pulled out was lumpier. Sentences were split mid-line. Numbers had odd spacing. The kind of thing where "find a letter-for-letter quote in the retrieved chunks" goes from "trivial" to "unexpectedly hard".
+
+I hadn't tested for that. So I shipped a thing that worked on the easy half of my data.
+
+That part is on me. Onto the actual bug.
+
+## The fundamental confusion
+
+Here's what I'd built. After the matrix model extracts a cell, the engine validates the supporting quote — checks whether the model's `source_quote` actually appears in one of the retrieved chunks. If yes: confidence `exact`. If close (whitespace-normalized): `supported`. If no: `weak`.
+
+That's the design. **The value should survive a quote-validation failure.** The user just sees a dimmer cell and a small "?" badge meaning "extracted, but I couldn't fully back this up."
+
+Except — and this is the part that took me embarrassingly long to see — **my prompts were telling Gemma the exact opposite**. They were telling the model that *the lack of a clean quote was itself a reason to return N/A*.
+
+Once I sat down to read my own prompts with fresh eyes, I found this in the system prompt:
+
+```
+- "source_quote" MUST be copied letter-for-letter from the excerpts.
+  Do not paraphrase. If you cannot find a supporting verbatim quote,
+  return value="N/A", source_quote="", confidence=0.
+```
+
+And this in the user prompt's last line:
+
+```
+Be conservative — if the paper does not clearly state the answer,
+set "value" to "N/A", "source_quote" to "", and "confidence" to 0.
+```
+
+And this in the **retry** prompt — the one that fires when the quote doesn't validate:
+
+```
+Your previous attempt's quote does NOT appear in the excerpts.
+Either copy a quote letter-for-letter from one of the excerpts above,
+or return value="N/A" with source_quote="" and confidence=0.
+```
+
+And then, the cherry on top, in the few-shot examples I'd added to calibrate abstention, I had this:
+
+```
+Worked example B (negative — no usable evidence):
+Column: Theoretical Framework
+Excerpt 1 (p.2): "We surveyed 200 nurses to measure burnout
+                  using a 6-item Likert scale."
+Output: {"value":"N/A", "source_quote":"", "confidence":0}
+```
+
+Read that example again. The excerpt is about a study that *measures* something with a Likert scale — that's a methodology fragment. It's not even clearly absent of a theoretical framework; it just doesn't mention one in this *one* excerpt. So the example I gave the model for "no usable evidence" was really an example of "uncertain whether the topic is here".
+
+Four sentences. Four reinforcing nudges. Every one of them pushed Gemma toward `N/A` whenever the quote was even slightly imperfect.
+
+## The mental model I'd missed
+
+When I wrote the prompts, I was thinking like a programmer:
+
+> If the supporting quote fails validation, we can't trust the cell — so the cleanest thing is to return N/A.
+
+But the model isn't a function. It's not "validate first, then return". The model reads my prompt and *internalizes the rule before answering*. Telling it "if you can't quote, return N/A" doesn't mean *try first, then fall back* — it means *whenever you suspect you'll have quote trouble, just return N/A and save yourself the effort*.
+
+Gemma 4, especially the smaller variants I was testing on, is **really** good at taking that hint. It's trained to be careful. Conservative. It hears "if uncertain, abstain" and it abstains. The model wasn't malfunctioning. It was doing exactly what my prompt asked of it.
+
+The real bug was that I'd conflated two completely different concerns:
+
+1. **Did the source talk about this topic?** ("N/A" is the right answer when no.)
+2. **Can I produce a perfectly-formatted quote backing my value?** ("Sometimes no, even when the topic was clearly discussed.")
+
+I had wired them together. They had to be separated.
+
+## The fix
+
+I rewrote four things, in roughly increasing order of how much they were each contributing to the spiral.
+
+**1. Lowered the quote-length threshold from 12 to 8 chars.** The validator was rejecting things like `"n = 423"` and `"p < 0.001"` and `"RCT"` as "too short to be evidence", which were exactly the cases where a researcher *would* want them as evidence. Easy fix.
+
+**2. Rewrote the retry prompt to not mention N/A at all.** The new version asks the model to find a better quote, full stop. If it still can't, we accept the value with `weak` confidence rather than discarding it. Plus a safety net in the engine: if the retry somehow collapses to N/A anyway, I now *ignore the retry* and keep the first attempt's value:
+
+```swift
+if Self.isNotApplicable(retryDecoded.value),
+   !Self.isNotApplicable(decoded.value) {
+    // Retry collapsed to N/A despite our instructions —
+    // ignore the retry; keep the original value with weak confidence.
+} else {
+    decoded = retryDecoded
+    matchQuality = Self.quoteMatchQuality(retryDecoded.sourceQuote, in: chunks)
+}
+```
+
+**3. Reframed few-shot example B and added a new example C.** B is now unambiguously off-topic — the excerpts are about adverse-event tracking from a clinical trial, the column is "Theoretical Framework". Of course N/A. But the bigger change is C, which models the case I was getting wrong:
+
+```
+Worked example C (topic present but only a paraphrase fits — STILL extract):
+Column: Methodology
+Excerpt 1 (p.3): "Participants were randomly assigned to three intervention
+                  arms in a double-blind, placebo-controlled trial conducted
+                  across four hospital sites."
+Output: {"value":"Multi-site randomized controlled trial",
+         "source_quote":"Participants were randomly assigned to three
+                         intervention arms in a double-blind,
+                         placebo-controlled trial",
+         "source_page":3}
+```
+
+The value is a paraphrased synthesis. The quote is letter-for-letter. **This is the pattern.** The model can synthesize across multiple words to produce a tight value, as long as the supporting quote stays literal. I'd never given the model an example showing this, and it had been silently defaulting to "if I have to synthesize, I'm uncertain, so I should N/A."
+
+**4. Replaced the conservatism instruction.** The new wording is the most surgical:
+
+```
+Return JSON matching the provided schema. Extract your best answer from
+the excerpts above. Use value="N/A" only if the excerpts do not discuss
+this column's topic at all — not because you're unsure how to phrase the
+answer.
+```
+
+That last clause — "not because you're unsure how to phrase the answer" — is doing more work than it looks. It's calling out the specific failure mode I'd been creating, and telling the model directly: that's not what abstention is for.
+
+## Engine version bump
+
+The matrix uses a per-cell `extractedPromptHash` that folds in the prompt + the column metadata + an `engineVersion` constant. When the constant bumps, every cell's stored hash becomes stale, and the next *Run* will re-extract everything (except cells the user has manually edited).
+
+I bumped from `engineVersion = 2` to `3`. The next time I open my thesis matrix and hit Run, every cell that came back as a spurious N/A will get a second chance.
+
+That's the unexpected gift of having that mechanism in place — I can ship a prompt fix and have it apply to existing data, without needing the user to remember to "clear and re-extract". Past-Andre apparently knew what he was doing when he wired that up. Past-Andre was also the one writing the bad prompts, but you take what you can get.
+
+## What I'm taking away
+
+LLM prompts have *unintended consequences* the same way Swift has *retain cycles* — they look fine in isolation, they pass your tests, and they show up the moment you try to use the thing for real. There are entire failure modes you can't see by reading a prompt; you have to read it and ask "what's the path of least resistance for the model here?".
+
+In this case, the path of least resistance was N/A. Every prompt rule I'd written, when the model felt any uncertainty about quoting, pointed the same direction. The model is allowed to take the easy out when you offer it one — and I'd offered it four.
+
+The fix isn't to be less strict. It's to be **more precise about what strictness is for**.
+
+- *Strictness about the quote* — yes, keep it. Verbatim is the goal.
+- *Strictness as a reason to abstain on the value* — no, that was the bug.
+
+Two distinct concerns, separate prompts, separate failure modes.
+
+I'm not going to claim this is the last time I'll do something like this. But maybe next time I'll catch it earlier on.
+

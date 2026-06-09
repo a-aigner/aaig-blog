@@ -1,0 +1,259 @@
+---
+title: "Making the literature-review matrix not freeze my Mac"
+description: "Five small perf fixes that turned a stuttering 15-minute extraction into something I can actually leave running. Plus the one architectural thing I'm still scared to touch."
+date: "2026-06-9"
+author: Andre
+tags: [notemd, performance, swiftui, matrix, gemma]
+---
+
+So in notemd I have this feature called the **literature-review matrix**. The idea is the one you'd recognize from a real lit review: rows are papers, columns are dimensions ("Sample size", "Methodology", "Theoretical framework", "Limitations" — that kind of thing), and each cell is what that paper says about that dimension. Normally a grad student fills this in by hand. In notemd, you click a button and the local Gemma model walks every (paper, dimension) pair and fills the cells for you.
+
+I built the first version, ran it on a folder of seven test PDFs against five columns, and it… worked. Cells filled in over a few minutes. Felt magical. I shipped it.
+
+Then I imported the actual folder I'd been collecting for my thesis (~30 papers), gave it 7 columns, hit *Run*, and watched the UI gradually stutter into a slideshow as cells streamed in. Around cell 50, scrolling felt like dragging a pebble through tar.
+
+That's the moment when you realize you wrote your feature in the playground, not the wild.
+
+This post is what I did about it.
+
+## What the matrix actually does, briefly
+
+When you hit *Run*, the view-model walks every (column × source) pair that's empty or stale. For each one:
+
+1. Use the column's *retrieval seed* to pull ~15 ranked chunks from that source's semantic index. Roughly 300ms.
+2. Send those chunks plus the column instruction to Gemma. Roughly 3–5 seconds on a M2 air.
+3. Validate the model's quote against the chunks, decode the JSON, write the cell.
+
+For a 30×7 matrix that's 210 cells. Even if everything ran at the theoretical minimum, that's `210 × 3s = 10.5 minutes` of LLM time alone. Reality was closer to 15.
+
+But the runtime wasn't the headline problem. The UI **felt** broken way before the loop finished — the grid jittered on every cell update, the scroll wheel didn't respond mid-extraction, and switching folders mid-run sometimes locked up for a beat. That's the part I had to fix.
+
+## I ran a perf audit on my own code using a claude audit skill, which is a humbling experience
+
+It wrote up a list of suspicions and went looking. I'll spare you the full audit and just walk through the five fixes that ended up mattering, in the order I shipped them.
+
+## 1. The O(N²M²) lookup that I didn't realize I'd written
+
+`MatrixDocument` stored cells as a `[MatrixCell]` array. To look up a specific cell, I had this:
+
+```swift
+func cell(sourceID: UUID, columnID: UUID) -> MatrixCell? {
+    cells.first(where: { $0.sourceID == sourceID && $0.columnID == columnID })
+}
+```
+
+Looks innocent! Except SwiftUI calls this **once per cell per render**. So for a 30×7 grid with 210 stored cells:
+
+- 210 cells visible on screen
+- Each call scans the whole array → 210 comparisons
+- Total per refresh: 210 × 210 = **44,000 array comparisons**
+
+Now multiply by the 200 refreshes that happen during one extraction run (every cell update triggers a re-render — see fix #2). That's **~9 million comparisons on the main thread per extraction**, all for a lookup that should be O(1).
+
+The fix is the one your Algorithms-1 textbook tells you to use: keep a dictionary alongside the array. I added a transient `cellIndex: [String: Int]` keyed by `"sourceID#columnID"`:
+
+```swift
+private var cellIndex: [String: Int]
+
+mutating func upsertCell(_ cell: MatrixCell) {
+    let key = Self.indexKey(...)
+    if let idx = cellIndex[key] {
+        cells[idx] = cell        // O(1) replace
+    } else {
+        cells.append(cell)
+        cellIndex[key] = cells.count - 1
+    }
+}
+```
+
+The trickiest bit was making `cells` `private(set)` so external code couldn't bypass the index and leave it stale. That meant rewriting a handful of call sites in the view-model to go through new helpers (`upsertCell`, `mutateCell`, `removeCells(where:)`). Codable encodes only the array — the index is rebuilt on decode.
+
+This was the biggest single perf bump in the bundle. The grid stopped getting more sluggish as cells filled in, which had been the most visible bug.
+
+## 2. Writing a JSON file on every cell completion was, in retrospect, a bad idea
+
+Original code in the extraction loop:
+
+```swift
+mergeExtractedCell(updated)
+try? saveCurrent()   // synchronous JSON encode + atomic write
+```
+
+`saveCurrent` was a synchronous `JSONEncoder().encode(...)` (with `.prettyPrinted` and `.sortedKeys`, because I'm a fool who likes readable diffs) followed by `Data.write(to: url, options: .atomic)`. The encoded JSON grows as cells fill, so by the end of a run each save is encoding the entire matrix. 200 saves × growing payload, all on the main actor.
+
+Two changes:
+
+**a) Cached encoder/decoder.** Constructing a `JSONEncoder` is non-trivial — there's some boxing setup behind the scenes. With 200+ saves per run, doing this each time was measurable. Now they're `static let` on the storage service.
+
+**b) Dropped `.prettyPrinted` and `.sortedKeys`.** These were maybe 3–5× slower than compact output. I told myself the on-disk readability mattered for debugging. It really didn't.
+
+**c) Debounced the write.** A new `scheduleSave()` on the view-model enqueues a `Task.detached(priority: .utility)` that sleeps 400ms and then writes. Successive calls cancel the prior task. So 200 cell completions in five minutes coalesce into roughly one disk write per ~400ms instead of 200 main-thread writes back-to-back:
+
+```swift
+private func scheduleSave() {
+    pendingSaveTask?.cancel()
+    guard let snapshot = document else { return }
+    let projectRef = project
+    let task = Task.detached(priority: .utility) { [weak self] in
+        try? await Task.sleep(nanoseconds: UInt64(Self.saveDebounceMS) * 1_000_000)
+        guard !Task.isCancelled else { return }
+        try? MatrixStorageService.shared.saveMatrix(snapshot, in: projectRef)
+        // ...
+    }
+    pendingSaveTask = task
+}
+```
+
+There's also a `flushSave()` for graceful teardown — I call it when the user switches folders, so the last debounced write doesn't get lost. (`deinit` cancels the task too, but you can't `await` across an actor boundary in `deinit`, so it's belt-and-suspenders.)
+
+After this, the main thread stayed responsive during streaming. That was probably the moment the feature stopped feeling broken.
+
+## 3. The CPU was twiddling its thumbs while the GPU was working
+
+This one I'm a little proud of.
+
+On local Gemma, each cell's pipeline goes:
+
+```
+fetch chunks (~300ms, CPU)  →  LLM inference (~4000ms, GPU)
+```
+
+These hit completely different hardware. But the old loop ran them in series:
+
+```
+[fetch][LLM ][fetch][LLM ][fetch][LLM ]...
+```
+
+Which means for every cell, the GPU was idle for ~300ms while the CPU embedded the query, and the CPU was idle for ~4000ms while the GPU did inference. Across 210 cells, that's about a minute of pure overlap I was giving away.
+
+The fix is the classic two-stage pipeline: while the LLM works on cell N, prefetch chunks for cell N+1.
+
+```swift
+var pendingPrefetch: Task<[Chunk], Never>?
+// Kick off the first cell's prefetch immediately.
+pendingPrefetch = Task {
+    await engine.fetchChunks(for: work[0].column, source: work[0].source, project: project)
+}
+
+for index in work.indices {
+    let chunks = await pendingPrefetch?.value ?? []
+
+    // Start the NEXT prefetch BEFORE the current LLM call.
+    if let next = work[safe: index + 1] {
+        pendingPrefetch = Task {
+            await engine.fetchChunks(for: next.column, source: next.source, project: project)
+        }
+    } else {
+        pendingPrefetch = nil
+    }
+
+    // Now do the LLM call. The prefetch runs in parallel on a different thread.
+    await runSingleExtraction(cell: cell, ..., prefetchedChunks: chunks)
+}
+```
+
+The schedule becomes:
+
+```
+[fetch[0]]
+        [LLM[0] | fetch[1]]
+                [LLM[1] | fetch[2]]
+                        [LLM[2] | fetch[3]]
+                                ...
+```
+
+Each cell's retrieval now hides behind the previous cell's inference. End-to-end I saved about 60 seconds per 210-cell run.
+
+It's not a huge absolute win — Gemma is still the bottleneck — but the loop structure became *cleaner*. Before, the code mixed "do search" and "do LLM" in one function. Now they're separated, which let me also resolve provider + model id *once* at the start of the run instead of per cell (was a ~10ms filesystem walk each time, so another 2 seconds saved across the run).
+
+## 4. The header was burning SHA-256 every time anything changed
+
+In the toolbar I had:
+
+```swift
+let extractDisabled = viewModel.cellsNeedingExtraction().isEmpty || !hasInstalledModel
+```
+
+That `cellsNeedingExtraction()` walks every (column × source) pair, calls `MatrixStorageService.promptHash(forColumn:)` per column (which is a SHA-256), and compares hashes to find stale cells. Cheap-ish in isolation. **Catastrophic** when the workspace body re-renders on every cell update — meaning during extraction this was happening ~200 times in five minutes, each time recomputing the same hashes.
+
+Fix: turn `pendingWorkCount` into a `@Published var` updated only when something actually changes. Cache the per-column SHA-256s in a dictionary keyed by column id; invalidate on column edit.
+
+```swift
+@Published private(set) var pendingWorkCount: Int = 0
+private var columnPromptHashCache: [UUID: String] = [:]
+
+private func recomputePendingWorkCount() {
+    // ... walks once, uses cached hashes, writes one Int.
+}
+```
+
+The header now just reads `viewModel.pendingWorkCount == 0`. No work per render.
+
+## 5. Rows off-screen were being built for no reason
+
+The grid was:
+
+```swift
+ScrollView {
+    VStack {
+        headerRow(...)
+        ForEach(viewModel.sources, id: \.objectID) { source in
+            dataRow(...)
+        }
+    }
+}
+```
+
+`VStack` builds everything up front. If you have 100 papers, all 100 row views exist in memory even though only 6 are on-screen. And combined with the publish storm in #2, those 100 rows were re-evaluated on every cell update.
+
+`LazyVStack` is the obvious answer, but I wanted the column header to stay pinned at the top while you scroll. Turns out `LazyVStack` supports that via `pinnedViews: [.sectionHeaders]`:
+
+```swift
+LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+    Section {
+        ForEach(viewModel.sources, id: \.id) { source in
+            dataRow(...)
+        }
+    } header: {
+        headerRow(...)
+            .background(Theme.card)
+    }
+}
+```
+
+Two bonus wins:
+
+- I also switched `id: \.objectID` to `id: \.id` (the UUID), because the audit pointed out that Core Data refreshes of a `KnowledgeSource` were re-identifying rows and remounting cell views even when nothing visible had changed.
+- Off-screen rows now don't materialize until you scroll near them.
+
+## What I left for next session, and why I'm a little nervous about it
+
+There's one big architectural fix I deliberately deferred.
+
+The workspace view holds the matrix view-model behind a wrapper class (`MatrixViewModelHolder`) that subscribes to the view-model's `objectWillChange` and forwards it to its own. This means every `@Published var` change in the view-model invalidates the entire workspace body — header, grid, sheets, everything. That's the cardinal SwiftUI anti-pattern (high-frequency publisher at the parent level), and it's why even after all the fixes above, I'm pretty sure I'm still doing more work per cell update than I need to.
+
+The right fix is to extract a `MatrixRowView: View, Equatable` per source — pass in only that row's cells and states as immutable values, and SwiftUI's diff will skip rebuilding rows whose inputs didn't change. Combined with removing the holder forwarding, only the row whose cell just landed would re-render.
+
+But that's a ~500-line restructure across a 1000-line file. State propagation, sheet bindings, the cell detail context, the file exporter — they all live on the workspace view and have to be untangled. I want to do that with a clear head, probably in a week where I have a proper afternoon.
+
+Plus the bundle above already removed the *felt* badness. Cells stream in, the grid stays smooth, the header doesn't lock up. The architectural refactor is for the day I have 1000+ papers in a single folder and want it to still feel snappy.
+
+## Total damage
+
+For my actual thesis folder (30 papers × 7 columns = 210 cells):
+
+| Phase                            | Before  | After |
+|----------------------------------|---------|-------|
+| Wall-clock extraction            | ~15 min | ~14 min |
+| Hitches during streaming         | yes, ~200 of them | none I can feel |
+| Per-cell lookup cost             | O(N²M²) growing | O(1) |
+| Per-cell model resolution        | per cell | once per run |
+| Grid scroll at 100+ sources      | builds all rows up front | lazy |
+| Header reaction to a cell update | walks the queue + N SHA-256s | reads one `Int` |
+
+The total runtime barely budges because Gemma is the bottleneck no matter what I do at the UI layer. The win is in the *feel* — the matrix went from "click Run and don't touch the laptop for fifteen minutes" to "click Run and keep reading."
+
+Which is honestly the only metric I care about as a user.
+
+Until next week —  
+*Andre*
