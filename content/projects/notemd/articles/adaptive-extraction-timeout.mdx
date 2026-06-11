@@ -35,9 +35,10 @@ I built it. It did not work. And the reason is the most useful thing I learned a
 
 I went and read the actual extractor logs from a run that *succeeded* — a 794-page book — and the timeline looked like this:
 
-```
+```bash
 09:34:51  using native ONNX CLI
-09:37:41  native ONNX CLI stdout: manifest.json   ← ~2m50s of TOTAL SILENCE, then done
+09:37:41  native ONNX CLI stdout: manifest.json   
+ ~2m50s of TOTAL SILENCE, then done
 ```
 
 The native extractor doesn't stream progress. It runs as one silent batch and prints exactly one thing — the result — at the very end. So "time since last output" is identical to "total time." My inactivity watchdog was just a total timeout with extra steps. It killed the 56 MB file at the same 5-minute mark, because there was no activity to reset against.
