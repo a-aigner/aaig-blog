@@ -8,4 +8,17 @@ export const mdxComponents: MDXComponents = {
   a: (props) => <a className="underline underline-offset-2 hover:opacity-70" {...props} />,
   pre: (props) => <pre className="mt-4 overflow-x-auto rounded-card-sm bg-[#0a0a0a] p-4 text-sm text-[#e6edf3]" {...props} />,
   code: (props) => <code className="rounded bg-[rgb(10_10_10/0.06)] px-1 py-0.5 text-sm" {...props} />,
+  img: (props) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img className="mt-6 w-full rounded-card-sm border hairline" loading="lazy" {...props} />
+  ),
+  Figure: ({ src, alt, caption }: { src: string; alt?: string; caption?: string }) => (
+    <figure className="mt-6">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={alt ?? caption ?? ""} loading="lazy" className="w-full rounded-card-sm border hairline" />
+      {caption ? (
+        <figcaption className="mt-2 text-center text-sm text-secondary">{caption}</figcaption>
+      ) : null}
+    </figure>
+  ),
 };

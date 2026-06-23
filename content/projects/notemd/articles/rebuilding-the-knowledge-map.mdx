@@ -59,11 +59,23 @@ None of those is catchable by a unit test that asserts node counts. They only sh
 
 While I was in there I also found that the rotation gestures didn't respond at all. Turns out `NSGestureRecognizer`s attached to an `SCNView` hosted inside SwiftUI just don't receive events the way the old `NSScrollView` did. Switching to plain `NSResponder` overrides (`mouseDown`/`mouseDragged`/`scrollWheel`) — the way the old graph already worked — fixed it instantly.
 
+<Figure
+  src="/screenshots/knowledge-map/01-blue-prototype.png"
+  alt="An early force-directed graph rendered in blue, with an inspector panel showing 70 articles, 15 folders and 479 wikilinks."
+  caption="The first prototype that actually rendered — a flat, still-blue force-directed cloud, before the monochrome colorway and the move to a globe."
+/>
+
 ## A cloud hides its own nodes
 
 Once it rendered and rotated, a deeper problem showed up, and it's the one I find most interesting.
 
 A force-directed graph fills a *volume*. Which means a chunk of your nodes are buried in the middle, behind other nodes, unreachable no matter how you orbit. You can see the hairball; you can't *touch* most of it.
+
+<Figure
+  src="/screenshots/knowledge-map/02-3d-flat-links.png"
+  alt="A monochrome 3D graph of large grey node spheres scattered through space, with thin connecting lines lying flat on a single plane."
+  caption="The intermediate 3D version, and the bug that nagged at me most: the nodes floated in a real volume, but the links were still being drawn flat on one plane — so the connections never lined up with the spheres they were meant to join."
+/>
 
 The fix is almost silly once you see it: put the nodes on the **surface of a sphere** instead of inside one. A hollow globe has no interior, so nothing is ever buried — the front hemisphere is always directly hoverable, and you spin the globe to bring the back around.
 
@@ -96,3 +108,9 @@ First: **don't build a visualization on a data model you're about to change.** T
 Second, and this is the one that actually stung: **green tests are not a working feature.** I had beautiful coverage of the part of the graph that computes *what to draw*, and zero coverage of the part that decides *whether you can see it*. Three independent bugs sailed straight through, and the only thing that caught them was the dumb, irreplaceable act of opening the app and looking at it.
 
 The Knowledge Map is a globe now. It spins, it clusters, you can reach every node, and it draws the hierarchy and the links and the sources the way they actually exist on disk. It took a detour through a sunburst and a blank screen to get there — but it finally shows the vault I have, instead of the one I used to have.
+
+<Figure
+  src="/screenshots/knowledge-map/03-final-globe.png"
+  alt="The finished Knowledge Map: a monochrome globe of nodes clustered into regions, with labels on the focused nodes and an inspector showing a selected article's links and backlinks."
+  caption="Where it landed, shipping in notemd 1.4.0 — a monochrome globe with related notes clustered into continents, labels that appear on focus, and links drawn as shallow great-circle arcs that hug the surface."
+/>
