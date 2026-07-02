@@ -1,0 +1,91 @@
+---
+title: "Cutting a montage to the beat, in the browser"
+summary: "The cuts fire on the actual hits in your audio, detected client-side with the Web Audio API. A sensitivity slider tunes how busy the montage gets and a waveform shows exactly where the cuts land — but only after I caught that my first detector made the slider do nothing."
+date: "2026-07-01"
+tags: ["web-audio", "dsp", "onset-detection", "remotion"]
+---
+
+## The job
+
+A match-cut video is only as good as its timing. If the cuts drift off the beat,
+the whole thing feels cheap. So the core problem in OpenLogomotion isn't the
+rendering — Remotion handles that — it's deciding **when to cut** from an arbitrary
+audio file the user drops in.
+
+I wanted this to run entirely in the browser (no upload, no server-side audio),
+and I wanted it to be fully deterministic so the preview and the export cut
+identically. That shape fell out naturally: analyze the audio once in the editor,
+produce a list of cut times, store that list, and let the composition read it.
+
+## Getting from audio to cut times
+
+The Web Audio API does the heavy lifting. `decodeAudioData` gives you raw PCM
+samples; I mix them to mono and run a small onset detector over them:
+
+1. Chop the signal into short hops and take the RMS energy of each.
+2. Take the positive frame-to-frame difference — the "onset detection function".
+   Energy jumping up is a transient; energy falling off isn't.
+3. Pick the peaks of that function as onsets, convert hop indices to seconds.
+
+Those onset times become the cut times. A **cut-density** control can subdivide
+them for a busier montage, and the whole list is stored in the project config, so
+the render reads the exact same times the preview used. Deterministic, and no audio
+ever leaves the machine.
+
+## The bug that hid behind a working-looking feature
+
+After onset detection worked, I added a **sensitivity slider** so you could get
+more or fewer cuts out of a given track. It was wired up correctly, the label
+moved, the state updated — and it did *nothing* to the cut count.
+
+I nearly shipped it. The slider looked functional, and on my first test clip the
+count genuinely was the same at every setting, which I lazily read as "close
+enough." Then I actually verified it instead of assuming: I drove the running app
+with a headless browser and, separately, ran the detector on synthetic signals in
+a test. Both said the same thing. On sharp clicks over silence the detector found
+*every* hit at *any* sensitivity; on a smooth, swelling tone it found *none* at any
+sensitivity. The knob had almost no range.
+
+The cause was my threshold. I was comparing each peak against a **local average**
+of the onset function times the sensitivity. That's a common trick, but it's
+nearly scale-invariant: a clear hit blows past the average no matter what you
+multiply it by, and a gentle swell never gets there. The sensitivity number was
+real, but the thing it multiplied barely mattered.
+
+## The fix: threshold relative to the loudest hit
+
+I changed the threshold to be a fraction of the **strongest** onset in the clip,
+with a small absolute floor to reject silence:
+
+```ts
+const maxOdf = Math.max(...onsetFunction);
+if (maxOdf < FLOOR) return [];              // effectively silent → no cuts
+const minPeak = Math.max(FLOOR, threshold * maxOdf);
+// keep every local-max peak >= minPeak
+```
+
+Now the slider means something concrete: "keep peaks down to this fraction of the
+biggest hit." Low threshold keeps the quiet transients too (more cuts); high
+threshold keeps only the loud ones (fewer). On a clip with mixed strong and weak
+hits it now walks smoothly from ~15 cuts down to ~7 as you drag it — which is
+exactly the control I thought I'd shipped the first time.
+
+## Showing the user what's happening
+
+The last piece was making this legible. Onset detection is fuzzy and audio is
+invisible, so a slider labeled "sensitivity" is a bit of a black box. Under the
+audio controls I draw the **waveform** of the selected track on a canvas and
+overlay a vertical marker at every cut time. Move the slider and you watch markers
+appear and disappear on the actual peaks of the audio. It turned a guess-and-check
+control into something you can read at a glance.
+
+## What I'd still call rough
+
+It's an energy-based detector, not a trained beat tracker. It's good on percussive,
+transient-heavy audio and weaker on smooth or heavily compressed tracks — which the
+waveform at least makes obvious, since you can see when a track just doesn't have
+many onsets to cut on. For a free, local, in-browser tool I'm happy with that
+trade: no model to download, no server, and cuts you can see landing on the beat.
+
+Code's on [GitHub](https://github.com/a-aigner/openlogomotion) if you want to see
+the detector.

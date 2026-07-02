@@ -1,0 +1,45 @@
+---
+title: "OpenLogomotion"
+summary: "A free, local recreation of the paid 'logo match-cut' video format — your logo held in the center while background frames cut to the beat of your own audio, exported as an MP4 with no account and no watermark."
+gradient: "rose"
+stack: ["Next.js", "Remotion", "React", "TypeScript", "Web Audio API"]
+links:
+  github: "https://github.com/a-aigner/openlogomotion"
+featured: true
+order: 5
+---
+
+I kept seeing those fast-cutting logo videos — the ones where a logo snaps
+through a dozen backgrounds on the beat — and I genuinely love how they turn out.
+But every online tool that makes them does the same thing: you build the whole
+video, it looks great in the preview, and then a decent export sits behind a
+subscription. There's never a free option that gives you a quality file.
+
+I was deep in exam prep and wanted a small side project to keep my hands busy, so
+I rebuilt the format myself and gave it away. OpenLogomotion is the result.
+
+## What it is
+
+You upload a logo, arrange a few background frames, point it at some audio, and it
+exports a vertical match-cut video. The logo stays fixed in the center; the frames
+cut behind it on the beat; the whole thing loops to fill the export. Frames can be
+solid colors, palette bands, or your own images, and you can end the video on a
+held "end card" for a call to action.
+
+Everything runs locally. Your audio is analyzed in the browser and embedded in the
+export — nothing is uploaded, there's no account, and there's no watermark.
+
+## How I think about it
+
+- **Free where it matters.** The paywall on these tools is always the export. So
+  the export is the thing I made sure was free and unrestricted.
+- **Preview is the export.** The live preview and the rendered MP4 run the *same*
+  Remotion composition, driven by the same data. What you see is exactly what you
+  download — no surprises at render time.
+- **Local by default.** Onset detection and rendering happen on your machine. The
+  only network call is a one-time headless-Chromium download the first time you
+  export.
+
+The two articles below are about building it: why I rebuilt a paid format as a
+free local tool, and how the cuts actually land on the beat — including the part
+where I had to throw out my first beat detector because it didn't work.
