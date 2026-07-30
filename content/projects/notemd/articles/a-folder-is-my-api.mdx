@@ -1,0 +1,171 @@
+---
+title: "A folder is my API: giving an AI agent write access to a sandboxed Mac app"
+description: "The vault half was easy — Claude edits .md files on disk. The sources half wasn't: they live in Core Data, and a second writer corrupts everything. So I gave the agent a real API made of nothing but a shared folder of JSON, and let live testing find the two bugs the design was hiding."
+date: "2026-07-17"
+author: Andre
+tags: [notemd, cli, mcp, appgroup, coredata, claude, architecture]
+---
+
+A few weeks ago I [let Claude write into my vault](letting-claude-write-my-vault) — the articles half of notemd, where every note is a plain `.md` file on disk. That one turned out to need three layers of sync work, but the *interface* was free: Claude has a filesystem connector, the notes are files, done.
+
+This post is about the other half, and it did not get to be that lazy.
+
+notemd has two kinds of content. Articles are the disk-mirrored half. **Knowledge sources** — the PDFs, web links, datasets, the citation metadata, the extracted text, the page anchors — are the Core Data half. They're not files you can hand an agent. They're managed objects behind a sandbox, a merge pipeline, and an extraction engine. And I wanted the same thing for them that I'd gotten for articles: point Claude at notemd and say "tag every source about caching, pull the references out of that paper as text, delete the duplicate," and have it actually happen.
+
+The whole design turns on one question I couldn't wave away: **who is allowed to write?**
+
+## The shape of it
+
+<svg viewBox="0 0 960 560" width="100%" role="img" aria-label="Architecture: an agent drives notemd-cli, which talks to the sandboxed notemd app through a shared App Group folder acting as a command queue and read-model store" fontFamily="-apple-system, Segoe UI, Roboto, sans-serif">
+  <defs>
+    <marker id="arrBlue" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#0969da" /></marker>
+    <marker id="arrGreen" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1a7f37" /></marker>
+    <marker id="arrGray" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#6e7781" /></marker>
+  </defs>
+  <text x="130" y="26" textAnchor="middle" fontSize="13" fontWeight="700" fill="#1f2328">Agent side (no sandbox)</text>
+  <text x="470" y="26" textAnchor="middle" fontSize="13" fontWeight="700" fill="#9a6700">App Group container — the shared plane</text>
+  <text x="810" y="26" textAnchor="middle" fontSize="13" fontWeight="700" fill="#0969da">notemd.app (sandboxed)</text>
+  <rect x="30" y="44" width="200" height="40" rx="8" fill="#eaeef2" stroke="#57606a" />
+  <text x="130" y="69" textAnchor="middle" fontSize="13" fill="#1f2328">Claude (MCP host)</text>
+  <rect x="20" y="104" width="220" height="176" rx="10" fill="#dafbe1" stroke="#1a7f37" />
+  <text x="130" y="126" textAnchor="middle" fontSize="12" fontWeight="700" fill="#1a7f37">notemd-cli</text>
+  <rect x="34" y="138" width="192" height="52" rx="7" fill="#ffffff" stroke="#1a7f37" />
+  <text x="130" y="158" textAnchor="middle" fontSize="11.5" fill="#1f2328">Read tools</text>
+  <text x="130" y="176" textAnchor="middle" fontSize="10" fill="#57606a">search · graph · get_source_text · bibtex</text>
+  <rect x="34" y="200" width="192" height="66" rx="7" fill="#ffffff" stroke="#0969da" />
+  <text x="130" y="220" textAnchor="middle" fontSize="11.5" fill="#1f2328">Write tools → CommandClient</text>
+  <text x="130" y="238" textAnchor="middle" fontSize="10" fill="#57606a">12 ops: tags · metadata · refs</text>
+  <text x="130" y="252" textAnchor="middle" fontSize="10" fill="#57606a">move · PDF · folders · anchors · delete</text>
+  <rect x="352" y="44" width="236" height="492" rx="10" fill="#fff8c5" stroke="#9a6700" />
+  <rect x="368" y="60" width="204" height="36" rx="6" fill="#ffffff" stroke="#9a6700" />
+  <text x="470" y="82" textAnchor="middle" fontSize="11" fill="#1f2328">heartbeat.json</text>
+  <rect x="368" y="108" width="204" height="44" rx="6" fill="#ffffff" stroke="#9a6700" />
+  <text x="470" y="128" textAnchor="middle" fontSize="11" fill="#1f2328">read-models/&lt;proj&gt;/</text>
+  <text x="470" y="143" textAnchor="middle" fontSize="11" fill="#1f2328">sources.json</text>
+  <rect x="368" y="200" width="204" height="34" rx="6" fill="#ffffff" stroke="#9a6700" />
+  <text x="470" y="222" textAnchor="middle" fontSize="11" fill="#1f2328">commands/inbox/</text>
+  <rect x="368" y="244" width="204" height="34" rx="6" fill="#ffffff" stroke="#9a6700" />
+  <text x="470" y="266" textAnchor="middle" fontSize="11" fill="#1f2328">commands/results/</text>
+  <rect x="368" y="288" width="204" height="34" rx="6" fill="#ffffff" stroke="#9a6700" />
+  <text x="470" y="310" textAnchor="middle" fontSize="11" fill="#1f2328">commands/jobs/ (async)</text>
+  <rect x="368" y="332" width="204" height="34" rx="6" fill="#ffffff" stroke="#9a6700" />
+  <text x="470" y="354" textAnchor="middle" fontSize="11" fill="#1f2328">staging/ (PDF bytes)</text>
+  <rect x="700" y="44" width="220" height="492" rx="10" fill="#ddf4ff" stroke="#0969da" />
+  <rect x="714" y="60" width="192" height="44" rx="7" fill="#ffffff" stroke="#0969da" />
+  <text x="810" y="80" textAnchor="middle" fontSize="11.5" fill="#1f2328">AIWriteBridge</text>
+  <text x="810" y="95" textAnchor="middle" fontSize="10" fill="#57606a">heartbeat + activity assertion</text>
+  <rect x="714" y="116" width="192" height="40" rx="7" fill="#ffffff" stroke="#0969da" />
+  <text x="810" y="140" textAnchor="middle" fontSize="11.5" fill="#1f2328">AICommandInbox (1s poll)</text>
+  <rect x="714" y="168" width="192" height="56" rx="7" fill="#ffffff" stroke="#0969da" />
+  <text x="810" y="190" textAnchor="middle" fontSize="11.5" fill="#1f2328">AICommandHandler</text>
+  <text x="810" y="206" textAnchor="middle" fontSize="10" fill="#57606a">Premium gate → dispatch</text>
+  <rect x="714" y="236" width="192" height="40" rx="7" fill="#ffffff" stroke="#0969da" />
+  <text x="810" y="260" textAnchor="middle" fontSize="11.5" fill="#1f2328">SourcesReadModelWriter</text>
+  <rect x="714" y="288" width="192" height="56" rx="7" fill="#ffffff" stroke="#57606a" />
+  <text x="810" y="310" textAnchor="middle" fontSize="11.5" fill="#1f2328">Core Data + services</text>
+  <text x="810" y="326" textAnchor="middle" fontSize="10" fill="#57606a">single writer, bg context</text>
+  <line x1="714" y1="82" x2="576" y2="80" stroke="#6e7781" strokeWidth="1.6" markerEnd="url(#arrGray)" />
+  <line x1="368" y1="80" x2="243" y2="220" stroke="#6e7781" strokeWidth="1.6" strokeDasharray="5 4" markerEnd="url(#arrGray)" />
+  <line x1="230" y1="228" x2="366" y2="214" stroke="#0969da" strokeWidth="1.8" markerEnd="url(#arrBlue)" />
+  <line x1="574" y1="214" x2="712" y2="140" stroke="#0969da" strokeWidth="1.8" markerEnd="url(#arrBlue)" />
+  <line x1="810" y1="156" x2="810" y2="166" stroke="#0969da" strokeWidth="1.8" markerEnd="url(#arrBlue)" />
+  <line x1="810" y1="224" x2="810" y2="286" stroke="#0969da" strokeWidth="1.8" markerEnd="url(#arrBlue)" />
+  <line x1="712" y1="200" x2="574" y2="258" stroke="#0969da" strokeWidth="1.8" markerEnd="url(#arrBlue)" />
+  <line x1="366" y1="260" x2="230" y2="240" stroke="#0969da" strokeWidth="1.8" markerEnd="url(#arrBlue)" />
+  <line x1="810" y1="288" x2="810" y2="278" stroke="#1a7f37" strokeWidth="1.8" markerEnd="url(#arrGreen)" />
+  <line x1="712" y1="252" x2="574" y2="140" stroke="#1a7f37" strokeWidth="1.8" markerEnd="url(#arrGreen)" />
+  <line x1="366" y1="134" x2="230" y2="162" stroke="#1a7f37" strokeWidth="1.8" markerEnd="url(#arrGreen)" />
+  <rect x="30" y="452" width="248" height="70" rx="8" fill="#ffffff" stroke="#d0d7de" />
+  <line x1="44" y1="470" x2="72" y2="470" stroke="#1a7f37" strokeWidth="2.4" markerEnd="url(#arrGreen)" />
+  <text x="82" y="474" fontSize="10.5" fill="#1f2328">read path (app-independent)</text>
+  <line x1="44" y1="490" x2="72" y2="490" stroke="#0969da" strokeWidth="2.4" markerEnd="url(#arrBlue)" />
+  <text x="82" y="494" fontSize="10.5" fill="#1f2328">write path (app-mediated)</text>
+  <line x1="44" y1="510" x2="72" y2="510" stroke="#6e7781" strokeWidth="2.4" strokeDasharray="5 4" markerEnd="url(#arrGray)" />
+  <text x="82" y="514" fontSize="10.5" fill="#1f2328">liveness / fail-fast</text>
+</svg>
+
+The one-sentence version: **reads are app-independent, writes are app-mediated, and the wire between them is a folder.**
+
+## Why there's exactly one writer
+
+I already had scars here. notemd's Core Data store is not a database you can just poke from two processes. Earlier this year I gave myself a genuinely nasty bug — [a duplicate `Article` id](letting-claude-write-my-vault) that could crash the merge and the graph — by having two contexts touch the same objects without coordinating. The vault merge only survives because it's careful to be the *single writer* reconciling disk into Core Data.
+
+So a design where the CLI reaches into the store directly was a non-starter. A headless CLI process opening the same `.sqlite`, running its own migrations, writing its own objects, while the app is open doing the same — that's the duplicate-id hazard with a bigger blast radius. The safe move is boring: **the app is the only thing that ever writes.** The CLI never mutates anything. It asks.
+
+That splits the whole surface cleanly in two, and the split is the architecture:
+
+- **Reads** don't need the app at all. The app periodically denormalizes each project's sources into a plain JSON *read-model*, and the CLI reads that plus the files on disk. You can search, walk the graph, pull source text, and export `.bib` with notemd closed.
+- **Writes** must go through the app, because the app is the writer. If it's not running, a write can't happen — and the CLI has to say so *immediately*, not hang.
+
+## The channel is just a shared folder
+
+I didn't want a socket, a port, an XPC service, or a daemon. The app is sandboxed and ships on the Mac App Store; the fewer moving parts touching entitlements, the better. What both processes *can* already share is an **App Group container** — `group.com.arsoftware.notemd`, a folder both the app and the CLI can read and write by identity, no server required.
+
+So the folder became the protocol. It's a message queue implemented in files:
+
+- `commands/inbox/<commandID>.json` — the CLI drops a write command here.
+- `commands/results/<commandID>.json` — the app writes the outcome back.
+- `commands/jobs/<jobID>.json` — for anything async (a delete that has to drain in-flight extraction first).
+- `read-models/<projectID>/sources.json` — the app's denormalized view of every source.
+- `heartbeat.json` — the app says "I'm alive" here, on a timer.
+- `staging/` — where the CLI drops PDF bytes, because a sandboxed app can't read some arbitrary path the agent names.
+
+The app side is a tiny poll loop. [`AICommandInbox`](notemd/Services/AICommandInbox.swift) wakes every second, reads each command file, hands it to [`AICommandHandler`](notemd/Services/AICommandHandler.swift), and writes the result. Idempotency is free and file-shaped: **if a result file already exists, the command already ran** — so a restart mid-drain never double-applies. A corrupt or unreadable command file gets discarded rather than poisoning the loop forever. It's a queue, but I never had to run a queue.
+
+The command envelope is deliberately generic — `{ op, projectID, args }` — so adding the eleventh or twelfth operation is not a protocol change. It's a `case` in the handler and a catalog entry in the CLI. That was the goal: **make new capabilities additive**, so "full parity" is a to-do list, not a redesign. Twelve write ops later (tags, metadata, references, move, add-PDF, folder CRUD, anchor CRUD, delete) the wire format hasn't changed once.
+
+## Fail-fast is a feature, not an error path
+
+The rule I gave myself early: *it's fine if the app has to be open for writes, but it is never fine for the CLI to hang waiting.*
+
+That's what `heartbeat.json` is for. The app's [`AIWriteBridge`](notemd/Services/AIWriteBridge.swift) writes a fresh timestamp on a timer and holds a `beginActivity` assertion so App Nap doesn't quietly suspend the whole thing in the background. Before the CLI enqueues a write, it reads the heartbeat. Stale or missing means "app isn't there," and the CLI returns a clear message instead of parking on a result file that will never appear. A write to a closed app fails in milliseconds with a sentence a human — or an agent — can act on.
+
+There's a subtle App Nap trap worth calling out, because it's exactly the kind of thing that works on your desk and dies in the field: the merge/watch machinery from the vault post gets torn down when the app backgrounds. If the *only* thing keeping writes flowing were that machinery, the bridge would go deaf the moment you ⌘-Tabbed away. So the inbox loop and the activity assertion are their own always-on thing, independent of window state.
+
+## The part I was smart enough *not* to build
+
+The nicest architectural decision on this whole project was a deletion.
+
+I had a plan drafted for an articles write-bridge — the same inbox/handler machinery, extended to notes. Then I stopped and remembered that articles are already `.md` files on disk, and Claude already has a filesystem connector, and the vault merge already adopts a plain-Markdown file and assigns it an id. An agent doesn't need my queue to create a note. It writes `# Title` and a body and some `[[wikilinks]]`, and the [watcher-and-merge](letting-claude-write-my-vault) from last month picks it up as if a human saved it in another editor.
+
+So the articles half of "full parity" cost zero code. The bridge only exists for the content that genuinely *can't* be a file. Knowing which half is which — that was the actual design work. The rest is plumbing.
+
+## What live testing found that review didn't
+
+Here's the reflective bit, and the reason I don't trust a write bridge until I've watched it delete something for real.
+
+The design reviewed clean. The unit tests were green. And then I ran the delete path end-to-end against a running app, and it **hung** — the command went into the inbox, and nothing came back. Ever.
+
+The bug was a reentrancy I'd reasoned right past. `delete_source` is async: `removePDF` has to drain in-flight extraction before it can remove the row, so it does its work on a background context via `performAndWait`. My inbox loop, trying to be helpful, immediately refreshed the read-model **on the same context the delete was still draining on**. Two `performAndWait`s converging on one context is a deadlock, and the whole inbox seized behind it. The fix was to stop being eager: synchronous ops refresh right away, async ops refresh only when their completion monitor fires, and always on a *fresh* context. Nothing in the static design said "these two will collide" — you only see it when the timing is real.
+
+Then, with the deadlock gone, a quieter one. The delete now *worked* — relaunch the app and the source was genuinely gone — but during the session the read-model kept listing it. The store said deleted; the JSON said present. That contradiction is a stale **to-many relationship cache**: I was rebuilding the read-model by walking `project.knowledgePDFs`, and Core Data hadn't invalidated that cached relationship when the row was deleted on a *different* context — even though a direct fetch of the same object by id correctly returned nil. The fix is to not trust the relationship traversal for freshness: fetch the sources directly, keyed on the inverse, so it always reads current store state.
+
+```swift
+// A to-many relationship cache can go stale when a source is deleted on a
+// different context; a direct fetch keyed on the inverse always reads current state.
+let request: NSFetchRequest<KnowledgeSource> = KnowledgeSource.fetchRequest()
+request.predicate = NSPredicate(format: "project == %@", project)
+return (try? context.fetch(request)) ?? []
+```
+
+Both bugs live in the *seams* — the boundary between the async service, the inbox loop, and the read-model writer. None of them is visible in any single file. The lesson I keep re-learning: a message-passing design moves your hardest bugs out of the functions and into the timing between them, and the only tool that finds those is running the real thing and watching.
+
+## What I deliberately left out
+
+There's no per-agent write token, and that's a decision, not an omission. The threat model is same-user, same-machine: any process that can read the App Group container can already read *and* write it, so a token in that container guards nothing a determined local process couldn't route around. The real gates are the ones that mean something — the MCP host's per-tool approval, the app's Premium check in the handler, and an `.aiignore` refusal so an agent can't exfiltrate a source you've marked off-limits. If I ever ship this to a multi-user or remote context, the token goes in. Until then it'd be security theater with a rotation UI.
+
+## Did it work?
+
+| | Approach | Status |
+|---|---|---|
+| Read sources / graph / text / `.bib` | App-independent, off the read-model + files | app can be closed |
+| Write sources (12 ops) | App-mediated queue, single writer | app must be open, fails fast if not |
+| App closed during a write | heartbeat check | clear error in ms, never hangs |
+| Notes / articles | filesystem connector + existing merge | zero bridge code |
+| Concurrency safety | one writer, ever | no duplicate-id hazard |
+| Adding an op | `case` + catalog entry | no protocol change |
+
+The end state is the thing I wanted: I can hand an agent the run of notemd — read anything with the app shut, mutate sources through a queue when it's open, edit notes as files — and the worst it can do is be told "the app isn't running." A folder turned out to be enough of an API.
+
+Until next week —
+*Andre*
