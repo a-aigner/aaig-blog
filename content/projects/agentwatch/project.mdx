@@ -1,0 +1,49 @@
+---
+title: "AgentWatch"
+summary: "A macOS menu bar app that shows what my Claude Code and Codex sessions are actually doing — live tokens, cost and quota — rebuilt from a fork into its own signed, notarised product."
+gradient: "purple"
+stack: ["Swift", "SwiftUI", "AppKit", "Sparkle", "GitHub Actions"]
+links:
+  github: "https://github.com/a-aigner/agentwatch"
+  live: "https://arsoftware.tech/agentwatch"
+featured: true
+order: 2
+---
+
+I run a lot of coding agents at once. Claude Code in a terminal, another one in
+Xcode, a Codex session somewhere behind that, and an SO-ADK pipeline fanning out
+to twenty sub-agents while I work on something else. The problem isn't starting
+them. It's that once a terminal window is buried, an agent that finished twenty
+minutes ago and an agent that's waiting for my approval look exactly the same:
+invisible.
+
+AgentWatch puts all of it in the menu bar. One icon, every running session
+behind it, and the cost adding up while I work.
+
+## What it is
+
+A row per session: project, model, how long it's been going, what it has spent.
+A coloured dot on the left carries the status, and that dot is the only colour
+in the entire app. Claude quota comes from the same OAuth endpoint the CLI
+authenticates against, so those percentages are real rather than estimated.
+Codex publishes no quota API at all, so its numbers are parsed from local
+rollout logs and labelled as estimates.
+
+It started as a fork of [so-agentbar](https://github.com/sotthang/so-agentbar)
+by sotthang, MIT licensed. The session-monitoring core underneath is largely his
+work and it's good work. What I changed is everything above it.
+
+## How I think about it
+
+- **Colour means one thing.** The interface is greyscale on purpose, so anything
+  coloured on screen is an agent that wants something from me. Status badges,
+  source icons and meters all lost their hues to make that true.
+- **Measure, don't eyeball.** Layout decisions here were made by rendering views
+  offscreen and counting pixels, because "looks about right" kept being wrong
+  after I swapped in bundled fonts with wider metrics.
+- **A fork inherits more than code.** Signing identity, update keys, feed URLs
+  and release tags all came along, all pointed at someone else, and each failed
+  differently.
+
+The article below is about the rebuild and about the release pipeline, which is
+the part I actually learned something from.
