@@ -1,6 +1,6 @@
 ---
 title: "Aeneis API Wrapper"
-summary: "The Python client Aeneis never had — built so my microservices could talk to it in clean, plain Python instead of hand-rolled HTTP."
+summary: "The Python client Aeneis never had, built so my microservices could talk to it in clean, plain Python instead of hand-rolled HTTP."
 gradient: "violet"
 stack: ["Python", "REST APIs", "OAuth2"]
 links:
@@ -9,22 +9,22 @@ featured: true
 order: 4
 ---
 
-While working at intellior GmbH — the company behind **Aeneis**, a
-business-process management platform — I was building microservices that talked
-to the Aeneis servers. The problem: there was no Python client for the Aeneis
-API. Every call meant raw HTTP, with the OAuth2 credentials and headers assembled
-by hand, one endpoint at a time.
+While working at intellior GmbH, the company behind **Aeneis**, a
+business-process management platform, I was building microservices that talked
+to the Aeneis servers. There was no Python client for the Aeneis API. Every call
+meant raw HTTP, with the OAuth2 credentials and headers assembled by hand, one
+endpoint at a time.
 
 ## Motivation
 
 Written that way, my microservices would have been a pile of near-identical HTTP
-plumbing — credentials, headers, and error handling copy-pasted around every
-endpoint, with the actual intent of the code buried underneath. I didn't want to
-ship that. So in my spare time I wrote `aen_client`: a wrapper that covers all of
+plumbing, with credentials, headers, and error handling copy-pasted around every
+endpoint and the actual intent of the code buried underneath. I didn't want to
+ship that. So in my spare time I wrote `aen_client`, a wrapper that covers all of
 the existing Aeneis endpoints, so I could write what I actually meant in plain
 Python and never drop back down to raw requests.
 
-It paid for itself almost immediately — I shipped the services far faster — and
+It paid for itself almost immediately. I shipped the services far faster, and
 later it became the clean ingestion path that fed business-process data from one
 of Germany's largest business groups into an internal AI/LLM chatbot.
 
