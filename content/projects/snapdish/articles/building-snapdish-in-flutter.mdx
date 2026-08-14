@@ -1,6 +1,6 @@
 ---
 title: "Building SnapDish: a local-only recipe app in plain Flutter"
-summary: No backend, no database, no state-management library — just Flutter fundamentals, file-based storage, and a search index built from OCR text. Here's how it's put together and why I kept it boring.
+summary: No backend, no database, no state-management library. Just Flutter fundamentals, file-based storage, and a search index built from OCR text. Here's how it's put together and why I kept it boring.
 date: "2026-05-30"
 tags: ["flutter", "mobile", "offline-first"]
 ---
@@ -8,8 +8,8 @@ tags: ["flutter", "mobile", "offline-first"]
 ## Why this exists
 
 SnapDish started as a fix for my sister's camera roll: hundreds of recipe
-screenshots she could never search through. The product idea is simple — make the
-text inside those screenshots findable — but I wanted the app underneath it to be
+screenshots she could never search through. The product idea is simple, make the
+text inside those screenshots findable, but I wanted the app underneath it to be
 just as simple. A recipe organizer doesn't need a cloud account, a sync engine,
 or a database server. It needs to be fast, work offline, and never lose your
 data. So I built it on Flutter fundamentals and almost nothing else.
@@ -38,7 +38,7 @@ conservative:
   add/edit flow and a small `RecipeIngredient` value type.
 - **Storage:** file-based JSON behind a `RecipeRepository` interface, implemented
   by `LocalRecipeRepository`. Recipes live under a `snapdish_storage/` folder in
-  the app documents directory — an index `recipes.json` plus a per-recipe folder
+  the app documents directory: an index `recipes.json` plus a per-recipe folder
   holding its copied screenshot images. No SQLite, no ORM.
 - **UI:** a `HomeShell` with three tabs (gallery, add, profile) kept alive in an
   `IndexedStack`, and a `RecipeDetailScreen` pushed with the plain `Navigator`.
@@ -58,7 +58,7 @@ initialize). That's nearly the whole list.
 Search has to feel immediate and work with no network. So instead of querying
 anything at search time, I precompute a `searchIndex` string when a recipe is
 saved: title, cuisine, ingredients, tags, notes, and the full OCR `extractedText`
-are concatenated and normalized once —
+are concatenated and normalized once,
 
 ```dart
 String normalizeSearchText(String value) => value
@@ -70,7 +70,7 @@ String normalizeSearchText(String value) => value
 
 A query is normalized the same way and matched with a plain `searchIndex.contains(query)`.
 It's case- and diacritic-insensitive for free, it's a substring match (no
-tokenizing, no ranking — overkill for a personal cookbook), and because the index
+tokenizing, no ranking, overkill for a personal cookbook), and because the index
 is already built, filtering the list is just a fast in-memory pass. Results sort
 favorites first, then most-recently-updated.
 
@@ -85,7 +85,7 @@ underneath them doesn't.
 ### Resisting the urge to over-build
 
 The hardest engineering decision here was what *not* to add. A sync backend, a
-database, a state-management library, a router — each is justifiable in the
+database, a state-management library, a router. Each is justifiable in the
 abstract, and each would have slowed the app down to ship and added surface area
 to maintain. Keeping the stack boring is why one person could build, polish, and
 ship this to two app stores quickly.
@@ -96,4 +96,4 @@ Plain Flutter goes a very long way. A `ChangeNotifier`, JSON files, and a
 precomputed search index covered everything SnapDish actually needed, and the
 restraint paid off where it counts: the app shipped fast and crossed a thousand
 downloads in its first two weeks. The interesting complexity in SnapDish isn't in
-the app architecture at all — it's in the OCR, which is its own story.
+the app architecture at all. It's in the OCR, which is its own story.

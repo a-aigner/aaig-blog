@@ -1,13 +1,13 @@
 ---
 title: "Matrix extraction: filling research tables with local AI"
-summary: A row-by-row local-LLM pipeline that fills a literature matrix with structured, verifiable extractions — every cell grounded in a verbatim quote and a real page.
+summary: A row-by-row local-LLM pipeline that fills a literature matrix with structured, verifiable extractions, every cell grounded in a verbatim quote and a real page.
 date: "2026-03-25"
 tags: ["local-llm", "rag", "research-tools"]
 ---
 
 ## Why this exists
 
-A literature matrix — papers down the side, questions across the top — is one of
+A literature matrix, with papers down the side and questions across the top, is one of
 the most useful artifacts in a literature review and one of the most tedious to
 build. You read paper after paper pulling out the same handful of facts:
 sample size, method, outcome, limitation. I wanted note.md to fill that table for
@@ -32,13 +32,13 @@ cells that actually need work: empty cells, cells with a previous error, or cell
 whose column prompt has changed (detected via a stored prompt hash). Cells the
 user has edited (`isUserEdited == true`) are skipped entirely. Then:
 
-1. **Cells run one at a time, not in parallel** — partly to keep memory pressure
+1. **Cells run one at a time, not in parallel**, partly to keep memory pressure
    off the local model, partly so the UI can fill the matrix row by row in front
    of you instead of freezing and dumping everything at the end.
 2. **Model resolution** picks a Gemma 4 variant through a three-tier fallback:
    per-feature override → global default → first installed model.
 3. **Source-scoped retrieval** pulls the top 15 chunks *from that one paper*
-   matching the column prompt — never project-wide, so a cell can only ever be
+   matching the column prompt, never project-wide, so a cell can only ever be
    answered by its own source.
 4. **The prompts** mandate verbatim quotes, 1-indexed page numbers, and an
    explicit `N/A` (confidence 0) when the answer simply isn't in the paper.
@@ -52,7 +52,7 @@ user has edited (`isUserEdited == true`) are skipped entirely. Then:
    Low temperature for near-deterministic output, an 800-token budget, a 16k
    context window, and a schema so the result is structured data, not prose.
 6. **Write-back** stores a `MatrixCell` with the value, confidence, the
-   quote-and-page anchor, the model ID, the prompt hash, and a timestamp — so
+   quote-and-page anchor, the model ID, the prompt hash, and a timestamp, so
    every cell is auditable after the fact.
 
 ## The challenges, and what I did about them
@@ -60,12 +60,12 @@ user has edited (`isUserEdited == true`) are skipped entirely. Then:
 ### Making every cell verifiable
 
 This is the constraint the whole design serves. Source-scoping retrieval means a
-cell about Paper A can only be filled from Paper A's text — there's no way for it
+cell about Paper A can only be filled from Paper A's text. There's no way for it
 to bleed in a fact from a neighbour. The schema *requires* a verbatim quote and a
 page, and the prompt forbids guessing by making `N/A` with confidence 0 the
 explicit, sanctioned answer when the paper doesn't say. The result is that
-checking a cell is a small question — "is this quote really on page 7?" — instead
-of a large one — "do I trust this table?"
+checking a cell is a small question, "is this quote really on page 7?", instead
+of a large one, "do I trust this table?"
 
 ### Local models emit messy JSON
 
@@ -80,7 +80,7 @@ being defeated by them.
 
 Extraction is a long batch, and things go wrong: a process hangs, a response is
 unparseable, a retrieval comes up dry. A 300-second watchdog kills hung processes,
-and — crucially — failure is isolated per cell. If one cell fails, only that one
+and, crucially, failure is isolated per cell. If one cell fails, only that one
 cell shows an error indicator; the rest of the table fills normally. You re-run
 the one cell, not the whole matrix.
 
@@ -88,7 +88,7 @@ the one cell, not the whole matrix.
 
 Anything a user has touched is marked `isUserEdited` and skipped by every
 subsequent run. And because requeueing keys off a prompt hash, the only thing
-that re-triggers a cell is a real change to its column prompt — not a stray
+that re-triggers a cell is a real change to its column prompt, not a stray
 re-index. The tool does the grunt work and then gets out of the way.
 
 ## The lesson
@@ -96,5 +96,5 @@ re-index. The tool does the grunt work and then gets out of the way.
 Reliability here was never about a cleverer prompt. It's a property of the
 pipeline: contained failures, deterministic settings, a parser that tolerates
 mess, and an audit trail on every cell. Get those right and a small local model
-becomes something you can actually depend on for structured extraction — quote by
+becomes something you can actually depend on for structured extraction, quote by
 quote, page by page.

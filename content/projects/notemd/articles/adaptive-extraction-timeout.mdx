@@ -6,13 +6,13 @@ author: Andre
 tags: [notemd, indexing, performance, swift, arm]
 ---
 
-I tried to import a 56 MB cryptography report into notemd the other day. Big PDF — dense, lots of diagrams, the kind of thing you actually *want* in a knowledge base. It spun for five minutes and then gave up: "Extraction timed out after 5 minutes." Tried again. Same thing. The file was fine; the timeout just wasn't long enough.
+I tried to import a 56 MB cryptography report into notemd the other day. Big PDF, dense, lots of diagrams, the kind of thing you actually *want* in a knowledge base. It spun for five minutes and then gave up: "Extraction timed out after 5 minutes." Tried again. Same thing. The file was fine; the timeout just wasn't long enough.
 
 That sent me down a longer rabbit hole than I expected, and I ended up building something I'm genuinely happy with: a timeout that doesn't have a fixed value at all, and instead learns how fast *your* Mac extracts PDFs.
 
 ## Why there's a timeout in the first place
 
-When you add a PDF, notemd shells out to a native ONNX extractor (the MinerU pipeline) to pull out text, layout, and assets. It's a separate process, and like any subprocess it can hang — a malformed file, an edge case in the parser, whatever. So there's a watchdog: if the extractor runs longer than N seconds, kill it and report a failure. Otherwise one bad file freezes indexing forever.
+When you add a PDF, notemd shells out to a native ONNX extractor (the MinerU pipeline) to pull out text, layout, and assets. It's a separate process, and like any subprocess it can hang. A malformed file, an edge case in the parser, whatever. So there's a watchdog: if the extractor runs longer than N seconds, kill it and report a failure. Otherwise one bad file freezes indexing forever.
 
 The original N was 300 seconds. Five minutes. Which is plenty for a 10-page paper and nowhere near enough for a 56 MB monster.
 
@@ -33,7 +33,7 @@ My next idea felt clever: forget total time, watch for *inactivity*. Reset the c
 
 I built it. It did not work. And the reason is the most useful thing I learned all week.
 
-I went and read the actual extractor logs from a run that *succeeded* — a 794-page book — and the timeline looked like this:
+I went and read the actual extractor logs from a run that *succeeded*, a 794-page book, and the timeline looked like this:
 
 ```bash
 09:34:51  using native ONNX CLI
@@ -41,7 +41,7 @@ I went and read the actual extractor logs from a run that *succeeded* — a 794-
  ~2m50s of TOTAL SILENCE, then done
 ```
 
-The native extractor doesn't stream progress. It runs as one silent batch and prints exactly one thing — the result — at the very end. So "time since last output" is identical to "total time." My inactivity watchdog was just a total timeout with extra steps. It killed the 56 MB file at the same 5-minute mark, because there was no activity to reset against.
+The native extractor doesn't stream progress. It runs as one silent batch and prints exactly one thing, the result, at the very end. So "time since last output" is identical to "total time." My inactivity watchdog was a total timeout wearing a disguise. It killed the 56 MB file at the same 5-minute mark. There was never any activity to reset against.
 
 (There's a lesson in there about reading the logs *before* designing the fix instead of after. I keep relearning it.)
 
@@ -49,10 +49,10 @@ The native extractor doesn't stream progress. It runs as one silent batch and pr
 
 Here's the thing I should have led with. The right timeout for a file depends on two things I can't hardcode:
 
-1. **The file** — how many pages, how many bytes.
-2. **The machine** — how fast *this specific Mac* is at this work.
+1. **The file.** How many pages, how many bytes.
+2. **The machine.** How fast *this specific Mac* is at this work.
 
-Both are knowable. Pages and bytes I can read before extraction even starts (`PDFDocument(url:).pageCount` is basically free). And the machine's speed? I can just *measure it* — every successful extraction is a data point of "this many pages / this many MB took this many seconds on this Mac."
+Both are knowable. Pages and bytes I can read before extraction even starts (`PDFDocument(url:).pageCount` is basically free). And the machine's speed? I can just *measure it*, because every successful extraction is a data point of "this many pages / this many MB took this many seconds on this Mac."
 
 So I built a little device-local store, [`ExtractionTimingStore`](notemd/Services/ExtractionTimingStore.swift), that remembers the last 50 runs and predicts a budget from them. The whole thing is maybe 90 lines and it's the part I'm proud of.
 
@@ -63,7 +63,7 @@ Each finished extraction records a sample: pages, bytes, duration. From the hist
 - **seconds per page** (the p90 across recent runs)
 - **seconds per MB** (the p90 across recent runs)
 
-Why both? Because neither one alone is enough. That 794-page book was only 4.6 MB — it's page-bound. The 56 MB report was the opposite — relatively few pages, but each one a big scanned image, so it's byte-bound. So I predict from each and take the larger:
+Why both? Because neither one alone is enough. That 794-page book was only 4.6 MB, so it's page-bound. The 56 MB report was the opposite, relatively few pages, but each one a big scanned image, so it's byte-bound. So I predict from each and take the larger:
 
 ```swift
 let pagePrediction = Double(pages) * (perPage ?? 0)   // p90 s/page
@@ -84,18 +84,18 @@ Whichever dimension says "this'll take longer" wins. A few notes on the knobs:
 
 This is the part that made the whole detour worth it. There's no per-device table, no "if M1 then X." The store just measures whatever machine it's on:
 
-- On a fast Mac, the learned rates are small, so budgets *tighten* — a hung file is caught in minutes instead of waiting out a padded constant.
+- On a fast Mac, the learned rates are small, so budgets *tighten*, and a hung file is caught in minutes instead of waiting out a padded constant.
 - On a slow Mac, the rates are bigger, budgets grow to match, and big files actually finish.
 
-Same code, three machines, three different sets of learned rates. And it's all local — it's just samples in `UserDefaults`, nothing phones home. Your M4 and my M1 just quietly disagree about what "a reasonable timeout" means, and they're both right.
+Same code, three machines, three different sets of learned rates. And it's all local. Just samples in `UserDefaults`, nothing phones home. Your M4 and my M1 just quietly disagree about what "a reasonable timeout" means, and they're both right.
 
 ### The cold-start problem (and the self-healing trick)
 
 Two wrinkles I had to handle.
 
-**A brand-new install has no history.** So until there are at least 3 samples, the store falls back to the old `300 + 30·MB` formula. It only starts trusting the learned value once it has enough data. Worst case, a fresh install behaves exactly like the old version — which is a perfectly fine floor to fall back to.
+**A brand-new install has no history.** So until there are at least 3 samples, the store falls back to the old `300 + 30·MB` formula. It only starts trusting the learned value once it has enough data. Worst case, a fresh install behaves exactly like the old version, which is a perfectly fine floor to fall back to.
 
-**A file slower than the budget would fail forever.** Since I only learn from *successful* runs, imagine a file that's genuinely slower than the learned budget: it times out, records nothing, retries with the same budget, times out again… stuck. So on a timeout I record a *censored* sample — "this took at least the budget we gave it." That nudges the rate up, so the retry gets more time, and the budget converges upward until the file finally makes it:
+**A file slower than the budget would fail forever.** Since I only learn from *successful* runs, imagine a file that's genuinely slower than the learned budget: it times out, records nothing, retries with the same budget, times out again… stuck. So on a timeout I record a *censored* sample, meaning "this took at least the budget we gave it." That nudges the rate up, so the retry gets more time, and the budget converges upward until the file finally makes it:
 
 ```swift
 // On timeout: feed the budget back as a lower-bound sample so the next try gets more room.
@@ -106,11 +106,11 @@ It's a small thing but it means the system digs itself *out* of a bad guess inst
 
 ## Did it work?
 
-The 56 MB report imports fine now. More importantly, the second time I add a file like it, the budget is based on what the *first* one actually took on this machine — not on a number I made up in 2026 and forgot to revisit.
+The 56 MB report imports fine now. More importantly, the second time I add a file like it, the budget is based on what the *first* one actually took on this machine, not on a number I made up in 2026 and forgot to revisit.
 
 The wiring lives in [`SourceExtractionHelperClient`](notemd/Services/SourceExtractionHelperClient.swift): read pages and bytes up front, ask the store for a budget, time the run, record the outcome (success or censored). The prediction and learning are all in [`ExtractionTimingStore`](notemd/Services/ExtractionTimingStore.swift), which is a pure function of (history, pages, bytes) → timeout, so it's covered by real unit tests rather than hope.
 
-The honest summary: I started out trying to pick a better constant, realized the whole idea of a constant was the bug, and ended up with a timeout that has opinions about my hardware. The old version asked "how long should extraction take?" The new one asks "how long does it take *here*?" — and then goes and finds out.
+The honest summary: I started out trying to pick a better constant, realized the whole idea of a constant was the bug, and ended up with a timeout that has opinions about my hardware. The old version asked "how long should extraction take?" The new one asks "how long does it take *here*?", and then goes and finds out.
 
 ---
 

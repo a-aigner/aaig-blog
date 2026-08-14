@@ -1,6 +1,6 @@
 ---
 title: "SnapDish"
-summary: "A Flutter app that turns a camera roll full of recipe screenshots into a searchable cookbook — using on-device OCR to make the text inside images findable."
+summary: "A Flutter app that turns a camera roll full of recipe screenshots into a searchable cookbook, using on-device OCR to make the text inside images findable."
 gradient: "orange"
 stack: ["Flutter", "Dart", "Platform Channels", "On-device OCR"]
 links:
@@ -10,8 +10,8 @@ featured: true
 order: 3
 ---
 
-My sister's camera roll was overflowing with recipe screenshots — Instagram
-posts, blog pages, photos of cookbook pages — and she could never find the one
+My sister's camera roll was overflowing with recipe screenshots. Instagram
+posts, blog pages, photos of cookbook pages. She could never find the one
 she wanted. The photos app can't search the *text inside* a picture, and the
 recipes were buried among thousands of unrelated images. SnapDish is the app I
 built to fix that.
@@ -19,24 +19,24 @@ built to fix that.
 ## What it is
 
 You import your recipe screenshots and SnapDish runs OCR on each one, on-device,
-so the text inside the image — titles, ingredients, steps — becomes searchable.
+so the text inside the image (titles, ingredients, steps) becomes searchable.
 You get a little cookbook you can actually search, instead of an archive you have
 to scroll. Everything stays on the phone: SnapDish is local-only by design, with
 no backend and no account.
 
-It found an audience quickly — **1,000+ downloads in its first 14 days** across
+It found an audience quickly, with **1,000+ downloads in its first 14 days** across
 the App Store and Play Store.
 
 ## How I think about it
 
 - **Local-only.** Recipes and screenshots live in the app's own storage. Nothing
   is uploaded; there's no server to trust.
-- **Fundamentals over frameworks.** Plain Flutter — `ChangeNotifier` for state,
+- **Fundamentals over frameworks.** Plain Flutter. `ChangeNotifier` for state,
   file-based JSON for storage, the platform's own OCR engine for recognition. No
   heavy dependencies to ship a focused app fast.
 - **Each platform's native strength.** OCR runs through Apple Vision on iOS and
   Google ML Kit on Android, behind a single Dart interface.
 
-The two articles below are about building it: the Flutter app itself, and the
-on-device OCR — which turned out to be genuinely different on iOS and Android —
+The two articles below are about building it. First the Flutter app itself, then
+the on-device OCR, which turned out to be genuinely different on iOS and Android,
 including an on-device Gemma feature I tried and decided to cut.

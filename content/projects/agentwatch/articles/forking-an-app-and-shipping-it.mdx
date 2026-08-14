@@ -1,6 +1,6 @@
 ---
 title: "Forking a macOS app, rebuilding its interface, and learning what a release pipeline actually inherits"
-summary: Turning so-agentbar into AgentWatch — deleting a subsystem, tearing out a design language I'd just added, and discovering that a forked GitHub Actions workflow is configured for someone else's identity in five separate places.
+summary: Turning so-agentbar into AgentWatch. Deleting a subsystem, tearing out a design language I'd just added, and discovering that a forked GitHub Actions workflow is configured for someone else's identity in five separate places.
 date: "2026-08-14"
 tags: ["swift", "swiftui", "macos", "github-actions", "code-signing", "sparkle"]
 ---
@@ -8,16 +8,16 @@ tags: ["swift", "swiftui", "macos", "github-actions", "code-signing", "sparkle"]
 ## Why this exists
 
 I had four agents running and no idea which of them was stuck. Claude Code
-sessions live in terminal windows, and a terminal window that's been buried for
-twenty minutes tells you nothing. An agent that finished, an agent that crashed,
-and an agent sitting at an approval prompt all look identical from the outside,
-which is to say invisible.
+sessions live in terminal windows, and a buried terminal window tells you
+nothing. An agent that finished, an agent that crashed, and an agent sitting at
+an approval prompt all look identical from the outside. Which is to say
+invisible.
 
 so-agentbar already solved the hard half of that. It watches four different
 Claude session directories with FSEvents, parses Codex rollout logs, keeps
 per-model cost tables, and folds sub-agents into the session that spawned them.
-I forked it because that machinery was worth having and I didn't want to rebuild
-it.
+I forked it because that machinery was worth having and I didn't want to build
+it twice.
 
 Everything above that machinery I replaced.
 
@@ -25,37 +25,38 @@ Everything above that machinery I replaced.
 
 The first three commits were subtraction. The app shipped a floating SpriteKit
 window of animated pixel-art characters, one per session, plus CPU and memory
-"pets" that moved faster under load. It's a charming feature. It also had
-nothing to do with why I'd installed the thing, so it came out: eight source
-files, sixty-six sprite assets, four test suites, roughly 5,200 lines.
+"pets" that moved faster under load. Charming feature. It also had nothing to do
+with why I'd installed the thing, so out it went: eight source files, sixty-six
+sprite assets, four test suites, roughly 5,200 lines.
 
 The trap in that deletion was one distinction. `SystemPetNode.swift` drew an
-animated sprite; `SystemMetricsView.swift` drew the CPU and memory readout in
-the popover. They share a data source and nothing else. Deleting both would have
-been an easy mistake and a silent regression, because no test covers a view.
+animated sprite. `SystemMetricsView.swift` drew the CPU and memory readout in
+the popover. They share a data source and nothing else, so deleting both would
+have been an easy mistake and a silent regression, because no test in the suite
+covers a view.
 
 Then Korean. The app was bilingual, with a `store.t("한국어", "English")` helper
 called about 245 times across sixteen files. Collapsing those to their English
 argument is mechanical until you hit `store.t("\(n)개", "\(n) items")`, where a
-naive regex eats the interpolation. What actually caught me out was different:
-`store.t` wasn't the only localisation path. `UsageMonitor` had its own
+naive regex eats the interpolation. What actually caught me out was something
+else. `store.t` wasn't the only localisation path. `UsageMonitor` carried its own
 `localizer` closure wired to the same helper, and several strings were
-Korean-only with no English counterpart at all — so there was nothing to
-"collapse to" and they needed real translation.
+Korean-only with no English counterpart, so there was nothing to collapse them
+*to* and they needed real translation.
 
 ## The design language I added and then removed
 
 The app targeted macOS 14. I raised the floor to 26 and rebuilt the popover on
-Liquid Glass: `.glassEffect()` on the tab switcher, a `GlassEffectContainer`
-grouping the chrome, morphing selection between tabs.
+Liquid Glass, with `.glassEffect()` on the tab switcher, a `GlassEffectContainer`
+grouping the chrome, and the selection morphing between tabs.
 
-Then I looked at a reference design I liked more — the
-[note.md](https://notemd.org) system, which is black ink on paper white, squared
-corners, hairline rules, and exactly one very soft shadow in the entire token
-set. It's the opposite material philosophy. Liquid Glass expresses hierarchy
-through translucency and shadow; that system expresses it through stepped
-neutral surfaces. You can't blend them. Keeping glass on one surface would have
-read as two designs stapled together.
+Then I looked harder at a reference design I liked more. The
+[note.md](https://notemd.org) system is black ink on paper white, squared
+corners, hairline rules, and exactly one very soft shadow in the whole token set.
+That is the opposite material philosophy. Liquid Glass expresses hierarchy
+through translucency and shadow; the other expresses it through stepped neutral
+surfaces. You can't blend them. Keeping glass on one surface would have read as
+two designs stapled together.
 
 So the glass came back out, one commit after it went in.
 
@@ -65,20 +66,20 @@ So the glass came back out, one commit after it went in.
   caption="The session list. The only colour on screen is the status dot."
 />
 
-The rule that did the most work was reserving colour. Before, a row carried a
-green or orange permission badge, a grey model badge, a per-source coloured
-icon, and a purple sub-agent count. After, all of those are one uniform bordered
-mono chip and the hue budget goes entirely to agent status. I verified that
-rather than trusting it: rendering the popover offscreen and counting pixels,
-0.09% of the frame is chromatic, and all of it is the status dot.
+Reserving colour did the most work. Before, a row carried a green or orange
+permission badge, a grey model badge, a per-source coloured icon, and a purple
+sub-agent count. After, those are one uniform bordered mono chip and the entire
+hue budget goes to agent status. I verified that instead of trusting it. Render
+the popover offscreen, count pixels, and 0.09% of the frame comes back
+chromatic, all of it the status dot.
 
-That measuring habit turned out to matter more than I expected. I bundled the
-three typefaces the reference specifies — Newsreader, Inter and JetBrains Mono,
-all SIL OFL, all variable fonts with optical size axes — and the wider metrics
+That measuring habit mattered more than I expected. I bundled the three
+typefaces the reference specifies, Newsreader and Inter and JetBrains Mono, all
+SIL OFL and all variable fonts carrying optical size axes. Their wider metrics
 immediately broke two fixed-width layouts that had been sized against SF Mono. A
-seven-character token count was being clipped, not wrapped, which is the kind of
-thing you don't notice until someone screenshots it. The Settings tab row needed
-531pt of the 440pt available and was silently wrapping.
+seven-character token count was being clipped rather than wrapped, which is the
+kind of thing nobody notices until someone screenshots it. The Settings tab row
+needed 531pt of the 440pt available and had been quietly wrapping.
 
 <Figure
   src="/screenshots/agentwatch/statistics.png"
@@ -88,15 +89,15 @@ thing you don't notice until someone screenshots it. The Settings tab row needed
 
 ## The part I actually learned from
 
-I'd never shipped a signed, notarised Mac app outside the App Store before. I
-assumed the hard part would be the Apple side. It wasn't — `notarytool` is
-pleasant, and Apple returned *Accepted* on the first submission.
+I'd never shipped a signed, notarised Mac app outside the App Store. I assumed
+the hard part would be the Apple side. Wrong. `notarytool` is genuinely
+pleasant, and Apple came back with *Accepted* on the first submission.
 
-The hard part was that **a fork inherits a release pipeline configured for
-someone else**, and every piece of that configuration fails differently.
+The hard part is that **a fork inherits a release pipeline configured for
+someone else**, and each piece of that configuration fails in its own way.
 
 The workflow itself was fine. `.github/workflows/release.yml` imports a
-certificate, stores notarisation credentials, builds a DMG, signs an appcast and
+certificate, stores notarisation credentials, builds a DMG, signs an appcast,
 publishes to Pages. What was wrong was every value it operated on.
 
 **The signing identity was hardcoded to the original author.**
@@ -105,45 +106,45 @@ publishes to Pages. What was wrong was every value it operated on.
 SIGN_IDENTITY="Developer ID Application: HyeonSeop So (X5NBG68P4L)"
 ```
 
-A certificate I don't hold, on a team I'm not in. This fails loudly in CI, which
-is the good case.
+A certificate I don't hold, on a team I'm not in. That one fails loudly in CI,
+which is the good case.
 
-**The Sparkle public key belonged to upstream.** `Info.plist` carried
-`SUPublicEDKey` for a private key that lives on someone else's machine. Updates
-signed by me would have failed signature validation on every install, with no
-error a user could act on. The fix is a new EdDSA pair — and then verifying that
-the exported private key actually produces the public key in the plist, because
-a mismatch there is invisible until an update silently refuses to install.
+**The Sparkle public key belonged to upstream.** `Info.plist` carried an
+`SUPublicEDKey` whose private half lives on someone else's machine. Updates
+signed by me would have failed validation on every install, with no error a user
+could act on. The fix is a new EdDSA pair, and then checking that the exported
+private key really does produce the public key sitting in the plist. A mismatch
+there stays invisible until an update silently refuses to install.
 
 **The appcast had a real release in it.** `docs/appcast.xml` still listed
 upstream's v1.11.0. Had I switched auto-update on with that file in place,
 Sparkle would have read it as an available update and offered my users *a
 different application*.
 
-**The minimum system version was a lie.** This is the one I nearly shipped:
+**The minimum system version was a lie.** This is the one I nearly shipped.
 
 ```bash
 printf '      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>\n'
 ```
 
-Hardcoded 14.0, in a generator for an app that now requires macOS 26. Sparkle
-would have offered the build to every Sonoma and Sequoia user, who would have
-downloaded it and found it wouldn't launch. I'd been careful about exactly this
-hazard a few hours earlier — deliberately leaving the historical `14.0` entry
-alone in the appcast so existing users kept their last working version — and
-then walked straight past the same number one file over.
+Hardcoded 14.0, inside a generator for an app that now requires macOS 26.
+Sparkle would have offered the build to every Sonoma and Sequoia user, each of
+whom would have downloaded it and found it wouldn't launch. I'd been careful
+about exactly this hazard a few hours earlier, deliberately leaving the
+historical `14.0` entry alone in the appcast so existing users kept their last
+working version. Then I walked straight past the same number, one file over.
 
-**And 33 git tags came with the fork.** `v1.0.0` already existed, pointing at
-sotthang's March 2026 initial commit. `git tag v1.0.0` fails outright; a
-`git push --tags` would have published 33 GitHub releases under my name for
-versions I never shipped. My remote had no tags yet, so nothing broke, but I
-found that with about a minute to spare before tagging.
+**And 33 git tags came with the fork.** `v1.0.0` already existed. It pointed at
+sotthang's initial commit from March. So `git tag v1.0.0` fails outright, and a
+`git push --tags` would have published 33 GitHub releases under my name, for
+versions I never shipped. My remote had no tags yet, so nothing broke. I found
+it with about a minute to spare.
 
 ## Did it work?
 
-Yes, and I checked it the way I'd check anything else — by looking at the actual
-artefact rather than the green tick. I downloaded the published DMG from the
-release page and asked Apple's own tooling about it:
+Yes. I checked it the way I'd check anything else, by looking at the artefact
+rather than the green tick. I downloaded the published DMG from the release page
+and asked Apple's own tooling about it.
 
 ```
 $ xcrun stapler validate AgentWatch.dmg
@@ -159,24 +160,23 @@ Byte length matches the appcast, version reads 1.0.0, feed URL points where it
 should. A stranger downloading it gets no Gatekeeper warning.
 
 One thing is still genuinely untested, and I'd rather say so than pretend
-otherwise: the update path. Sparkle needs two published versions before there's
+otherwise. The update path. Sparkle needs two published versions before there is
 anything to compare, so the first real test of that key pair and that feed will
 be v1.0.1.
 
 ## The lesson
 
-Forking is not free, and the cost isn't in the code. The code is the part you
-can read. What comes with it invisibly is a set of assertions about identity —
-whose certificate signs this, whose key verifies updates, which URL the app
-phones home to, which version numbers already exist. Every one of those was
-correct for sotthang and wrong for me, and only one of them failed in a way that
-would have been obvious.
+Forking is not free, and the cost isn't in the code. Code is the part you can
+read. What comes with it invisibly is a set of assertions about identity. Whose
+certificate signs this. Whose key verifies updates. Which URL the app phones home
+to. Which version numbers already exist. Every one of those was correct for
+sotthang and wrong for me, and only one failed in a way I could have missed.
 
-The two that scared me were the quiet ones. A Sparkle key mismatch doesn't
+The two that scared me were the quiet ones. A Sparkle key mismatch throws no
 error, it just means updates never install. A hardcoded `minimumSystemVersion`
-doesn't error either, it just hands your app to users who can't run it. Both
-were single lines in files I'd already read.
+throws no error either, it just hands your app to people who can't run it. Both
+were single lines, in files I had already read.
 
-So the rule I took away: after forking, grep for every constant that names a
-person, a team, a domain or a version, and treat each one as wrong until you've
-replaced it. I found five. I'm not certain there wasn't a sixth.
+So, the rule I took away. After forking, grep for every constant that names a
+person, a team, a domain or a version, and treat each one as wrong until you
+have replaced it. I found five. I'm not certain there wasn't a sixth.

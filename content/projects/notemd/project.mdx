@@ -1,6 +1,6 @@
 ---
 title: "note.md"
-summary: "A local-first academic IDE for Mac — read papers, manage sources, and write with cited evidence, with every AI feature running entirely on-device."
+summary: "A local-first academic IDE for Mac. Read papers, manage sources, and write with cited evidence, with every AI feature running entirely on-device."
 gradient: "green"
 stack: ["Swift", "SwiftUI", "llama.cpp", "sqlite-vec", "Local AI"]
 links:
@@ -12,7 +12,7 @@ order: 1
 
 note.md is the project I started because my own research workflow was driving me
 up the wall. I'd read a PDF in one app, take notes in a second, manage citations
-in a third, and write in a fourth — re-deriving the same context every time I
+in a third, and write in a fourth, re-deriving the same context every time I
 switched windows. The friction wasn't the writing. It was everything around it.
 
 Then the cloud AI tools arrived and offered to make the friction disappear by
@@ -22,8 +22,8 @@ the part that matters. So I set out to build the opposite tool.
 
 ## What it is
 
-note.md folds the whole research loop — reading, sourcing, note-taking, citing,
-and writing — into a single Mac app. It's **Zotero + Obsidian + your PDF reader
+note.md folds the whole research loop, reading, sourcing, note-taking, citing,
+and writing, into a single Mac app. It's **Zotero + Obsidian + your PDF reader
 in one**, built around a few stubborn principles:
 
 - **Local-first.** Notes, sources, the search index, and every AI feature run on
@@ -41,7 +41,7 @@ in one**, built around a few stubborn principles:
 ## Where the hard parts were
 
 Most of the engineering depth lives in making "local-first AI" actually work on
-a consumer Mac — on-device PDF extraction, embeddings, hybrid retrieval, and a
+a consumer Mac: on-device PDF extraction, embeddings, hybrid retrieval, and a
 local LLM doing structured extraction, all fast and private enough to be usable.
 The articles below are my notes from building that: the problems I hit and how I
 solved them.

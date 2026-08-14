@@ -1,6 +1,6 @@
 ---
 title: "AgentWatch"
-summary: "A macOS menu bar app that shows what my Claude Code and Codex sessions are actually doing — live tokens, cost and quota — rebuilt from a fork into its own signed, notarised product."
+summary: "A macOS menu bar app that shows what my Claude Code and Codex sessions are actually doing, with live tokens, cost and quota. Rebuilt from a fork into its own signed, notarised product."
 gradient: "purple"
 stack: ["Swift", "SwiftUI", "AppKit", "Sparkle", "GitHub Actions"]
 links:
@@ -25,9 +25,9 @@ behind it, and the cost adding up while I work.
 A row per session: project, model, how long it's been going, what it has spent.
 A coloured dot on the left carries the status, and that dot is the only colour
 in the entire app. Claude quota comes from the same OAuth endpoint the CLI
-authenticates against, so those percentages are real rather than estimated.
-Codex publishes no quota API at all, so its numbers are parsed from local
-rollout logs and labelled as estimates.
+authenticates against, so those percentages are real. Codex publishes no quota
+API at all. Its numbers get parsed out of local rollout logs, and the app says
+so on screen rather than presenting a guess as a fact.
 
 It started as a fork of [so-agentbar](https://github.com/sotthang/so-agentbar)
 by sotthang, MIT licensed. The session-monitoring core underneath is largely his

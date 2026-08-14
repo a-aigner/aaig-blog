@@ -1,6 +1,6 @@
 ---
 title: "Rebuilding a paid logo-video format as a free, local tool"
-summary: "The match-cut logo videos look great, but every online generator gates a decent export behind a subscription. So I rebuilt the format with Remotion — one composition that drives both the live preview and the exported MP4 — and made the export the free part."
+summary: "The match-cut logo videos look great, but every online generator gates a decent export behind a subscription. So I rebuilt the format with Remotion, using one composition that drives both the live preview and the exported MP4, and made the export the free part."
 date: "2026-07-02"
 tags: ["remotion", "nextjs", "video", "side-project"]
 ---
@@ -13,7 +13,7 @@ phone, and the good ones look expensive. I wanted to make some for my own
 projects.
 
 The problem is always the same. You find a site that generates them, you spend ten
-minutes building one, the preview looks perfect — and then the export is
+minutes building one, the preview looks perfect, and then the export is
 paywalled, or watermarked, or capped at a resolution that makes it useless. The
 *making* is free; the *having* costs a subscription. For a format that's really
 just images cut on a beat, that felt like a lot of friction for a file I could
@@ -22,13 +22,13 @@ own outright.
 I was in the middle of exam prep and wanted a small, self-contained side project
 to switch my brain off with in the evenings. Rebuilding this format fit perfectly:
 small enough to finish, visual enough to be satisfying, and genuinely useful to me
-at the end. So OpenLogomotion is a free, local recreation of it — the export is
+at the end. So OpenLogomotion is a free, local recreation of it, where the export is
 the whole point, so the export is unrestricted.
 
 ## What it actually does
 
 You upload a logo (SVG, PNG, JPEG, or WebP). It stays centered and fixed. Behind
-it you arrange **frames** — solid colors, palette bands, or your own images — and
+it you arrange **frames** (solid colors, palette bands, or your own images) and
 they cut behind the logo on the beat. You pick audio, hit export, and get a
 vertical MP4.
 
@@ -36,8 +36,8 @@ A few things I wanted from the start:
 
 - **Your own audio, and the cuts follow it.** You can drop in any track and the
   cuts land on its actual hits, not a fixed grid.
-- **An end card.** Optionally the video holds on a final frame — a solid, a
-  palette, or an image — with the logo centered, for a set duration. It's the
+- **An end card.** Optionally the video holds on a final frame, a solid, a
+  palette, or an image, with the logo centered, for a set duration. It's the
   call-to-action slot, and it just appends to the end without touching the
   montage.
 - **No account, no watermark, no upload.** Everything runs on your machine.
@@ -47,14 +47,14 @@ A few things I wanted from the start:
 The thing I'm happiest with is boring on the surface: the live preview and the
 exported video are the **same composition**.
 
-It's built on [Remotion](https://www.remotion.dev), which lets you describe a
+It's built on [Remotion](https://www.remotion.dev). That lets you describe a
 video as a React component that's a pure function of the current frame number. The
 editor renders that component in a `<Player>` for the preview; the export renders
 the *identical* component server-side to an MP4. There is no second code path that
-"bakes" the final video — the preview *is* the render, just played live.
+"bakes" the final video. The preview *is* the render, just played live.
 
 That only works if nothing in the animation is decided at render time. So all the
-timing is precomputed into plain data — an array of cut times — and the composition
+timing is precomputed into plain data, an array of cut times, and the composition
 just reads it:
 
 ```ts
@@ -66,17 +66,17 @@ const current = frames[cutIndex % frames.length];
 The cut times are worked out once, in the editor, and stored in the project config
 that gets sent to the renderer. Preview and export read the same array, so what you
 see is exactly what you download. No "looked fine in the preview, came out wrong in
-the file" — which, ironically, is the other thing the paid tools sometimes get
+the file", which, ironically, is the other thing the paid tools sometimes get
 wrong.
 
 ## Where I kept it honest
 
 It's a side project, and it shows its seams in the right places. The bundled demo
-track is a procedurally generated placeholder, not licensed music — you're meant
+track is a procedurally generated placeholder, not licensed music. You're meant
 to bring your own audio, which is the interesting path anyway. The beat detection
 is a hand-rolled, energy-based onset detector running in the browser, not a
 trained model; it's good on percussive audio and vaguer on ambient stuff. And the
-logo is always centered — no free placement yet.
+logo is always centered, with no free placement yet.
 
 None of that bothered me, because the goal was a free tool that produces a real
 file I'd actually use, and it does.

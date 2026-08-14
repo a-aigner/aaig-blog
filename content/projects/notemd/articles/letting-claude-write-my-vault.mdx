@@ -1,12 +1,12 @@
 ---
 title: "Letting Claude Desktop write into my vault (without it eating my edits)"
-description: "notemd had zero file-watching, so external edits were invisible and the editor would silently overwrite them. Three layers later — a change-gated merge, an editor that reconciles instead of clobbering, and a live FSEvents watcher — Claude and I can edit the same notes."
+description: "notemd had zero file-watching, so external edits were invisible and the editor would silently overwrite them. Three layers later, with a change-gated merge, an editor that reconciles instead of clobbering, and a live FSEvents watcher, Claude and I can edit the same notes."
 date: "2026-06-20"
 author: Andre
 tags: [notemd, sync, fsevents, coredata, swiftui, claude]
 ---
 
-So here's the thing I actually wanted this week: I store every article in notemd as a plain `.md` file in a vault folder (Obsidian-style — folders are the hierarchy, filenames are titles). Claude Desktop now has a file connector that can read and write files on disk. Put those two together and you get something I've wanted for ages: ask Claude to draft, restructure, or fact-check a note, have it write straight into the vault, and watch the change appear in notemd.
+So here's the thing I actually wanted this week: I store every article in notemd as a plain `.md` file in a vault folder (Obsidian-style, where folders are the hierarchy and filenames are titles). Claude Desktop now has a file connector that can read and write files on disk. Put those two together and you get something I've wanted for ages. Ask Claude to draft, restructure, or fact-check a note, have it write straight into the vault, and watch the change appear in notemd.
 
 Before wiring anything up, I asked myself the only question that mattered: **if Claude writes a `.md` file while notemd is open, does notemd notice?**
 
@@ -20,7 +20,7 @@ notemd's vault is a hybrid: Core Data is the live working copy, the `.md` files 
 
 **2. The open editor would silently overwrite external edits.** This was the scary one. `ArticleEditorViewModel` loads `article.bodyMarkdown` into an in-memory document once, at init, and *never re-reads it*. So the sequence was: Claude edits `Foo.md` → a merge pulls Claude's text into Core Data → but the open editor still holds the old text → the editor's autosave writes the old text back to disk → **Claude's edit is gone**. For a "Claude and I both touch the vault" workflow, this is the whole ballgame.
 
-**3. Every merge re-read and re-indexed the entire vault.** `performMerge` had no change detection. Each run read *every* `.md` file in full, re-imported *every* article, and re-indexed wiki-links for *every* article — whether or not anything changed. Fine when merges are rare. Catastrophic the moment you make them frequent, which is exactly what a live workflow needs.
+**3. Every merge re-read and re-indexed the entire vault.** `performMerge` had no change detection. Each run read *every* `.md` file in full, re-imported *every* article, and re-indexed wiki-links for *every* article, whether or not anything changed. Fine when merges are rare. Catastrophic the moment you make them frequent, which is exactly what a live workflow needs.
 
 So I couldn't just "add a file watcher." A watcher on top of #3 would re-read the whole vault on every keystroke Claude made. And a watcher on top of #2 would just deliver Claude's edits straight into the jaws of the clobber. The fixes had an order.
 
@@ -42,7 +42,7 @@ private struct VaultPathIndexEntry: Codable {
 
 v1 files still decode (the old `path → uuid` shape maps to a fingerprint with `mtime/size = 0`), which forces one full read the first time and then upgrades itself. No migration dance.
 
-Then the scan gets a fast path. For every file it enumerates, it stats `(mtime, size)` and compares against the index. If they match, it emits a lightweight "unchanged" entry carrying *only* identity and path — no `String(contentsOf:)`, no markdown parse:
+Then the scan gets a fast path. For every file it enumerates, it stats `(mtime, size)` and compares against the index. If they match, it emits a lightweight "unchanged" entry carrying *only* identity and path. No `String(contentsOf:)`, no markdown parse.
 
 ```swift
 if let prior = fingerprintsByRelativePath[relativePath],
@@ -53,9 +53,9 @@ if let prior = fingerprintsByRelativePath[relativePath],
 }
 ```
 
-And `performMerge` leaves unchanged articles completely alone — no body re-import, no re-index, no Core Data mutation. Only `.changedOrNew` files go through the expensive path, and only *they* get added to the re-index list (this used to be "every article, every time").
+And `performMerge` leaves unchanged articles completely alone. No body re-import, no re-index, no Core Data mutation. Only `.changedOrNew` files go through the expensive path, and only *they* get added to the re-index list (this used to be "every article, every time").
 
-This is the rsync heuristic, and it has the rsync caveat: if an external tool somehow rewrites a file to the exact same byte size *and* restores the original mtime, you'd miss it. That doesn't happen for real markdown edits, and the alternative — hashing — means reading every file, which is the thing I'm trying to avoid. I wrote the trade-off into a comment and moved on.
+This is the rsync heuristic, and it has the rsync caveat: if an external tool somehow rewrites a file to the exact same byte size *and* restores the original mtime, you'd miss it. That doesn't happen for real markdown edits, and the alternative, hashing, means reading every file, which is the thing I'm trying to avoid. I wrote the trade-off into a comment and moved on.
 
 ### The accidental bonus
 
@@ -63,7 +63,7 @@ There's a lovely emergent property here. notemd writes the path-index fingerprin
 
 The self-write feedback loop that file-watchers are famous for? Layer 1 dissolves it for free. I didn't plan that; I just noticed it while reasoning about Layer 2 and grinned.
 
-I also gated the post-merge notification on "did anything actually change", and made it carry the set of `changedArticleIDs` — which Layer 3 needs.
+I also gated the post-merge notification on "did anything actually change", and made it carry the set of `changedArticleIDs` that Layer 3 needs.
 
 ## Layer 3: teach the editor to reconcile instead of clobber
 
@@ -71,9 +71,9 @@ This is the data-loss fix, so I did it before turning on anything live.
 
 The mental model is a three-way merge. At any moment the open article has three versions:
 
-- **base** — what the editor loaded (the common ancestor)
-- **disk** — what the merge just pulled in (`article.bodyMarkdown`)
-- **local** — the editor's in-progress content
+- **base**, what the editor loaded (the common ancestor)
+- **disk**, what the merge just pulled in (`article.bodyMarkdown`)
+- **local**, the editor's in-progress content
 
 The decision is a pure function, which means it's trivially testable:
 
@@ -86,19 +86,19 @@ func resolveEditorExternalMerge(base: String, disk: String, local: String) -> Ed
 }
 ```
 
-The editor subscribes to the merge notification, and if its article is in `changedArticleIDs`, it runs this. **Fast-forward** is the common Claude case: I'm reading a note, Claude rewrites it, the editor live-updates with no interaction and nothing lost. **Conflict** — both of us edited — raises a non-destructive banner ("Load disk version" / "Keep mine") instead of silently picking a winner. Autosave is suppressed entirely while a conflict is open, and "Keep mine" snapshots the disk version into history *before* overwriting it, so even the rejected side is recoverable.
+The editor subscribes to the merge notification, and if its article is in `changedArticleIDs`, it runs this. **Fast-forward** is the common Claude case. I'm reading a note, Claude rewrites it, the editor live-updates with no interaction and nothing lost. **Conflict**, meaning both of us edited, raises a non-destructive banner ("Load disk version" / "Keep mine") instead of silently picking a winner. Autosave is suppressed entirely while a conflict is open, and "Keep mine" snapshots the disk version into history *before* overwriting it, so even the rejected side is recoverable.
 
-One subtlety bit me here: notemd has **two** markdown spaces. There's editor-space (the block model ↔ markdown) and vault-space (`[[wikilinks]]` ↔ `notemd://` links). If you compare a disk file to `article.bodyMarkdown` naively, they *always* differ, because of the link transform. The fix is that all three of base/disk/local are kept in the same space (`article.bodyMarkdown`-space — what the merge produces and what the editor exports), so the comparison is actually meaningful. Took me an embarrassing few minutes to see why my first conflict check thought *everything* was a conflict.
+One subtlety bit me here: notemd has **two** markdown spaces. There's editor-space (the block model to markdown) and vault-space (`[[wikilinks]]` to `notemd://` links). If you compare a disk file to `article.bodyMarkdown` naively, they *always* differ, because of the link transform. The fix is that all three of base/disk/local are kept in the same space, `article.bodyMarkdown`-space, which is what the merge produces and what the editor exports, so the comparison is actually meaningful. Took me an embarrassing few minutes to see why my first conflict check thought *everything* was a conflict.
 
-There's also a belt-and-suspenders mtime guard in the heavy autosave: if the file moved on disk since the editor loaded it, don't write — kick a merge and let the reconcile path sort it out.
+There's also a belt-and-suspenders mtime guard in the heavy autosave: if the file moved on disk since the editor loaded it, don't write. Kick a merge and let the reconcile path sort it out.
 
 ## Layer 2: actually watch the folder
 
 Now that merges are cheap and the editor won't clobber, the watcher is safe to add.
 
-I went with **FSEvents**, not a `DispatchSource` vnode watch. A vnode source watches a single file descriptor and doesn't recurse into subfolders — useless for a folder *tree*. FSEvents recurses, coalesces, and reports cross-process writes, which is exactly the "another app wrote my files" case. The wrapper lives in [`VaultFileWatcher.swift`](notemd/Services/VaultFileWatcher.swift).
+I went with **FSEvents**, not a `DispatchSource` vnode watch. A vnode source watches a single file descriptor and doesn't recurse into subfolders, which is useless for a folder *tree*. FSEvents recurses, coalesces, and reports cross-process writes, which is exactly the "another app wrote my files" case. The wrapper lives in [`VaultFileWatcher.swift`](notemd/Services/VaultFileWatcher.swift).
 
-The filter is a pure function (the one part worth unit-testing — FSEvents itself is miserable to test deterministically):
+The filter is a pure function (the one part worth unit-testing, since FSEvents itself is miserable to test deterministically):
 
 ```swift
 func vaultWatchPathsAreRelevant(_ paths: [String]) -> Bool {
@@ -115,9 +115,9 @@ A `VaultWatchCoordinator` owns the lifecycle. The sidebar starts it on appear, o
 
 ## How I built it: tests first, one layer at a time
 
-I did the whole thing test-first, which paid off immediately. The very first test I wrote for Layer 1 was "a merge does not re-read an unchanged file, even if the in-memory article diverged" — and watching it *fail* against the old code (which clobbered the in-memory copy from disk) is what proved the test actually tested something. Then I made it pass.
+I did the whole thing test-first, which paid off immediately. The very first test I wrote for Layer 1 was "a merge does not re-read an unchanged file, even if the in-memory article diverged", and watching it *fail* against the old code (which clobbered the in-memory copy from disk) is what proved the test actually tested something. Then I made it pass.
 
-The pure functions — `resolveEditorExternalMerge` and `vaultWatchPathsAreRelevant` — are a joy to test because they have no I/O, no Core Data, no async. The riskiest logic in the whole change is a dozen lines of branch-free code with exhaustive unit tests.
+The pure functions, `resolveEditorExternalMerge` and `vaultWatchPathsAreRelevant`, are a joy to test because they have no I/O, no Core Data, no async. The riskiest logic in the whole change is a dozen lines of branch-free code with exhaustive unit tests.
 
 One process note for future-me: this repo's test suites have to run **one at a time**. Running two together spins up two in-memory Core Data stacks and you get a flood of `Failed to find a unique match for an NSEntityDescription` errors and spurious failures. Isolate the suite, and it's clean.
 
@@ -136,13 +136,13 @@ The end-to-end feel is the payoff: Claude writes a note into the vault, FSEvents
 
 ## Two stale tests I found along the way
 
-While I was in here I noticed two tests that had been red on a clean checkout for a while — both, it turned out, *test* bugs rather than product bugs. I fixed them as a separate commit so they wouldn't muddy the sync diff.
+While I was in here I noticed two tests that had been red on a clean checkout for a while. Both, it turned out, were *test* bugs rather than product bugs. I fixed them as a separate commit so they wouldn't muddy the sync diff.
 
-`manifestRecordsFormatVersionTwo` wasn't even failing an assertion — it was *crashing* with a signal trap. It's declared `@Test` (Swift Testing runs those off the main actor) but wrapped its body in `MainActor.assumeIsolated { }`, which traps when you're not on the main actor. Its sibling tests sidestep this by being `@MainActor @Test`. One annotation and the crash is gone; the manifest code was correct the whole time.
+`manifestRecordsFormatVersionTwo` wasn't even failing an assertion. It was *crashing* with a signal trap. It's declared `@Test` (Swift Testing runs those off the main actor) but wrapped its body in `MainActor.assumeIsolated { }`, which traps when you're not on the main actor. Its sibling tests sidestep this by being `@MainActor @Test`. One annotation and the crash is gone. The manifest code was correct the whole time.
 
-`mergeProjectVaultDeletesLocalArticleWhenVaultFileIsDeleted` was more interesting, because the "failure" was actually the product doing the right thing. The test had a single note, deleted its only file, and expected the note to vanish. But the deletion safety net deliberately refuses to delete when the vault scan comes back *empty* — it can't tell "the user deleted everything" from "the external vault is momentarily unreadable", so it keeps your data. The test predated that guard. I rewrote it to use two notes and delete one file, which exercises a genuine single-note deletion without tripping the wipe-protection — and caught a nice gotcha while doing it: once the merge deletes a managed object, touching its `.id` crashes, so you have to capture the id *before* the merge runs.
+`mergeProjectVaultDeletesLocalArticleWhenVaultFileIsDeleted` was more interesting, because the "failure" was actually the product doing the right thing. The test had a single note, deleted its only file, and expected the note to vanish. But the deletion safety net deliberately refuses to delete when the vault scan comes back *empty*, because it can't tell "the user deleted everything" from "the external vault is momentarily unreadable", so it keeps your data. The test predated that guard. I rewrote it to use two notes and delete one file, which exercises a genuine single-note deletion without tripping the wipe-protection, and caught a nice gotcha while doing it. Once the merge deletes a managed object, touching its `.id` crashes, so you have to capture the id *before* the merge runs.
 
 Lesson restated for the hundredth time: a red test is a claim, not a verdict. Sometimes the claim is wrong.
 
-Until next week —
+Until next week,
 *Andre*
