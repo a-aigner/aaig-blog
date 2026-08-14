@@ -1,0 +1,35 @@
+<svg viewBox="30 20 140 140" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    The ARSoftware mark, tuned for favicon sizes.
+
+    Two changes from public/images/logo.svg on the ARSoftware site:
+
+    1. Stroke width is 14 rather than 3. At 3, a 200-unit viewBox scaled into a
+       16px tab renders the stroke at 0.24px, which browsers round away to
+       nothing. 14 lands near 1.1px at 16px, which is the thinnest a favicon
+       line can be and still survive.
+    2. The viewBox crops to the art instead of the original 0 0 200 200, which
+       left roughly a third of the canvas empty and shrank the mark further.
+
+    The stroke colour follows the browser's theme. A favicon sits on the tab
+    strip, not on a page, so a hardcoded black mark disappears entirely in a
+    dark-themed browser. SVG favicons honour prefers-color-scheme in Chrome,
+    Firefox and Safari.
+  -->
+  <style>
+    .mark { stroke: #111111; }
+    @media (prefers-color-scheme: dark) {
+      .mark { stroke: #f5f5f5; }
+    }
+  </style>
+  <path class="mark"
+        d="M 100 40 L 160 140 L 40 140 Z"
+        fill="none"
+        stroke-width="14"
+        stroke-linejoin="miter"/>
+  <path class="mark"
+        d="M 40 140 Q 70 100, 100 100 T 160 140"
+        fill="none"
+        stroke-width="14"
+        stroke-linecap="round"/>
+</svg>
