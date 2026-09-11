@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { contact } from "@/content/cv";
 
 export function Footer() {
@@ -7,6 +9,7 @@ export function Footer() {
         <a href={`mailto:${contact.email}`} className="hover:text-[var(--color-ink)]">{contact.email}</a>
         <a href={contact.linkedin} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--color-ink)]">LinkedIn</a>
         <a href={contact.github} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--color-ink)]">GitHub</a>
+        <Link href="/privacy" className="hover:text-[var(--color-ink)]">Privacy</Link>
       </div>
       <p className="mt-4 text-tertiary">© {contact.name} · {contact.location}</p>
     </footer>
