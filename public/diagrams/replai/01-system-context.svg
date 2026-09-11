@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 580" width="700" height="580" role="img">
+  <style>
+    .bg   { fill: #f4f4f1; }
+    .box  { fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .dead { fill: none; stroke: #db0a12; stroke-width: 1; stroke-dasharray: 4 3; }
+    .side { fill: none; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; stroke-dasharray: 4 3; }
+    .chip { fill: rgb(10 10 10 / 0.05); stroke: none; }
+    .t    { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h    { font-size: 13px; font-weight: 700; }
+    .b    { font-size: 11.5px; }
+    .s    { font-size: 11px; fill: rgb(10 10 10 / 0.5); }
+    .m    { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(10 10 10 / 0.62); }
+    .red  { fill: #db0a12; }
+    .ln   { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+    .lnd  { stroke: rgb(10 10 10 / 0.3); stroke-width: 1; fill: none; stroke-dasharray: 4 3; }
+    .lnr  { stroke: #db0a12; stroke-width: 1.25; fill: none; stroke-dasharray: 5 3; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+    <marker id="ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(10 10 10 / 0.3)"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="700" height="580"/>
+
+  <!-- the legacy CRM -->
+  <rect class="box" x="40" y="22" width="380" height="80" rx="6"/>
+  <text class="t h" x="56" y="46">Legacy CRM · SharePoint 2010</text>
+  <text class="t m" x="56" y="66">_vti_bin/ListData.svc · OData v2 · 68 collections</text>
+  <text class="t m" x="56" y="84">NTLM · certificate not validated · 3 requests/second</text>
+
+  <!-- the SOAP dead end -->
+  <rect class="dead" x="470" y="22" width="190" height="80" rx="6"/>
+  <text class="t h red" x="486" y="46">SOAP endpoint</text>
+  <text class="t b" x="486" y="66">Client certificate never</text>
+  <text class="t b" x="486" y="82">issued. Ruled out.</text>
+  <path class="lnr" d="M 420 62 L 462 62" marker-end="url(#a)" stroke="#db0a12"/>
+  <text class="t s red" x="428" y="53" font-size="14">✕</text>
+
+  <!-- arrow 1 -->
+  <path class="ln" d="M 230 102 L 230 142" marker-end="url(#a)"/>
+  <text class="t s" x="240" y="127">read-only pull</text>
+
+  <!-- extraction -->
+  <rect class="box" x="40" y="142" width="380" height="96" rx="6"/>
+  <text class="t h" x="56" y="166">sp-extract · on the extraction host</text>
+  <rect class="chip" x="56" y="176" width="348" height="20" rx="4"/>
+  <text class="t m" x="64" y="190">tickets · comments · users · attachments + blob store</text>
+  <text class="t b" x="56" y="216">Resolves every column name by role, never by literal,</text>
+  <text class="t b" x="56" y="230">because the service localises its own property names.</text>
+
+  <!-- arrow 2 -->
+  <path class="ln" d="M 230 238 L 230 278" marker-end="url(#a)"/>
+  <text class="t s" x="240" y="263">JSONL on disk</text>
+
+  <!-- pipeline -->
+  <rect class="box" x="40" y="278" width="380" height="112" rx="6"/>
+  <text class="t h" x="56" y="302">Pipeline · eight verbs, no database above L3</text>
+  <rect class="chip" x="56" y="314" width="80" height="30" rx="4"/>
+  <text class="t m" x="66" y="326">L0</text><text class="t m" x="66" y="339">raw</text>
+  <rect class="chip" x="144" y="314" width="80" height="30" rx="4"/>
+  <text class="t m" x="154" y="326">L1</text><text class="t m" x="154" y="339">cleaned</text>
+  <rect class="chip" x="232" y="314" width="80" height="30" rx="4"/>
+  <text class="t m" x="242" y="326">L2</text><text class="t m" x="242" y="339">model calls</text>
+  <rect class="chip" x="320" y="314" width="84" height="30" rx="4"/>
+  <text class="t m" x="330" y="326">L3</text><text class="t m" x="330" y="339">chunks</text>
+  <text class="t b" x="56" y="366">L1 and L3 are pure functions of the layer above, so a</text>
+  <text class="t b" x="56" y="380">rebuild is byte-comparable against the previous one.</text>
+
+  <!-- arrow 3 -->
+  <path class="ln" d="M 230 390 L 230 428" marker-end="url(#a)"/>
+  <text class="t s" x="240" y="414">embed</text>
+
+  <!-- qdrant -->
+  <rect class="box" x="40" y="428" width="380" height="52" rx="6"/>
+  <text class="t h" x="56" y="450">Qdrant · one collection</text>
+  <text class="t m" x="56" y="468">dense + sparse vectors, fused server-side</text>
+
+  <!-- split to consumers -->
+  <path class="ln" d="M 230 480 L 230 496 L 128 496 L 128 516" marker-end="url(#a)"/>
+  <path class="ln" d="M 230 480 L 230 496 L 332 496 L 332 516" marker-end="url(#a)"/>
+  <text class="t s" x="244" y="493">read-only foreign source</text>
+
+  <rect class="box" x="40" y="516" width="176" height="44" rx="6"/>
+  <text class="t h" x="56" y="537">replai</text>
+  <text class="t m" x="56" y="552">email assistant</text>
+
+  <rect class="box" x="244" y="516" width="176" height="44" rx="6"/>
+  <text class="t h" x="260" y="537">chatty</text>
+  <text class="t m" x="260" y="552">chat</text>
+
+  <!-- inference sidecar -->
+  <rect class="side" x="470" y="278" width="190" height="112" rx="6"/>
+  <text class="t h" x="486" y="302">llama.cpp</text>
+  <text class="t b" x="486" y="322">Separate host, separate</text>
+  <text class="t b" x="486" y="337">project. This side only</text>
+  <text class="t b" x="486" y="352">holds their URLs.</text>
+  <text class="t m" x="486" y="374">embedder · reranker · LLM</text>
+  <path class="lnd" d="M 470 334 L 424 334" marker-end="url(#ad)"/>
+  <path class="lnd" d="M 565 390 L 565 546 L 424 546" marker-end="url(#ad)"/>
+</svg>

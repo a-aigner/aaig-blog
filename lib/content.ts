@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import matter from "gray-matter";
 import readingTime from "reading-time";
-import type { ProjectMeta, ArticleMeta, GradientKey } from "./content.types";
+import type { ProjectMeta, ArticleMeta, GradientKey, ReadingOrder } from "./content.types";
 
 const DEFAULT_ROOT = path.join(process.cwd(), "content");
 const projectsDir = (root: string) => path.join(root, "projects");
@@ -40,7 +40,7 @@ export function getProjectArticles(
 ): ArticleMeta[] {
   const dir = path.join(projectsDir(root), slug, "articles");
   if (!fs.existsSync(dir)) return [];
-  return fs
+  const articles = fs
     .readdirSync(dir)
     .filter((f) => f.endsWith(".mdx"))
     .map((f) => {
@@ -49,6 +49,14 @@ export function getProjectArticles(
       return toArticleMeta(slug, articleSlug, data, content);
     })
     .sort((a, b) => b.date.localeCompare(a.date)); // newest first
+
+  // The project decides. Only a project that says so gets the other order, so
+  // every existing project keeps the list it had.
+  return readingOrderFor(slug, root) === "oldest-first" ? articles.reverse() : articles;
+}
+
+function readingOrderFor(slug: string, root: string): ReadingOrder {
+  return toProjectMeta(slug, readProjectFile(root, slug).data).readingOrder;
 }
 
 export function getArticle(
@@ -66,7 +74,12 @@ export function getAdjacentArticles(
   articleSlug: string,
   root: string = DEFAULT_ROOT,
 ): { prev: ArticleMeta | null; next: ArticleMeta | null } {
-  const list = getProjectArticles(slug, root); // newest-first
+  // Sorted here rather than reused from `getProjectArticles`, which honours the
+  // project's display order. Adjacency is about time, not about presentation:
+  // `prev` is the older article and `next` the newer one in every project, so a
+  // project that displays oldest-first reads forward through `next` and the
+  // footer arrows do not silently invert.
+  const list = [...getProjectArticles(slug, root)].sort((a, b) => b.date.localeCompare(a.date));
   const i = list.findIndex((a) => a.slug === articleSlug);
   if (i === -1) return { prev: null, next: null };
   return {
@@ -85,6 +98,7 @@ function toProjectMeta(slug: string, data: Record<string, unknown>): ProjectMeta
     links: (data.links as ProjectMeta["links"]) ?? {},
     featured: Boolean(data.featured),
     order: Number(data.order ?? 999),
+    readingOrder: data.readingOrder === "oldest-first" ? "oldest-first" : "newest-first",
   };
 }
 
@@ -102,5 +116,6 @@ function toArticleMeta(
     summary: String(data.summary ?? ""),
     tags: (data.tags as string[]) ?? [],
     readingTime: readingTime(body).text, // e.g. "1 min read"
+    ...(typeof data.part === "string" && data.part ? { part: data.part } : {}),
   };
 }

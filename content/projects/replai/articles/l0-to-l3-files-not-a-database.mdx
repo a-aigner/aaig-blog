@@ -1,0 +1,197 @@
+---
+title: "L0 to L3: files, not a database"
+summary: "Four layers, eight verbs, and no database above the third one. Two of the layers are pure functions of the layer above, which is what makes reviewing a cleaning-rule change a byte comparison, and five of the eight verbs open no network socket, so most of the pipeline runs on a laptop with nothing installed."
+date: "2026-08-03"
+tags: ["architecture", "rag", "data-engineering", "python", "etl"]
+part: "I · The pipeline"
+---
+
+## Why this exists
+
+The obvious architecture for this was Postgres. You have fifteen thousand
+tickets and a hundred thousand comments arriving from a legacy system, you
+need to clean them, enrich some of them with model output, and turn the result
+into embedding-ready chunks. That is four tables and a migration directory.
+
+I built it as files instead. Not out of minimalism, out of two specific
+properties I wanted that a database made harder rather than easier, and one
+constraint the previous articles established: getting the data is slow,
+fragile and rate-limited, so everything downstream of getting it should be
+cheap enough to run again.
+
+<Figure
+  src="/diagrams/replai/07-layers-and-verbs.svg"
+  alt="A vertical pipeline diagram. From the extract on disk, the ingest verb feeds L0, raw and append-only, holding revisions.jsonl and a derived current.jsonl. The l1 verb produces L1, cleaned, holding tickets, segments and attachment text, with the attachments verb entering from the side. The enrich verb, marked as needing a model runtime, produces L2, the model-call store keyed per comment per task per prompt version. The chunks and pairs verbs produce L3, embedding-ready, a pure function of L1 and L2 with no database above it. The embed verb, needing the embedder and Qdrant, fills a Qdrant collection with dense and sparse vectors and nine payload indexes, and the query verb returns hits grouped by ticket. Five of eight verbs are marked offline."
+  caption="Eight verbs. The three with a red dot need something running; the other five open no socket at all."
+/>
+
+## The two properties
+
+**Property one: a rebuild has to be reviewable.**
+
+Most of the interesting work in this pipeline is cleaning rules, what counts
+as boilerplate, where a quoted reply chain starts, when two adjacent comments
+by one author should merge into a segment. Every one of those is a judgement
+call on German prose written by dozens of people over fifteen years, and none
+of them is right first time.
+
+So the question that matters is: *when I tighten a rule, what changed?*
+
+L1 is a **pure function of L0**. L3 is a **pure function of L1 and L2**. No
+clock, no network, no state carried between runs. Which means the answer to
+"what changed" is a `diff` between two rebuilds. Not a sample. Not a test that
+asserts the new behaviour. The complete set of differences, byte for byte,
+inspectable.
+
+That is the property I couldn't get from a database without building it, and
+in a database it costs a shadow schema and a comparison harness. In files it's
+free, and it's the single thing that made the cleaning rules converge, because
+the review question stopped being "does this look better" and became "here are
+the 412 comments this changed, read forty of them".
+
+**Property two: most of the pipeline must run with nothing installed.**
+
+Five of the eight verbs open no socket. `ingest`, `l1`, `attachments`, `chunks`
+and `pairs` are all pure file-to-file transformations. Only `enrich` needs a
+model runtime, and only `embed` and `query` need the embedder and Qdrant.
+
+`attachments` is the one worth pointing at, because it looks like it should
+need the network and does not: it reads attachment bytes that are **already on
+disk** in the blob store and turns them into text. The fetching happens in the
+extractor, on the extraction host, inside the customer's network. The
+extraction step and the text-extraction step are deliberately different verbs,
+so a rule change in the second one costs a re-run over local bytes rather than
+16,400 requests at three per second.
+
+The practical effect: I could develop and test almost all of this on a laptop
+on a train. That isn't a lifestyle observation. It is why the iteration count
+on the cleaning rules was high enough to get them right.
+
+## The layers
+
+**L0, raw, append-only.** Every ingest appends a revision record per ticket
+and never mutates one. Beside `revisions.jsonl` there is a derived
+`current.jsonl`, which is just "the winning revision per ticket" materialised
+so nothing downstream has to replay history to read the present.
+
+The record shape is the one the specification prescribed, deliberately, so that
+moving this into Postgres later is an import rather than a redesign. I didn't
+want "files instead of a database" to become "files, and now we're stuck".
+
+**L1, cleaned.** `tickets.jsonl` and `segments.jsonl`: markup stripped,
+boilerplate split off, adjacent same-author turns merged into segments, authors
+resolved from numbers to names via the user list. Plus `attachment_text.jsonl`,
+folded in by its own verb.
+
+**L2. The model-call store.** The only layer that talks to a model. It is a
+store of answers keyed per comment, per task, per prompt version, not a
+transformation of L1. That keying is the whole design and the next article is
+about it.
+
+**L3, embedding-ready.** `chunks.jsonl` and `pairs.jsonl`. Nothing above
+this line is a database, and nothing below it is a file: `embed` reads L3 and
+writes Qdrant, which is the first and only stateful service in the chain.
+
+## Three rulings I would make again
+
+These are the decisions where the obvious implementation was wrong, and each
+one was found by a review rather than by a test.
+
+### L0 fails closed on a line it cannot parse
+
+The JSONL reader skips lines it cannot parse, silently, by default. That is
+deliberate and I stand by it: a killed run leaves a partial final line, and
+that must not make 238 MB of otherwise-good data unreadable.
+
+But **L0 opts out and raises instead**, and the reasoning took me a while to
+see. A skipped line while replaying `revisions.jsonl` makes the revision index
+return a *stale* revision for that ticket. The next ingest then numbers on top
+of the stale one and rewrites `current.jsonl` with the older payload. That is
+not one lost row. It is **silent corruption of the derived view**, produced by
+a mechanism whose entire purpose was to be safe.
+
+A later review extended the same rule to the door the corpus actually comes in
+through: `ingest` now prints `read= … unkeyed= … skipped=` and exits non-zero
+if either of the last two is non-zero. So "some of your rows didn't make it"
+is a failure rather than a smaller number nobody compares against anything.
+
+The general form: **a tolerant default is right in the place that meets
+untrusted input, and wrong in the place that rebuilds an index.** Same
+function, opposite correct behaviour, and the only way to get both is to make
+the tolerance a parameter rather than a property.
+
+### Nothing holds the corpus in memory
+
+The plan's L0 kept every revision record in memory to compute the winner per
+ticket. Its L1 accumulated both output files before writing. Both are the
+natural way to write it and both scale with the corpus.
+
+Both stream instead. L0 indexes small per-ticket facts and then seeks each
+winning line; L1 writes as its single pass proceeds. Measured at full scale:
+**peak resident memory 38-47 MiB against a 157 MiB input.**
+
+Which matters less for the laptop than for the target machine's actual
+constraint. This pipeline shares a host with model weights, and memory is the
+thing there is least of.
+
+The honest footnote: the seek-based approach does about 14,700 non-sequential
+seeks per run. On the SSDs this runs on that is cheaper than the memory, and on
+spinning disks it would not be. That trade is written down in the module rather
+than left for someone to rediscover.
+
+### The boilerplate patterns stay until a real run measures them
+
+This is the ruling I found most instructive, because it's a decision *not* to
+fix something.
+
+L1 splits boilerplate off the end of a comment using literal German patterns. The markers that begin a quoted reply chain. Several of them false-positive on
+ordinary prose: a sentence that legitimately begins with a date-ish or
+sender-ish word matches, and since the rule is earliest-match-to-end-of-comment,
+**one false match sends the rest of the comment into the boilerplate field.**
+
+I knew that when I shipped it. The corpus wasn't on the machine, so any
+tightening would have been a guess dressed as a fix, and a guess that makes the
+patterns *too* tight loses real boilerplate instead, which is worse and less
+visible.
+
+So the ruling was: leave the patterns, and **make the pipeline report the
+numbers that settle it.** `l1` prints eight per-pattern counts plus the total
+size of the cut. Nothing is deleted either way, boilerplate goes into its own
+field, not the bin, and L1 is a pure rebuild, so tightening later costs one
+re-run and no re-extraction.
+
+That is the shape I want more of my decisions to have: when you cannot answer a
+question yet, ship the instrument that will answer it, and say in writing that
+it's unanswered.
+
+## What is deliberately still open
+
+Two things, both recorded rather than hidden.
+
+**Two concurrent ingests on one store are unguarded.** There is no lock
+anywhere. One ingest at a time per store, documented in the module that would
+break. A real lock is not hard; it is just not the thing standing between this
+and a working system, and an undocumented absence is the actual bug.
+
+**L1's two outputs are renamed one after the other.** A kill between the two
+renames leaves a new tickets file beside a stale segments file. The window is
+two syscalls wide, the rebuild is pure, and the detection is that the two files
+disagree about which ticket ids exist. Accepted, written down, and the shape of
+the failure is named so nobody has to diagnose it from scratch.
+
+## The method, and the one thing it kept proving
+
+Every layer here was built the same way: a plan with numbered tasks, a fresh
+implementer per task, a review after each one, and a fix loop before moving on.
+
+The observation from that process which I didn't expect: **every single task
+found a real defect in the plan.** Not a style disagreement. A defect, in a
+plan I'd written carefully, in a task small enough to hold in your head.
+
+Which changed how I read plans. A plan's code is a hypothesis about what will
+work, and the useful discipline is to watch each test fail *first*, before
+making it pass, because a test that passes immediately against planned code is
+usually testing the plan's assumptions rather than the behaviour.
+
+Next: L2, the only layer that talks to a model, where turning one setting off
+was worth forty-six times the throughput of everything else I tried.

@@ -1,0 +1,204 @@
+---
+title: "On-premises from the first commit, and the guardrail that catches the cloud metadata address"
+summary: "Fourteen containers, one bind off loopback, and a validator that refuses to let the process start against a public model endpoint. Plus the reason 'private addresses are fine' is the wrong rule: the AWS, GCP and Azure instance metadata address is private, and it answers credentials to anything that can reach it."
+date: "2026-08-12"
+tags: ["on-premises", "django", "docker", "security", "architecture"]
+part: "II · replai"
+---
+
+## Why this exists
+
+The pipeline in the previous nine articles turns a legacy CRM into a searchable
+index. This one is about the product that reads it: **replai**, an assistant
+that takes an incoming mail, retrieves what the firm already knows about it,
+drafts a reply grounded in that evidence, and then stops and waits for a
+person.
+
+It was built from nothing over about five weeks. This article is about the
+foundation, specifically about what "on-premises" actually forces on an
+architecture, because it turns out to be considerably more than a deployment
+target.
+
+<Figure
+  src="/diagrams/replai/11-onprem-topology.svg"
+  alt="Five grouped cards. The application holds frontend, outlined in red as the only bind off loopback, plus web, api, worker and beat, noted as four processes with four copies of the settings. Identity holds keycloak with one realm and three clients, noting local account routes are removed rather than disabled. Model runtimes shows one llama.cpp image running three commands: a mandatory embedder, an optional reranker behind a profile, and a sparse embedder using the same weights with pooling off. State holds Postgres with pgvector and Redis with no password, noting mail passwords are encrypted at rest. Logging shows a per-host vector agent feeding an aggregator that scrubs before shipping to VictoriaLogs with 365-day retention. A footer notes every port but one is bound to loopback, and that a public model endpoint stops the process from starting."
+  caption="Fourteen containers. The red outline is the only port bound to anything other than loopback."
+/>
+
+## What the constraint actually decides
+
+"On-premises" reads like a hosting choice. In practice it removed most of the
+usual answers before the first commit.
+
+**No hosted embedding API.** Which sounds obvious and has a long tail: it means
+the embedding model's dimensionality becomes a schema decision rather than a
+config value. The vector column is declared at 1024 dimensions at the database
+level, so a model that emits 768 or 4096 does not "almost work". It fails to
+write a row. The model is not freely swappable the way a model *name* is, and
+that is a property of the deployment, not an oversight.
+
+**A GPU is a capacity planning problem, not a line item.** Three model
+services share one card, and the drafting model shares it with them. Which is
+why the corpus documentation carries measured throughput numbers rather than
+"it should be fine".
+
+**The interesting engineering moves.** When you cannot buy retrieval quality,
+you build it: hybrid search over pgvector, a cross-encoder rerank behind a
+profile, and an eval harness to tell whether either helped. Those are the next
+few articles.
+
+And one thing it does *not* decide, which I want to state plainly because it's
+the most common misreading: on-premises isn't the same as secure. Redis has no
+password. The three model services authenticate nobody. Those are real,
+disclosed, and the subject of a later article. What on-premises buys is that
+the *data* doesn't leave, not that everything inside is hardened.
+
+## The guardrail, and why the obvious version of it is dangerous
+
+The single most important piece of code in the foundation is a field validator
+on the model endpoint. It is the one thing standing between this product and
+somebody configuring a cloud provider.
+
+Three decisions in it are worth the article.
+
+**It resolves the host rather than pattern-matching it.** A hostname allowlist
+was my first instinct and it is wrong, because the container-correct endpoint
+for a model runtime on the host machine is `host.docker.internal`. A name that
+*must* be accepted, and that no sensible allowlist contains. So the validator
+does a DNS resolution and judges the address.
+
+**"Private is fine" is not the rule, and this is the part I would have got
+wrong.** Consider:
+
+```python
+ipaddress.ip_address("169.254.169.254").is_private   # True
+```
+
+That address is the **instance metadata endpoint** on AWS, GCP and Azure alike.
+It is link-local, the standard library calls it private, and it answers
+credentials to anything that can reach it. A validator written as "reject
+anything that is not private" accepts it, and accepts it on a *user's say-so*,
+through a settings screen, as a model endpoint the product will then POST to.
+
+So link-local is rejected explicitly, as its own clause, with the reasoning
+written next to it. That isn't a corner case I hardened against
+speculatively; it's the exact shape where a reasonable-sounding rule admits
+the worst possible target.
+
+**It is re-checked at every use, not once at save.** Passing validation once is
+not enough, for two independent reasons. The ORM does not run field validators,
+so any path that writes the column without an explicit full-clean. A
+management command, a data migration, a raw update, stores whatever it was
+given. And **DNS can change under a name that resolved privately when it was
+saved.** The last moment before the socket opens is where the check belongs, so
+the settings resolver re-validates on every use, and the probe class validates
+again inside itself, because that class is importable by anything in the
+package and a guardrail is not a thing to leave to whoever calls next.
+
+The API layer does not re-implement any of it. It calls the model's own clean
+and lets the validator raise. A second copy is a copy that can drift, and the
+one that drifts is the one that stops rejecting, silently, on the path that
+runs least often and costs most.
+
+One consequence worth stating because it is a deliberate product decision: a
+public endpoint answers **422**, not `{"ok": false}`. A cloud provider is not a
+server having a bad day. It is a configuration this product does not offer.
+
+## The validation trick that made the settings screens work
+
+A small thing that took a second attempt. Cleaning the whole row on save
+rejects the very first save, because a mailbox is configured over several
+visits to the screen and every column the user has not reached yet is blank, and blank is not valid on a required field.
+
+The temptation is to relax the validators. Instead, the clean runs with an
+**exclusion list covering every column this request did not supply.** A
+malformed sender address, a negative port or a public endpoint is still
+refused, on the request that carried it. What is excluded is only what was not
+sent.
+
+The same shape shows up in a sibling validator for a user-supplied vector
+database URL, which enforces four things: the scheme is HTTP or HTTPS, a host
+is present, the port is in range, and **there are no credentials in the URL.**
+None of those held before it existed. The column was a plain URL field, whose
+only check accepts `ftp://`, and there was no port rule at all, so a port of
+`99999` passed. Credentials are refused because that service authenticates by
+header and the schema stores that header value encrypted; a `user:pw@` prefix
+would be a second, plaintext credential store that nothing reads and nothing
+rotates, sitting in a field a GET returns.
+
+And it is **not** a private-network check, unlike the model endpoint. A
+remote vector database is a configuration the design allows. Two validators,
+two different rules, and the difference is written down, because "be
+consistent" would have been the wrong instinct in exactly one of the two
+places.
+
+## Probes, and a vocabulary of five words
+
+Every external dependency has a probe: mail, the model runtime, the vector
+database, the sparse embedder, the identity provider. Each has a real
+implementation and a fake one, each has a bounded timeout, and each returns a
+classification from a **fixed vocabulary rather than the far end's own words.**
+
+That last part is the design decision. "Unreachable" covers refused,
+unresolvable and no-route alike, because an administrator does not act on those
+three differently. *The address is wrong or nothing is there* is the whole of
+what any of them means to the person who typed it. Passing the far end's error
+string through instead would be more informative and less usable: it makes the
+screen's behaviour a function of somebody else's error text.
+
+The model probe is the exception that earns its extra field: a model runtime
+answers with more than yes, it says **what it has loaded**. That list is the
+point, because a typo in a model name is otherwise found hours later as a
+drafting failure, and that failure does not name the setting that caused it.
+
+The timeout is ten seconds, chosen and commented rather than defaulted: long
+enough that a mail server on a busy morning still answers, short enough that an
+administrator who typed the wrong host gets told so rather than watching a
+spinner.
+
+## Conventions that had to be written down
+
+Two, both of which cost something before they became rules.
+
+**Every URL and bind is an environment variable, and the two are named
+differently on purpose.** One name means the in-network address a container
+uses to reach another; the other means the host bind *including its interface*.
+Collapsing them into one variable is the mistake that widens a loopback bind to
+the whole network the first time somebody deploys across two machines, which
+is the subject of a later article, where exactly that happened. There is no host
+or port literal anywhere in the code.
+
+**The interface is English, the business is German.** The mail, the drafts, the
+rules a user types, the signatures and every model prompt are German. The
+product's own voice (labels, headings, hints) is English. That table lives in
+a conventions document with one category still marked **undecided**:
+validation messages the user is stopped by. A refusal is the moment
+comprehension matters most, which argues for German; it is also the product's
+own voice, which the rule sends to English. The two principles genuinely
+collide, the answer depends on how comfortable the operators are reading
+English, and that is a question for a real user rather than for a codebase. So
+it is recorded as open, with an instruction not to add more of either kind
+until it is settled.
+
+I like that entry more than I expected to. It is a decision the codebase is
+allowed not to have made yet, written down so that the inconsistency is
+visible rather than looking like carelessness.
+
+## The prompts are files, and the assembly is code
+
+One structural decision from this stage that pays off in every later article.
+
+The German system-prompt text of every model call lives in its own file, one
+per prompt, so a wording change is reviewable as a wording change rather than
+as a diff inside a Python string. What did *not* move is the assembly: which
+lines a prompt gets, and in what order, stays in code.
+
+There is exactly one exception, and it is instructive. The block that builds the
+user message interleaves German labels with the loops that assemble it. Moving
+those into a file would have fragmented one coherent piece of control flow
+across two artefacts for no reviewability gain. So they stayed, with a comment
+saying why.
+
+Next: what the corpus is made of, ten file formats, a chunker that must never
+cut a table row in half, and the running header that would otherwise embed
+itself twelve times.

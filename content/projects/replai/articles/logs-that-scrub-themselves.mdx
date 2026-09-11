@@ -1,0 +1,192 @@
+---
+title: "Logs that scrub themselves, and the three holes the allow-list does not close"
+summary: "Deny-by-default redaction, an event-name rule because a log line saying 'sending to alice@…' puts the leak where no field rule reaches, and the Postgres stream that reached the store without passing the allow-list at all, because the allow-list only governs what goes through it."
+date: "2026-08-29"
+tags: ["observability", "privacy", "gdpr", "logging", "vector"]
+part: "II · replai"
+---
+
+## Why this exists
+
+An on-premises product still needs logs, and logs are where a privacy promise
+quietly dies. The mail is encrypted, the documents never leave, the model is
+local, and then a worker logs `sending to k.brandt@…` and there is a
+customer's address sitting in a searchable store for a month.
+
+So the logging pipeline is deny-by-default, and this article is mostly about the
+places where that is not enough.
+
+<Figure
+  src="/diagrams/replai/16-log-redaction.svg"
+  alt="Three cards. The first shows a record passing through the allow-list, where a field not on it renders as redacted, and then through an event-name rule described as catching the leak rather than untidiness, with a table showing that our own non-conforming event becomes malformed-event, a library's is kept as foreign text with a name synthesised from its logger, and a record with no logger at all fails closed. The second, outlined in red dashes, names the three allow-listed fields that carry text nobody in the codebase wrote: the IMAP folder name, a rendered traceback, and a library's own message. The last admitted deliberately because on one real startup 47 of 47 lines said malformed-event and nothing else. The third states the honest limit: an address inside a folder name or URL path is scrubbed, a client's name is not."
+  caption="The allow-list, and the three fields it cannot protect. Naming all three is the point. A reader told there are two assumes the rest is closed."
+/>
+
+## Deny by default, and why the event name needs its own rule
+
+A field not explicitly permitted renders as `<redacted>`. That set is pinned by
+a test against a literal list, so adding a field to the store is a change
+somebody reviews rather than a side effect of adding a keyword argument to a log
+call.
+
+That handles fields. It does not handle this:
+
+```python
+log.info(f"sending to {addr}")
+```
+
+Here the leak is in the **event name**, where no field-level rule reaches it.
+
+So an event name must match a strict pattern (lowercase, dot-separated), and
+anything else is replaced. **In production too**, which is the part worth
+defending: a sentence-shaped event name is not merely untidy, it *is* the leak
+vector, so the replacement has to happen where the leak would happen.
+
+## The rule that had to learn whose record it was reading
+
+The event-name rule shipped, and then the running stack showed what it did to
+everybody else's logs.
+
+Django, Celery, uvicorn and every library in the dependency tree write
+sentence-shaped log messages, because that is what stdlib logging is for. The
+rule replaced all of them wholesale. On one real startup, **47 of 47 lines said
+`<malformed-event>` and nothing else.**
+
+Which is not privacy, it is blindness, and it was destroying exactly the
+messages an engineer debugs a worker with.
+
+So the rule now branches on **who wrote the record**:
+
+| logger | a non-conforming event becomes |
+|---|---|
+| ours | `<malformed-event>` |
+| a library's | the text is kept, address-scrubbed, under a name synthesised from the logger |
+| absent | `<malformed-event>`, the unclassifiable case failing closed |
+
+The synthesised name is the logger's first segment under a prefix, so
+`celery.worker.consumer.connection` becomes `foreign.celery`. And the
+stripping there is not cosmetic: **the synthesised name has to satisfy the same
+pattern or it is replaced in turn**, and a segment containing digits does not
+match it. A first segment that leaves nothing usable falls back to a generic
+name.
+
+Two things I take from that change. Fail-closed for the unclassifiable case is
+free and correct. And a privacy control that destroys operational visibility
+gets switched off by whoever is on call at 3am, so a control has to be
+survivable to stay deployed.
+
+## The three fields the allow-list cannot protect
+
+This is the part of the documentation I'm most glad exists, because *"we have
+an allow-list"* invites the belief that the problem is closed.
+
+Three allow-listed fields carry free text that nobody in this codebase wrote,
+and they are the entire exception surface. The document insists on naming all
+three, with the reasoning that a reader told there are two will assume the rest
+is closed.
+
+**The IMAP folder name.** A mailbox owner types it, so a folder named after a
+client puts that name in a searchable store. And the document explicitly
+refuses the comfortable argument that a folder name cannot be a direct
+identifier, `info@kunde.de` is an entirely ordinary name for a shared mailbox
+folder. What holds instead is narrower and checkable: an address in a folder
+name is scrubbed; a client's *name* is not.
+
+**A rendered traceback.** Arbitrary third-party text. It has to be allow-listed
+to be worth logging at all, so the field rule cannot protect it. A database
+integrity error quoting a subject line, or a library exception quoting a
+display name, goes through whole. This is best-effort **by construction**, and
+the documentation insists it be described that way rather than as a control.
+
+**A library's own message**, admitted deliberately by the change above. What
+that admits is a library's sentence, and a library's sentence can quote a URL
+path: a not-found line for a password-reset URL containing an address arrives
+with the address scrubbed. The address is gone. **A name in a path would not
+be.**
+
+All three are scrubbed for email addresses and for nothing else.
+
+## The claim that survives being checked
+
+The wording the compliance annex ended up with matters more than the
+mechanism, and it took a revision to get right.
+
+It does **not** say the logs are anonymous. It says there are no direct
+personal identifiers, and names three fields that carry free text which is
+address-scrubbed and best-effort.
+
+The note beside it: *"anonymous" is the kind of claim that costs more when
+checked than it ever gained when written.*
+
+That is the sentence I'd put above a lot of security documentation. A
+weaker claim that's exactly true is worth more than a strong one that a data
+protection officer can break in one question, because the moment one claim in
+a document is shown to be overstated, every other claim in it becomes
+something to verify.
+
+## The stream that never reached the allow-list at all
+
+And here is the failure that taught me the most, because it is a category error
+rather than a bug.
+
+Postgres was writing statement text into the log store. The allow-list had
+nothing to do with it, not because the allow-list failed, but because
+**Postgres's log lines never passed through it.**
+
+The allow-list governs records written through *this application's* logging
+configuration. A container's stdout is collected by the log shipper directly.
+Those are two different paths into the same store, and the control lives on
+only one of them.
+
+That distinction is easy to state afterwards and was genuinely invisible
+beforehand, because from the store's point of view all the lines look alike.
+The lesson generalises to any redaction control: **the boundary a control
+protects is the code path it sits on, not the destination it protects.** Enumerate
+the paths into your store, not the controls you have written.
+
+The shipper does run a scrub over foreign lines. But a considered and rejected
+fix is recorded too: a transform that stripped statement text specifically was
+turned down, because a rule matching the first line of a wrapped statement
+passes every continuation line after it. A control that works on the easy case
+and fails silently on the real one.
+
+## Where tracing does not go
+
+One structural consequence, and it is why an earlier article mentioned tracing
+being pinned off.
+
+Everything in the stack ships its output through **one** redaction transform.
+An OpenTelemetry exporter would open a second path out of the process,
+bypassing that transform entirely.
+
+The chat product's dependency tree carries the instrumentation for it, opt-in
+and shipped switched off. Removing it turned out to be a large diff for no
+behaviour change, so instead it's **pinned off by a task and a note**, with the
+reason recorded: not "we do not need tracing", but "an exporter would be a
+second way out of the box, and there's exactly one sanctioned way out".
+
+Deleting a capability and forbidding a capability look similar in a changelog
+and are very different in a codebase. Writing down which one you did is the
+difference between a decision and an accident somebody will reverse.
+
+## Retention is thirty days, bounded twice
+
+Log records live **thirty days**, and the bound is enforced two ways at once: a
+time limit, which is the number the compliance document quotes, and a
+**disk-space cap**, so that a runaway log loop cannot fill a customer's disk
+before the thirty days elapse.
+
+That second limit is the one worth copying. A retention policy expressed only
+in days is a promise about the past; it says nothing about how fast the present
+can arrive. On an appliance in a cupboard with no operator, the failure that
+actually happens is a loop writing a million lines an hour, and a thirty-day
+window does not save the disk from that.
+
+(The chat product's *conversations* are a different dataset with a different
+number. A year, erased through the application rather than by a job reaching
+into the datastore, because a deletion path that bypasses the application
+misses whatever the application added last month.)
+
+Next: the logs leave the box, and the transport that was supposed to carry them
+needed a certificate the firm cannot issue, for the second time in this
+project, in a completely different place.

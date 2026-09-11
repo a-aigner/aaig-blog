@@ -1,0 +1,219 @@
+---
+title: "Every draft arrives with a verdict on itself, and no model wrote it"
+summary: "The prompt forbids invented figures; nothing in a prompt verifies that. So the body is read back before it is stored, six kinds of German figure extracted, traced against the sources and the thread, and one untraceable number holds the draft. The confidence score is arithmetic, and the model that explains it is never allowed to produce it."
+date: "2026-08-20"
+tags: ["local-llm", "trust", "rag", "product-design", "django"]
+part: "II · replai"
+---
+
+## Why this exists
+
+The prompt tells the model not to state a figure that is not in the sources.
+
+Nothing in a prompt *verifies* that the model obeyed. And a fluent invented
+price is the one failure this product cannot have, not because it is
+embarrassing, but because it is invisible: a reviewer skimming a queue of
+well-written German business letters has no way to tell the quoted number from
+the imagined one.
+
+So the body is read back before it is stored. What that reading finds becomes
+the draft's status, its confidence number, and two German notes a reviewer can
+act on.
+
+<Figure
+  src="/screenshots/replai/review-evidence-panel.png"
+  alt="The replai review screen: a left queue of four drafts with company and confidence, one carrying a Held badge; a centre pane showing the incoming German mail above the drafted reply, with four figures underlined. A currency amount, a date, a dimension and a calendar week; an open sources panel listing three retrieved sources with their label, kind, title and score; and a right rail showing a confidence of 84 with its arithmetic breakdown and a note saying every figure is backed but one comes only from a scanned source."
+  caption="The review screen on a synthetic dataset. The four underlined figures in the draft are the ones the assessment traced; the right rail is the arithmetic, not a model's opinion."
+/>
+
+## Six kinds of figure, and a deliberately conservative floor
+
+Figure extraction finds six kinds, in a fixed order, and an earlier kind claims
+its span so a later pattern cannot re-match inside it. The `2026` in
+`14.08.2026` is part of the date, not a second figure, which sounds obvious
+and is the sort of thing that produces phantom untraceable numbers if you get
+the ordering wrong.
+
+| kind | German forms | normalised to |
+|---|---|---|
+| currency | `418,50 €`, `€ 418,50`, `1.284,50 EUR` | `418.5`, `418.5`, `1284.5` |
+| week | `KW 33`, `KW33` | `kw33` |
+| date | `14. August`, `14.08.`, `14.08.2026` | `14.8`, `14.8.2026` |
+| dimension | `132 cm`, `2,4 m`, `900mm` | `132`, `2.4`, `900` |
+| percent | `19 %`, `7,5%` | `19`, `7.5` |
+| number | `1.284,50`, `418`, `4,5` | `1284.5`, `418`, `4.5` |
+
+Normalising is what makes two spellings of one claim comparable: thousands
+separators out, the decimal comma to a dot, trailing zeros trimmed.
+
+And it is **deliberately conservative at the bottom end: a bare one- or
+two-digit integer is not a figure.** A room number, a `2 Wochen`, a house
+number would otherwise swamp the signal, and holding a draft over a room
+number teaches a reviewer to stop reading the hold, which destroys the whole
+mechanism. The cost of a strict detector is a missed small number. The cost of
+a noisy one is that nobody trusts any of them.
+
+Matching is similarly narrow. Dates only ever match dates. A dated year covers
+the yearless notation of the same day, so `14.08.2026` in a source backs
+`14. August` in the draft, but nothing backs `15.08.` There is **no calendar
+arithmetic at all**: `KW 33` is never equated with a range of dates, because
+doing that correctly requires knowing which week numbering scheme the firm
+uses, and doing it incorrectly means backing a claim that was never made. And
+`number` is the wildcard kind, so a bare `418,50` in a price list backs
+`418,50 €` in the draft, while `132 cm` and `132 €` stay distinct claims.
+
+## What does not count as evidence, and why that is the whole point
+
+Tracing looks for each figure in two pools: the excerpts of the retrieved
+sources, and the body text of the thread tail.
+
+**The incoming mail is evidence for its own numbers.** A customer who writes
+"we agreed 418,50" has supplied the figure, and refusing to let the reply repeat
+it would be absurd.
+
+**Few-shot examples do not count.** Neither does the signature.
+
+That exclusion is the entire reason traceability is worth computing. The
+few-shot examples are past replies this firm sent. They teach register. A price
+quoted in an exchange from two years ago is **not evidence for today's claim**,
+and treating it as one would let the corpus's oldest numbers launder themselves
+into new quotes. That is not a hypothetical: it is precisely the mechanism by
+which a plausible, well-grounded-looking price appears in a draft with nothing
+current behind it.
+
+The signature is excluded for a more mundane reason and it is a nice detail: the
+assessment runs on the generated body **before the signature is appended**,
+because a stored signature is full of phone numbers and postcodes that are
+nobody's claim. Examining them would hold every draft the firm ever wrote.
+
+**OCR-only figures are traced but suspect.** Each source records whether it came
+from OCR. When *every* excerpt backing a figure came from a scan, the trace is
+marked as such: a scanned price list is real evidence, but `418,50` and `413,50`
+differ by one glyph. Such a figure counts at **half credit** and is named
+separately in the note, which is what the right rail is saying in the
+screenshot above.
+
+## One untraceable figure holds the draft
+
+The status becomes `HELD` the moment any figure is found nowhere. Not a warning. A hold, which the queue shows as a badge.
+
+That is a blunt rule, and I think blunt is correct here. A graded response
+("this draft has one questionable number, proceed with care") is a request for
+judgement from somebody processing a queue, and the whole reason a reviewer can
+work quickly is that the system has already made the binary call.
+
+A hold is not a block, though. It is a stop for a human, not a refusal. The
+draft is there, the figure is marked, and a person can see exactly which number
+has nothing behind it.
+
+## Confidence is arithmetic, and one of its parts understates on purpose
+
+The score is three weighted signals:
+
+| signal | weight | what it is |
+|---|---|---|
+| traceability | **45** | backed figures over all figures, OCR-only at half. No figures at all scores full. |
+| support | **30** | how much material the prompt actually carried |
+| tone | **25** | how close the body sits to the voice this firm actually sends |
+
+Traceability dominates because an invented figure is the failure the stage
+exists to catch. Tone is real but cosmetic beside either of the others. It is also the signal
+most likely to be missing altogether.
+
+Three properties of that arithmetic are worth more than the weights.
+
+**Support is a slots-filled ratio, not a quality measure.** It is the count of
+*local* sources that survived the budget, over the two settings that bound
+retrieval. Which makes it blunt in a way the documentation states plainly: **on
+a thin corpus a draft can be perfectly traced and still score low.** A draft
+that carried one source, traced every figure and had no tone signal composes to
+**63**. That number is behaving correctly; a reviewer reading 63 as "the model
+is unsure" would be reading it wrong. It says the corpus was thin.
+
+**A foreign source counts in neither half of that fraction**, and this is a
+correction rather than an original decision. There is no per-source count to
+divide by, so counting a foreign hit in the numerator alone **raised every
+draft's confidence because a connector happened to be configured**, not
+because anything about the draft improved. Excluding it understates instead: a
+draft grounded largely in CRM records scores lower on this signal than its
+evidence deserves. That is the understating direction, and it is the one this
+codebase picks every time the choice comes up.
+
+**An absent signal redistributes its weight rather than scoring zero.** With no
+tone signal, the sum is taken over the other two and renormalised. Scoring a
+missing signal as zero would punish a firm for having sent no mail yet, which
+is not a statement about the draft.
+
+And that renormalisation has a consequence the documentation flags and I want
+to repeat, because it's the kind of thing that quietly poisons a metric: **a
+confidence from the streaming path isn't comparable to one from the overnight
+path.** The stream computes without tone, so its number is a two-signal number
+scaled to 100. They are on different scales and **the difference isn't visible
+in the integer.**
+
+## Rule caps: a warning, not a gate
+
+A firm can cap confidence for a given intent. The worked example being every
+complaint reply capped at 60, because a warranty claim answered confidently by
+a machine is a legal exposure regardless of how well it traced.
+
+Four properties, each of which is a small argument:
+
+**Intent-matched, not keyword-matched.** The intent is already computed and
+already refuses to guess. A German keyword list in a settings table would be a
+second, more fragile classifier hiding inside configuration.
+
+**Strictest wins.** Two applicable caps of 60 and 80 yield 60.
+
+**A cap above the score changes nothing.** It is a ceiling, never a floor. A
+rule cannot be used to talk a bad draft up.
+
+**A cap with no intent chosen never fires**, silently, because the default
+matches none of the seven intents. Worth knowing before concluding a cap is
+broken.
+
+And when a cap bites, the rule's text goes into **its own database column**, not
+into the confidence note. That is a small structural decision with a real
+reason: the note is prose that a model rewrites, and the review screen has to
+name the responsible rule *reliably*. It is blank whenever no cap bound, including when a rule matched but its cap sat above the computed score, because
+a rule that changed no number is not a rule to warn about.
+
+## The annotator explains and cannot produce
+
+The confidence note starts as the mechanical breakdown. The
+`Belegbarkeit … · Quellenabdeckung … · Ton … → Vertrauen …` line visible in the
+screenshot. On the overnight path a model is then asked to render that line as
+one or two German sentences, at temperature 0, capped at 120 tokens, instructed
+to change no number and invent nothing.
+
+The important word is **structural**. That constraint is not a request the model
+is trusted to honour. The annotator receives the *finished* breakdown and
+returns prose. **Every number was already decided before it was called, and
+nothing it returns is parsed back into a number.** The worst a misbehaving
+annotator can do is write a bad sentence beside a correct score.
+
+This is the same shape as the pipeline's internal-comment judge from an earlier
+article, and by now it reads to me as a general rule: **when a probabilistic
+component sits in a trust path, arrange the architecture so that the worst case
+is cosmetic.** Not "prompt it carefully". Give it nothing load-bearing to hold.
+
+## What the screen deliberately does not show
+
+Two omissions I like.
+
+**Operators never see the ranking numbers.** The cross-encoder's logit and the
+retrieval debug view are staff-only, and the API drops the key entirely for
+everyone else rather than sending null. A cross-encoder logit means nothing to
+an operator, and a second score beside the first would invite a relevance
+judgement this pipeline never makes.
+
+Which is the honest bit: **nothing in this system decides that a source is
+relevant.** Sources are the top N by rank. Presenting a confident-looking
+relevance number would be claiming a judgement that was never made.
+
+**Reranking off is `null`, not zero.** Logits are mostly negative, so rendering
+an absent one as `0` would read as a genuine, and rather good, score. Null is
+a state, and the type says so.
+
+Next: what happens after a person clicks Accept, which is deliberately not
+"the mail goes out".

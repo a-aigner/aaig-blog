@@ -1,0 +1,157 @@
+---
+title: "The same service answers in two languages, and both answers are right"
+summary: "ListData.svc derives its OData property names from column display names, and display names are localised. So Accept-Language changes the schema, a saved metadata document disagrees with the live service about whether a property exists, and $filter=Id gt 0 returns HTTP 400 while a bare read works fine."
+date: "2026-07-22"
+tags: ["odata", "sharepoint", "i18n", "api-design", "python"]
+part: "I · The pipeline"
+---
+
+## Why this exists
+
+The credential worked. The collections listed. Reading a page of rows worked.
+And then this returned HTTP 400:
+
+```
+GET …/_vti_bin/ListData.svc/Ticket?$filter=Id gt 0
+```
+
+With a German error message explaining that no property called `Id` exists on
+the type at position 0. Which is confusing, because a bare read of that same
+collection had just handed me rows with an id in them.
+
+It got worse before it got better. I fetched `$metadata.xml` from a browser,
+saved it, and read it properly, and it clearly listed a property called `Id`.
+So I'd a schema document saying `Id` exists and a live service saying it does
+not, against the same list, on the same farm, minutes apart.
+
+Both were right. This article is about why, because it's the single most
+important thing I learned about this system and it generalises well beyond
+SharePoint.
+
+## The mechanism
+
+`ListData.svc` doesn't have a fixed schema. It **derives OData property names
+from each column's display name**, and display names in SharePoint are
+localised through the multilingual user interface. So the service answers
+differently depending on the `Accept-Language` header you send it.
+
+My browser was configured for English. My HTTP client was not sending the
+header at all, so it got the web's own language, which is German. The saved
+metadata document and the live service were describing the same list in two
+languages, and neither of them was lying.
+
+And OData property names are **case-sensitive**. The German identity column is
+not a translation of `Id`. It is spelled `ID`. So this isn't a "translate the
+names" problem you can solve with a dictionary lookup; two letters of case is
+enough to 400 a filter.
+
+<Figure
+  src="/diagrams/replai/03-property-resolution.svg"
+  alt="Top card: a three-column table mapping a role to its German and English property names, identity is ID versus Id, created is Erstellt versus Created, modified is Geändert versus Modified, author is ErstelltVonId versus CreatedById, plus modified-by, content type, path and attachments. Below a rule, custom columns like Title, Description and TicketNumber are identical in both. Bottom card: a four-step flow from a role, to its ordered aliases, to an exact match over the row's keys, to a single case-insensitive fallback pass, with a red note that $filter=Id gt 0 returned HTTP 400 against the German service."
+  caption="Eight roles, sixteen names. The custom columns are the trap inside the trap."
+/>
+
+## The trap inside the trap
+
+Look at the bottom of that table. **Custom columns are not translated.**
+
+`Title`, `Description`, `TicketNumber`. The columns somebody added when they
+built this CRM, are spelled identically in both languages. Only SharePoint's
+own built-in columns move.
+
+That is much worse than everything moving, because everything moving is
+obvious. You switch language, everything breaks at once, you notice within a
+minute. Here, switching language moves *some* names and leaves others alone, so
+half your code keeps working and half of it silently reads nothing. There is no
+single moment where the system tells you what happened.
+
+## The rule I now apply everywhere
+
+**Never match a column name literally. Resolve it by role.**
+
+Concretely: a role is a small ordered tuple of the names that role is known to
+go by, and you ask the row you actually received which of them it uses.
+
+```python
+KEY_ALIASES = ("Id", "ID")
+CREATED_ALIASES = ("Created", "Erstellt")
+MODIFIED_ALIASES = ("Modified", "Geändert")
+AUTHOR_FK_ALIASES = ("CreatedById", "ErstelltVonId")
+```
+
+Exact match first, over every alias, in tuple order. Then, and only then, one
+case-insensitive pass over the row's keys. Exact-first matters for a reason
+that is easy to miss: if a row somehow carries both `Id` and `id`, the alias
+tuple's own ordering decides the answer rather than dictionary iteration order,
+which makes the resolution deterministic instead of accidentally stable.
+
+The case-insensitive fallback **logs a warning**, even though it's the
+documented behaviour and it succeeded. That felt like noise when I wrote it and
+it's the most valuable line in the module. An exact miss means the wire spelled
+a column in a case no alias tuple anticipated. Everything downstream then works
+perfectly, on a column nobody chose deliberately. That is precisely the shape
+of the bug that cost days the first time, and the only difference between a
+close call and a repeat is whether anything said so out loud.
+
+The resolver lives in a module *underneath* both the layers that need it, so
+the layer that rebuilds from the other's output never has to import the layer
+above it just to share a lookup table. Small structural thing, but it is why
+the rule stayed enforceable rather than becoming a convention two modules each
+implemented their own way.
+
+## Pin the language, but do not depend on it
+
+The extractor takes `--language en-US`, and every real run uses it. That is
+about **reproducibility**, not correctness: two runs pinned to the same language
+produce byte-comparable files, and a resume can check that the file it is
+appending to was written under the same header. Without a pin, the same command
+on two machines can produce two different schemas.
+
+But pinning isn't a fix, and treating it as one is how you get bitten again.
+The resolution-by-role machinery still runs under the pin, because the pin can
+be forgotten, overridden by an environment variable, or dropped by a proxy that
+rewrites headers, and because a farm can be reconfigured. The pin makes the
+common case predictable. The resolver makes the uncommon case survivable.
+
+There is a companion refusal that falls straight out of this: the extractor
+**will not resume a file written under a different language**. The key column
+would have moved, so "resume from the highest key on disk" would be reading one
+schema's ids out of another schema's file. It is a two-line check that prevents
+a corruption you wouldn't notice for a very long time.
+
+## Two smaller things the same discovery fixed
+
+**The parent link is identified by data, not by its name.** Comments point at
+their ticket through a lookup column, and the obvious guess for that column's
+name is wrong in a specific and instructive way. The name that appears in the
+web interface's own URLs. The one you would find by clicking around and reading
+the address bar, appears nowhere in the schema at all. It is a form-prefill
+query parameter, not a column. The actual foreign key is named after the
+lookup's *display* column, which is a different thing again. So the resolver
+identifies the parent column by checking which candidate actually contains
+values that resolve to ticket ids, rather than by matching a string.
+
+**Comments are ordered by instant, not by the text of their timestamp.** The
+timestamps arrive in a serialised date format, and sorting those strings
+lexically is not the same as sorting the moments they represent. It is close
+enough to look correct on a sample and wrong at the boundaries, which is the
+worst kind of wrong.
+
+## What generalises
+
+The lesson isn't "SharePoint localises its API", although it does and that's
+worth knowing. It is that **a schema you fetched is a snapshot of a
+negotiation, not a fact about the system.** I'd treated `$metadata.xml` as
+ground truth because it looks like ground truth. It is XML, it's served by
+the server, it describes types. But it's a *response*, and responses depend on
+requests.
+
+The version of me that would have saved a fortnight is the one who, on the
+first inexplicable 400, asked the wire what the properties were called instead
+of asking the documentation. Which is now a command: it bisects the query
+options per collection and compares the answers across three languages, so the
+question "does this service think this property exists" takes one invocation
+rather than an afternoon of theories.
+
+Next: the server refuses to count its own rows, and the one query I most wanted
+runs at five rows per second.

@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 566" width="700" height="566" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .box { fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.12); stroke-width: 1; }
+    .page{ fill: #ffffff; stroke: rgb(10 10 10 / 0.22); stroke-width: 1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .k   { font-size: 11.5px; font-weight: 700; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .mg  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; fill: rgb(10 10 10 / 0.6); }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .strip{ stroke: #db0a12; stroke-width: 2; }
+    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="566"/>
+
+  <!-- flow -->
+  <rect class="card" x="16" y="14" width="668" height="164" rx="6"/>
+  <text class="t h" x="32" y="38">Ten formats, one shape in the middle</text>
+
+  <rect class="box" x="32" y="52" width="138" height="52" rx="4"/>
+  <text class="t k" x="42" y="72">a file</text>
+  <text class="t n" x="42" y="90">ten suffixes, or skipped</text>
+
+  <rect class="box" x="190" y="52" width="150" height="52" rx="4"/>
+  <text class="t k" x="200" y="72">an extractor</text>
+  <text class="t n" x="200" y="90">one per format</text>
+
+  <rect class="box" x="360" y="52" width="150" height="52" rx="4"/>
+  <text class="t k" x="370" y="72">typed blocks</text>
+  <text class="t n" x="370" y="90">never one flat string</text>
+
+  <rect class="box" x="530" y="52" width="138" height="52" rx="4"/>
+  <text class="t k" x="540" y="72">chunk + vector</text>
+  <text class="t n" x="540" y="90">pgvector, in-table</text>
+
+  <path class="ln" d="M 170 78 L 186 78" marker-end="url(#a)"/>
+  <path class="ln" d="M 340 78 L 356 78" marker-end="url(#a)"/>
+  <path class="ln" d="M 510 78 L 526 78" marker-end="url(#a)"/>
+
+  <line class="rule" x1="16" y1="118" x2="684" y2="118"/>
+  <text class="t m" x="32" y="138">TEXT</text>
+  <text class="t m" x="110" y="138">HEADING</text>
+  <text class="t m" x="210" y="138">TABLE_ROW</text>
+  <text class="t n" x="330" y="138">and each block carries whether it came from OCR</text>
+  <text class="t b" x="32" y="162">A table row travels as one atomic unit, so the chunker can never cut it in half.</text>
+
+  <!-- the four traps -->
+  <rect class="card" x="16" y="198" width="668" height="204" rx="6"/>
+  <text class="t h" x="32" y="222">Four places a format misleads you</text>
+  <line class="rule" x1="16" y1="234" x2="684" y2="234"/>
+
+  <text class="t k" x="32" y="256">The delimiter is sniffed, not assumed</text>
+  <text class="t n" x="32" y="273">German exports use semicolons. Guess a comma and</text>
+  <text class="t mg" x="352" y="273">418,50</text>
+  <text class="t n" x="404" y="273">becomes two cells.</text>
+
+  <text class="t k" x="32" y="300">The header row is found, not counted</text>
+  <text class="t n" x="32" y="317">Scan for the first row with two or more filled cells, a title row above the real</text>
+  <text class="t n" x="32" y="332">header no longer mislabels the whole sheet.</text>
+
+  <text class="t k" x="32" y="359">A row is verbalised, not tab-joined</text>
+  <text class="t mg" x="32" y="376">Position: Ersatzteil · Einzelpreis: 418,50</text>
+  <text class="t n" x="300" y="376">every value keeps its column header</text>
+  <text class="t n" x="32" y="392">beside it, so the row still means something once it is alone in a chunk.</text>
+
+  <!-- running headers -->
+  <rect class="card" x="16" y="422" width="668" height="128" rx="6"/>
+  <text class="t h" x="32" y="446">The fourth: a line that repeats is not content</text>
+
+  <rect class="page" x="32" y="458" width="46" height="62" rx="3"/>
+  <line class="strip" x1="38" y1="466" x2="72" y2="466"/>
+  <rect class="page" x="86" y="458" width="46" height="62" rx="3"/>
+  <line class="strip" x1="92" y1="466" x2="126" y2="466"/>
+  <rect class="page" x="140" y="458" width="46" height="62" rx="3"/>
+  <line class="strip" x1="146" y1="466" x2="180" y2="466"/>
+  <rect class="page" x="194" y="458" width="46" height="62" rx="3"/>
+  <line class="strip" x1="200" y1="466" x2="234" y2="466"/>
+  <text class="t n" x="32" y="536">…× 12 pages</text>
+
+  <text class="t b" x="270" y="476">Stripped when a line recurs at the same vertical</text>
+  <text class="t b" x="270" y="492">position on at least half the pages of a document</text>
+  <text class="t b" x="270" y="508">of three or more. Digits are normalised first, so</text>
+  <text class="t mg" x="270" y="526">Seite 3 von 12</text>
+  <text class="t b" x="374" y="526">and</text>
+  <text class="t mg" x="404" y="526">Seite 11 von 12</text>
+  <text class="t b" x="516" y="526">are one line.</text>
+</svg>

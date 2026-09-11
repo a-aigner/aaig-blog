@@ -1,0 +1,174 @@
+---
+title: "Does confidence predict how much you changed?"
+summary: "One screen, one question, and a sample design where an accepted draft counts as zero characters changed. Plus the screen's own footnote admitting its numbers are mildly optimistic, and why a metric that would fix that is deliberately not planned."
+date: "2026-08-25"
+tags: ["metrics", "product-design", "evaluation", "django", "honesty"]
+part: "II · replai"
+---
+
+## Why this exists
+
+Drafting writes a confidence number on every draft. Sending records an edit
+distance on every edit. This is the screen that puts the two together and asks
+the only question that matters about the first number:
+
+**Does confidence predict how much a reply had to be changed?**
+
+A well-calibrated drafter should cost less editing the more confident it says
+it is. A high band should show a small median edit distance, a low band a large
+one. That is the whole screen.
+
+<Figure
+  src="/screenshots/replai/analytics-calibration.png"
+  alt="The analytics screen headed 'Does confidence predict how much you changed?' with four confidence bands (90 to 100, 70 to 89, 50 to 69, and 0 to 49), each showing a median edit distance as a bar and a number, rising from zero in the top band to 388 in the lowest, alongside decided and rejected counts per band. Two footnotes below: one saying decided and rejected are counted separately, and one explaining that a message which took several attempts counts only its surviving draft, so the numbers are mildly optimistic."
+  caption="Synthetic data, real screen. The curve falls the way a calibrated drafter should, and the screen says in its own footer why the numbers flatter it."
+/>
+
+## An accepted draft costs zero, and that is the load-bearing choice
+
+The edit distance exists only on edit events. An accepted, rejected,
+regenerated or sent event never carries one.
+
+So what does an accepted draft cost? The screen counts it as **zero characters
+changed**, not as a draft with no cost to report.
+
+That one decision is what makes the sample honest. The alternative is a trap,
+and I'd probably have walked into it.
+
+If the sample were built from **edited drafts alone**, it would silently
+exclude every draft that was good enough to accept outright. And those are
+**disproportionately the high-confidence ones**, because a high-confidence
+draft is exactly the kind a person is willing to accept unread.
+
+The top band would then be built almost entirely from the small minority of
+high-confidence drafts that *did* need fixing, and it would look just as bad
+as every other band, regardless of how well calibrated the drafter actually
+was. The screen would show no relationship, the conclusion would be "confidence
+is meaningless", and the sample would have manufactured that conclusion.
+
+Zero-for-accepted is what keeps the easy drafts in the sample at all.
+
+## Three states, and only one of them is a cost
+
+**Decided** means queued, edited, sent or failed. Failed belongs in that set on
+purpose: a send that failed for SMTP reasons still went through a real editing
+decision beforehand, and dropping it would bias the result toward whatever
+happened to send cleanly.
+
+**Rejected is counted separately and excluded from every median.** A rejected
+draft was thrown away rather than fixed, so it has no edit distance in either
+direction, and folding it in as either extreme would be a lie: counting it as
+zero says the drafter was right when the reviewer said the opposite, and
+counting it as effectively infinite invents a cost nobody measured. So it gets
+its own column, never blended in.
+
+**Pending and held are not decided at all** and are excluded entirely rather
+than appearing as a third bucket. Nobody has acted on them yet; they are not
+data about anything.
+
+## "Last edit", and why the word matters
+
+A decided draft's cost is the edit distance on its **last** edit event, or zero
+if it has none.
+
+A draft can be edited more than once before it is queued, and only the distance
+on the *final* edit is what actually reached the customer. An earlier, larger
+edit that was itself edited back down is not the number that shipped.
+
+And the distance is always measured against the text the **model** generated, captured on the first edit only, so a second edit's distance is still measured
+from the machine's draft rather than from a person's own previous rewrite.
+Otherwise the metric would silently start measuring how much a reviewer changed
+their own mind.
+
+## The screen's own footnote, which I would keep in any product
+
+Look at the bottom of the screenshot. The screen says, in its own copy, that
+**its numbers are mildly optimistic**, because a draft can be regenerated
+before anybody acts on it, so a message that took three attempts before landing
+contributes only its surviving draft. The effort spent on discarded attempts
+goes uncounted.
+
+That is a real bias, stated by the thing that has it, in the place where
+somebody would read the number.
+
+There is a second one that only shows up once a firm changes how it works. The
+draft editor has a **Correct** button that sends the current text to the model
+and offers a correction. That request writes nothing. Only what the
+reviewer eventually saves reaches the database, through the ordinary edit verb.
+
+Which means the corrected characters are counted exactly as if the reviewer had
+retyped them by hand. The number stays **literally true**. It is still how
+many characters differ between what the model wrote and what was sent, but
+what it is *read as* shifts. A spelling-and-phrasing pass over an
+already-good draft reads on this screen exactly like a substantive rewrite of a
+bad one. So a firm that routinely proofreads sees its median edit distance rise
+for reasons that have nothing to do with calibration.
+
+**And there is no second distance, and none is planned.** That is a decision,
+not an omission: a metric that isolates a proofread correction from a human
+edit is speculative until somebody has looked at a real curve and found that
+this attribution actually changed what they concluded from it.
+
+I keep coming back to that as the right instinct. The bias is *documented*
+rather than *engineered around*, because engineering around a bias nobody has
+been misled by yet is how a metric acquires four asterisks and stops being
+read.
+
+## The threshold, and refusing to show four bands too early
+
+Below **100 decided drafts**, the screen shows one overall median instead of
+four band medians.
+
+Splitting a small sample four ways produces four numbers each built from a
+handful of drafts, and **a handful-sized median is noise that displays exactly
+as confidently as a real one.** A firm with 40 decided drafts would see four
+bars that look like a finding and are not.
+
+This is the same instinct as the RAG pipeline's eval harness reporting "no
+measurable difference" rather than a point estimate from a small pool. Both
+are the same rule stated twice: *a display is a claim about how much you
+know, and a chart is the most confident display there's.*
+
+The four bands are inclusive at both ends, 89 lands in the second band, 90 in
+the first, and the cut-points are sent to the client as numbers rather than
+as formatted labels, so they are defined once in one Python module and the
+screen only renders them. A band label assembled in the frontend is a second
+definition of the bands waiting to disagree with the first.
+
+## Two things it deliberately does not answer
+
+**No trend over time.** One query, one snapshot, the whole decided history. Whether calibration is improving month over month is
+a real question; this screen carries no date axis to answer it.
+
+**No per-intent breakdown.** The intent is on every row it reads, and it is not
+grouped by. Whether complaint drafts calibrate worse than scheduling ones is
+also a real question.
+
+Both are stated as **non-goals of this screen, not sections it's missing.**
+That distinction matters more than it sounds: "we didn't build this" and "we
+decided this is a different question" read identically in an empty screen and
+completely differently in a document.
+
+## A null that should never happen, and is still checked
+
+Small one, and it is a good habit.
+
+The confidence column is nullable in the schema. But the value the drafting
+path writes is a plain integer, never absent, so a draft with a null
+confidence should never occur. The nullability exists in the schema with no
+code path expected to use it.
+
+The screen still excludes such a row rather than assuming it away, and counts
+it: *N drafts had no confidence score and were left out.* **A non-zero value
+there is a bug worth seeing, not a state the screen was built to expect.**
+
+Because a query result is what it is, not what the code above it promises. And
+the count is scoped to decided statuses only. A null-confidence *rejected* row
+is not counted, because a rejected draft was thrown away by a reviewer rather
+than left out for want of a score, and folding it in would tell a reader "N
+decided drafts were left out" about a population that could be entirely
+rejections.
+
+Next: the seam back to the first ten articles. The CRM pipeline's collection
+becomes an evidence source in here, read-only, and admitted only if it can
+earn a place on the one scale a local chunk and a foreign point share.

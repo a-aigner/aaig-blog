@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 646" width="700" height="646" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .box { fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .soft{ fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .k   { font-size: 12px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(10 10 10 / 0.66); }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="646"/>
+
+  <rect class="card" x="16" y="14" width="668" height="402" rx="6"/>
+  <text class="t h" x="32" y="38">One question, two arms, fused by the server</text>
+
+  <rect class="soft" x="32" y="52" width="636" height="34" rx="5"/>
+  <text class="t b" x="44" y="74">the question, as one string</text>
+
+  <path class="ln" d="M 200 86 L 200 104" marker-end="url(#a)"/>
+  <path class="ln" d="M 500 86 L 500 104" marker-end="url(#a)"/>
+
+  <rect class="box" x="32" y="104" width="310" height="80" rx="5"/>
+  <text class="t k" x="44" y="124">the dense arm</text>
+  <text class="t n" x="44" y="143">one vector from the embedder, compared</text>
+  <text class="t n" x="44" y="158">against the vectors indexing already wrote</text>
+  <text class="t m" x="44" y="176">cosine</text>
+
+  <rect class="box" x="358" y="104" width="310" height="80" rx="5"/>
+  <text class="t k" x="370" y="124">the lexical arm</text>
+  <text class="t n" x="370" y="143">BM25, we own the term-frequency</text>
+  <text class="t n" x="370" y="158">weight, the server owns the IDF</text>
+  <text class="t m" x="370" y="176">modifier: idf</text>
+
+  <path class="ln" d="M 200 184 L 200 194 L 350 194 L 350 200" marker-end="url(#a)"/>
+  <path class="ln" d="M 500 184 L 500 194 L 350 194" />
+
+  <rect class="box" x="32" y="200" width="636" height="48" rx="5"/>
+  <text class="t k" x="44" y="222">fusion, inside Qdrant</text>
+  <text class="t n" x="44" y="240">Server-side, in one round trip. Both arms rank the same population, narrowed once before either runs.</text>
+
+  <path class="ln" d="M 350 248 L 350 264" marker-end="url(#a)"/>
+
+  <rect class="box" x="32" y="264" width="636" height="58" rx="5"/>
+  <text class="t k" x="44" y="286">grouped by ticket, then optionally reranked</text>
+  <text class="t n" x="44" y="304">So one ticket's near-duplicate chunks cannot fill the results. The cross-encoder is the only</text>
+  <text class="t n" x="44" y="318">scale on which a local chunk and a foreign point are comparable at all.</text>
+
+  <path class="ln" d="M 350 322 L 350 338" marker-end="url(#a)"/>
+
+  <rect class="soft" x="32" y="338" width="636" height="42" rx="5"/>
+  <text class="t b" x="44" y="358">hits, keeping both scores</text>
+  <text class="t n" x="44" y="374">The two are on different scales, and the interesting artefact of a rerank is how far it moved things.</text>
+
+  <text class="t n" x="32" y="398">A locally-held IDF table would go stale the moment a delta run changed the corpus. Silently,</text>
+  <text class="t n" x="32" y="412">and repairable only by a full re-embed of everything.</text>
+
+  <!-- the harness -->
+  <rect class="card" x="16" y="436" width="668" height="194" rx="6"/>
+  <text class="t h" x="32" y="460">The harness refuses four things, on purpose</text>
+  <line class="rule" x1="16" y1="472" x2="684" y2="472"/>
+
+  <circle cx="40" cy="492" r="3" class="red"/>
+  <text class="t b" x="54" y="496">A query whose known-good answers no arm could possibly cover.</text>
+  <circle cx="40" cy="518" r="3" class="red"/>
+  <text class="t b" x="54" y="522">An arm handed no results for a query it was supposed to answer.</text>
+  <circle cx="40" cy="544" r="3" class="red"/>
+  <text class="t b" x="54" y="548">Two arms compared over different query sets.</text>
+  <circle cx="40" cy="570" r="3" class="red"/>
+  <text class="t b" x="54" y="574">A precision it was never given, it records null and prints "unvalidated" beside every number.</text>
+
+  <line class="rule" x1="16" y1="590" x2="684" y2="590"/>
+  <text class="t n" x="32" y="610">Each of those otherwise produces a plausible score, which is worse than stopping. A winner is named only when</text>
+  <text class="t n" x="32" y="624">a seeded bootstrap over per-query differences puts the 95% interval clear of zero.</text>
+</svg>

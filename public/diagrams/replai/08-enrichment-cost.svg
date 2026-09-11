@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 572" width="700" height="572" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .big { font-size: 20px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .barA{ fill: #db0a12; }
+    .barB{ fill: #0a0a0a; }
+  </style>
+  <rect class="bg" x="0" y="0" width="700" height="572"/>
+
+  <!-- the measurement -->
+  <rect class="card" x="16" y="14" width="668" height="146" rx="6"/>
+  <text class="t h" x="32" y="38">One prompt, one identical answer, two settings</text>
+
+  <text class="t b" x="32" y="74">reasoning on</text>
+  <rect class="barA" x="150" y="60" width="480" height="20" rx="2"/>
+  <text class="t m red" x="638" y="74">40.68s</text>
+
+  <text class="t b" x="32" y="112">reasoning off</text>
+  <rect class="barB" x="150" y="98" width="10.4" height="20" rx="2"/>
+  <text class="t m" x="168" y="112">0.88s</text>
+  <text class="t big" x="600" y="115">46×</text>
+
+  <line class="rule" x1="16" y1="130" x2="684" y2="130"/>
+  <text class="t n" x="32" y="150">The largest single cost in this pipeline, and it is a switch rather than an optimisation.</text>
+
+  <!-- two tasks, two keys -->
+  <rect class="card" x="16" y="180" width="668" height="172" rx="6"/>
+  <text class="t h" x="32" y="204">Two tasks, and they are not keyed on the same thing</text>
+  <text class="t lbl" x="32" y="226">TASK</text>
+  <text class="t lbl" x="230" y="226">KEYED ON</text>
+  <text class="t lbl" x="500" y="226">READ FROM</text>
+  <line class="rule" x1="16" y1="234" x2="684" y2="234"/>
+
+  <text class="t b" x="32" y="254">a boilerplate verdict</text>
+  <text class="t b" x="230" y="254">the cleaned comment,</text>
+  <text class="t b" x="230" y="270">before the split</text>
+  <text class="t m" x="500" y="254">L0 · current</text>
+
+  <text class="t b" x="32" y="294">a one-sentence context</text>
+  <text class="t b" x="230" y="294">the segment</text>
+  <text class="t m" x="500" y="294">L1 · segments</text>
+
+  <line class="rule" x1="16" y1="310" x2="684" y2="310"/>
+  <circle cx="36" cy="330" r="3" class="red"/>
+  <text class="t n" x="48" y="334">Key the first off the segments file instead and every verdict is computed, paid for, and then</text>
+  <text class="t n" x="32" y="348">never matched, a 100% cache miss, with no error anywhere to say so.</text>
+
+  <!-- survivability -->
+  <rect class="card" x="16" y="372" width="668" height="182" rx="6"/>
+  <text class="t h" x="32" y="396">What makes a six-figure call count survivable</text>
+  <line class="rule" x1="16" y1="410" x2="684" y2="410"/>
+
+  <text class="t b" x="32" y="430">The key carries the prompt version, so editing a prompt cannot silently reuse old answers.</text>
+  <text class="t b" x="32" y="452">Interrupting is safe. A second run pays only for what the first did not finish.</text>
+  <text class="t b" x="32" y="474">One malformed answer in 100,000 is counted and skipped, never fatal, the count plus a</text>
+  <text class="t b" x="32" y="490">non-zero exit is how an operator finds out.</text>
+  <text class="t b" x="32" y="512">Concurrency is bounded, not batched. The server runs four request slots; a strictly serial</text>
+  <text class="t b" x="32" y="528">loop leaves three of them idle for the whole run. The default is still one.</text>
+  <text class="t n" x="32" y="548">Batching several comments per request is a later change that costs nothing, because the store is keyed per comment.</text>
+</svg>

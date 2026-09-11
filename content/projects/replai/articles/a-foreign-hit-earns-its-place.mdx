@@ -1,0 +1,207 @@
+---
+title: "A foreign hit earns its place, or it does not arrive"
+summary: "The CRM pipeline's collection becomes an evidence source inside replai, read-only, and admitted only on the one scale a local chunk and a foreign point genuinely share. Plus the source that connection-tested green, schema-read, acknowledged and enabled, and was never queried once."
+date: "2026-08-27"
+tags: ["rag", "qdrant", "retrieval", "product-design", "observability"]
+part: "II · replai"
+---
+
+## Why this exists
+
+This is where the first ten articles reconnect. The pipeline turns fifteen
+years of legacy CRM history into a Qdrant collection. This is what happens when
+replai is pointed at it.
+
+The naive version of that feature is a URL field. The version that shipped is
+six gates, two thresholds on two different scales, and one screen whose entire
+purpose is to tell you when a source you enabled isn't being read.
+
+<Figure
+  src="/diagrams/replai/15-two-corpora-one-scale.svg"
+  alt="Top card: two boxes side by side. Local, chunks in this database, two arms fused, bounded by two settings that also bound the prompt budget, clearing no floor of its own. Foreign, points in a firm-owned collection, read-only, never stored here as a chunk, so it is a draft's evidence rather than part of this corpus, and it must clear a floor. Both converge into a bordered box: the cross-encoder, one model scoring both from the same query-and-text pairs, described as the only scale on which a local chunk and a foreign point are genuinely comparable. Bottom card: the six gates in order, enabled; a reranker configured, off by default; no stored schema error; the declared embedding model matching this install's; the URL still resolving privately, with public logging an error and unresolvable logging a warning; and the thread having a company when the source is scoped."
+  caption="A local chunk clears no floor of its own. A foreign point has to earn its place, on the one scale where the comparison means anything."
+/>
+
+## The asymmetry, and why it is not unfair
+
+A local chunk and a foreign point aren't treated equally, and I want to
+justify that rather than just describe it.
+
+The local corpus clears **no floor of its own**. It is bounded by two settings, how many documents and how many messages to carry, and those same two settings
+bound the prompt's budget. That is the ask this install makes of its own
+material.
+
+A foreign point has to clear a floor, **after reranking**, on the cross-encoder's
+scale.
+
+The reason is not suspicion of the source. It is that **there is no other scale
+on which the two are comparable.** A cosine over this install's embedding space
+and a score from somebody else's collection are two different numbers wearing
+the same clothes. The cross-encoder is the one thing that has looked at both
+from the same `(query, text)` pairs, so its logit is the only shared currency.
+
+Which produces the rule the whole feature turns on: **with no reranker, a
+foreign source isn't asked at all**, rather than asked and its answer
+discarded. If you cannot compare the answer, do not spend the round trip
+getting it.
+
+## The source that reported success at every step and was never queried
+
+Here is the defect that made this article's screen exist, and it's my
+favourite kind: everything worked.
+
+Driven through the real API against a real Qdrant instance, a source was
+created, **connection-tested `ok: true`**, schema-read, corrected, acknowledged
+and enabled. Six operations, six successes.
+
+And the API then answered:
+
+```
+skipped_because = "no reranker is configured, and a foreign hit
+                   is never admitted unranked"
+```
+
+The reranker is **off by default**. So on a stock install, every foreign source
+is skipped at gate two and nothing foreign is ever queried by any search, while
+the settings screen shows a row that is enabled, tested, and green.
+
+An administrator with no Docker access could not discover that, and could not
+fix it if they did, because the setting that controls it lived only in an
+environment file and appeared in no interface.
+
+<Figure
+  src="/screenshots/replai/qdrant-source-skipped.png"
+  alt="A Qdrant source card for a collection named Altbestand Angebote, with the In-retrieval toggle set to Searched, but a badge underneath reading 'Not searched' and the sentence 'Why: no reranker is configured, and a foreign hit is never admitted unranked', followed by 'Fix it in: DS_RERANK_ENABLED'. Below are the URL, API key, collection, vector name, vector size and distance fields."
+  caption="What the screen says now. The toggle records what an admin asked for; the badge records what retrieval is actually doing, and where to go to change it."
+/>
+
+## Two questions a screen has to answer separately
+
+The fix is a distinction I now think every configuration screen with a
+downstream consumer needs.
+
+**`enabled` records only what an administrator asked for.** Whether retrieval
+actually queries the row on a given search is a *different question*.
+
+So the screen calls `skip_reason`. **The same function retrieval itself calls,
+never a second copy that could drift from it**, and shows the answer as a
+sentence, with a second line saying *where* the condition is changed.
+
+That "never a second copy" is the load-bearing part. A screen that
+re-implements the gating logic is a screen that will eventually claim a row is
+live while retrieval skips it, and there is no test that catches divergence
+between an explanation and a behaviour unless they are the same code.
+
+## The one state where the screen can still be wrong, named out loud
+
+The documentation admits a gap, and I think naming it's better than papering
+over it.
+
+Gate two reads the reranker's **configuration flag** and stops there. It does
+not resolve the reranker's URL, deliberately: building a client on every page
+load would make the screen fail because a container is down, which is a fact
+the screen exists to *display*, not to die of.
+
+So in exactly one state (reranking switched on, the endpoint not resolving), this gate reads as passed on the screen while a live search resolves the
+endpoint, logs an unavailability, and skips every source.
+
+A row showing no skip reason while nothing is being retrieved is precisely the
+shape this whole screen exists to prevent, and that is the one case where it can
+still happen. It is written into the docs beside the gate, with a pointer to
+the two things that *do* describe liveness: the last-verified timestamp and the
+log store.
+
+## Two thresholds, on two scales, and neither is a count
+
+**There is no cap on how many sources retrieval may ask, or on how many points
+one may return.** That is a decision, not an oversight: a count cap invites
+exactly the wrong question, *how many is enough*, in place of the right one,
+*is this one any good*.
+
+Instead there are two numbers, and they are not interchangeable:
+
+**A pre-rerank minimum, on the collection's own scale**, compared to nothing
+else. It exists only to keep obvious noise out of an expensive rerank call.
+
+**A post-rerank floor, on the shared scale.** This is the one that decides
+admission.
+
+<Figure
+  src="/diagrams/replai/23-two-thresholds.svg"
+  alt="A card headed 'Two thresholds, and neither of them is a count', split into two columns. Before the rerank: on the collection's own scale, compared to nothing else, existing only to keep obvious noise out of a call that costs real time. After it: on the one shared scale, where one model scored both the local chunk and the foreign point from the same pairs, described as the bar that admits. Below, a section showing the first threshold's label flipping with the metric: cosine and dot answer a similarity so it reads Minimum score and raising it admits fewer points; euclid answers a distance so it reads Maximum distance and raising it admits more. A red note explains that one fixed comparison would be right for two of the three metrics and exactly backwards for the third."
+  caption="Two numbers, two scales. The label on the first one is not decoration: it changes with the metric, because the direction of the comparison does."
+/>
+
+## The label that changes with the metric
+
+This is my favourite small detail in the feature.
+
+Qdrant answers a **similarity** for cosine and dot, higher is closer. It
+answers a **distance** for euclidean. The closest point scores *lowest*.
+
+So one fixed comparison would be correct for two of the three metrics and
+**exactly backwards for the third.** An administrator tightening the number on a
+euclidean collection would get monotonically worse results with nothing
+erroring anywhere.
+
+Retrieval therefore compares in the direction the metric implies, and **the
+screen renames the field to match**: it reads *Minimum score* on a cosine
+collection, where raising it admits fewer points, and *Maximum distance* on a
+euclidean one, where raising it admits more.
+
+And trusting the *declared* metric for that is precisely what the discovery
+step buys. A "Read schema" action, plus a nightly sweep, read the collection's
+**real** metric and write a schema error when it disagrees with the
+declaration, and a row carrying a schema error is not in retrieval at all.
+
+That is a nice little chain: the direction of a comparison depends on a fact
+about someone else's collection, so the product goes and checks the fact rather
+than believing the form.
+
+## The unscoped source, and a refusal with a sentence
+
+Gate six is the one with a genuine confidentiality edge.
+
+A source can name a payload key holding the correspondent it belongs to, and
+then it is asked only for a thread that has a company to scope by.
+
+A source with **no** such key is unscoped **by construction**, which means a
+draft to one client could cite another client's record, *by label, with a
+citation*, looking entirely legitimate.
+
+So saving such a source enabled is **refused** until somebody acknowledges it,
+and the refusal carries a German sentence saying exactly what they are
+acknowledging. The acknowledgement is stored with who did it and when.
+
+I like that shape more than a warning banner. A banner is dismissed. A refusal
+that requires a recorded acknowledgement makes the person who accepted the risk
+identifiable in the database, which is the only version of "we told them" that
+survives a compliance conversation.
+
+## Four defects the same review found
+
+Working through this properly turned up four more, all in the same family. A
+step reporting success while leaving the next step impossible:
+
+- **Discovery named the vector size and distance it had read only inside an
+  error string.** So the correct values existed, were displayed, and could not
+  be *adopted*. An administrator retyped them out of an error message. They are
+  offered as fields now.
+- **The schema error went stale.** It was written once and not recomputed on
+  save, so a corrected source went on carrying the error that described its
+  previous state, and stayed out of retrieval for a reason that was no longer
+  true.
+- **Enabling a source with no text key was accepted**, which admits it into an
+  empty result pool: a source that is queried, returns points, and contributes
+  no retrievable text. Refused now.
+- **And the skip reason was not surfaced anywhere an administrator could act
+  on it**. The defect this whole article is about.
+
+The pattern across all four: **each step's success was locally true and jointly
+useless.** That is the failure mode of any multi-step configuration flow, and
+the only defence I know is to have the last step ask the consumer whether it
+would actually use this, and print the answer.
+
+Next: what happens to all of this when the logs leave the box, and the
+certificate the firm could not issue, which turned up for a second time in a
+completely different place.

@@ -1,0 +1,227 @@
+---
+title: "Ten formats, one chunker, and the header that would embed itself twelve times"
+summary: "Every extractor emits typed blocks rather than a flat string, so a table row can never be cut in half. Plus a number that lived in a document for weeks saying seven minutes when the real figure was three and a half hours, and what it took to work out where it had come from."
+date: "2026-08-15"
+tags: ["rag", "chunking", "document-processing", "pgvector", "measurement"]
+part: "II · replai"
+---
+
+## Why this exists
+
+replai drafts a reply from two kinds of material: the firm's synced mail, and
+the documents they keep in a shared folder, offers, drawings, spec sheets,
+price lists. Both end up as the same thing in the database, a chunk of text
+with a vector, so retrieval treats them uniformly.
+
+Getting them there's the unglamorous half of a RAG system and the half that
+decides whether any of the clever parts work. This article is about that, and
+about a measurement I got badly wrong for a fortnight.
+
+<Figure
+  src="/diagrams/replai/12-blocks-and-chunker.svg"
+  alt="Three cards. The first shows a horizontal flow from a file, through a per-format extractor, into typed blocks (TEXT, HEADING and TABLE_ROW, each carrying whether it came from OCR), and then into a chunk with a vector stored in pgvector, with a note that a table row travels as one atomic unit so the chunker can never cut it in half. The second lists four places a format misleads you: the delimiter is sniffed rather than assumed because a guessed comma splits a German decimal; the header row is found by scanning for the first row with two or more filled cells; and a row is verbalised so every value keeps its column header beside it. The third shows four small page rectangles each with a red line at the same top position, noting a line is stripped when it recurs at the same vertical position on at least half the pages of a document of three or more, with digits normalised so page-number variants count as one line."
+  caption="The typed block is the whole design. Everything else is a format-specific trap."
+/>
+
+## Typed blocks, not strings
+
+The decision everything else rests on: **every extractor emits a list of typed
+blocks (`TEXT`, `HEADING`, `TABLE_ROW`) rather than one flat string per
+file.**
+
+The obvious implementation returns text. You open a document, you get its
+words, you hand them to a chunker. It is simpler and it destroys structure that
+the chunker needs.
+
+Because a **table row must travel as one atomic unit.** A chunker working on a
+flat string will happily cut through the middle of a price list, leaving a
+chunk that ends with a column header and one that begins with a number. Both
+are retrievable and neither means anything. With a typed block, the chunker
+knows the row is indivisible and either includes it or does not.
+
+Each block also carries whether it came from OCR, which matters later: a
+citation from a scanned page has a different confidence than one from a text
+layer, and that distinction has to survive the whole pipeline to be available
+at the point where a draft cites something.
+
+## The four format-specific traps
+
+Ten formats are read. Most of the per-format work isn't parsing. The
+libraries do that. It is noticing where a format will mislead you.
+
+**The delimiter is sniffed, not assumed.** German exports commonly use
+semicolons, and a decimal is written with a comma. Guess a comma delimiter and
+`418,50` becomes two cells: a column of `418` and a column of `50`. Every price
+in the file silently becomes two wrong numbers.
+
+**The header row is found, not counted.** The natural implementation takes row
+one as the header. Real spreadsheets have a title row, or a blank spacer row,
+or both, above the real header. So the extractor scans for the first row with
+**two or more filled cells**, which is what a header looks like and what a
+title does not.
+
+**A row is verbalised, not tab-joined.** A table row indexed as
+`Ersatzteil<TAB>418,50` retrieves on nothing, because the words that would
+match a query are in the header row somewhere above it. So each value carries
+its column header beside it:
+
+```
+Position: Ersatzteil · Einzelpreis: 418,50
+```
+
+Now the row means something on its own, which is the only state in which it can
+be a chunk.
+
+**A line that repeats is not content.** This is the one in the diagram, and the
+one with the most reasoning behind its thresholds.
+
+A running header or footer is stripped when a line recurs **at the same
+vertical position** (within a few points, to absorb renderer jitter) on **at
+least half the pages** of a document with **three or more pages.** Below three
+pages there is not enough evidence, and a short letter that legitimately
+repeats a heading would lose real content.
+
+And digits are normalised before comparing, so `Seite 3 von 12` and
+`Seite 11 von 12` are recognised as the same line rather than as eleven
+distinct ones.
+
+Why it matters: the company name and offer number on every page of a
+twelve-page offer would otherwise **embed twelve near-duplicate vectors**.
+Those crowd out real results, not by being wrong, but by being twelve
+plausible near-identical hits occupying the top of every search that touches
+that document.
+
+## Five statuses, because "no text" is three different problems
+
+A document that produces nothing searchable is not one situation. It is
+several, with different remedies, and collapsing them into one status merges an
+answered question with an open one.
+
+| status | what happened | what a person does |
+|---|---|---|
+| `indexed` | it worked | nothing |
+| `failed` | extraction raised | read the error |
+| `skipped` | the format has no extractor here; nobody tried to read it | convert the file |
+| `empty` | it was read and genuinely held no text | nothing; this is a fact, not a fault |
+| `needs_ocr` | at least one PDF page had no text layer at all | the OCR pass |
+
+`skipped` and `empty` look identical from a distance, both are documents with
+no searchable content. They are two statuses because *"we have no reader for
+this"* and *"we opened it and there was nothing"* send a person to two
+different places. The same distinction showed up in the pipeline's attachment
+extractor, for the same reason, and I think it's one of the more transferable
+small ideas in this project.
+
+## OCR is a separate, budgeted pass, and it is honestly documented as absent
+
+A scanned page is not read inline. The extractor reports it, the document lands
+at `needs_ocr`, and a separate budgeted task resolves it later.
+
+Separate on purpose: a single scanned document can take minutes to OCR, and
+running that inline would let one file stall the nightly sweep for every other
+user.
+
+The part I want to highlight isn't the design, it's the documentation. The
+OCR binary **isn't in the image, and nothing in the repository installs it.**
+Until an operator does four manual steps, no scanned page is ever read, every
+one sits at `needs_ocr` indefinitely and the nightly pass logs one line and
+stops.
+
+That is written at the top of the section, in a call-out, in the tense that
+says so. Nothing else breaks; it is a gap in coverage rather than a failure.
+But the documents concerned are exactly the signed and scanned ones, and they
+are not searchable and cannot be quoted in a draft until somebody does the
+work.
+
+I've shipped features whose prerequisites were mentioned in passing halfway
+down a page. The cost is that the gap gets discovered by a user asking why a
+document they know exists isn't findable. Writing it as a warning at the top
+is a five-minute decision that saves that conversation.
+
+## Re-chunking without a flag day
+
+Both documents and messages carry a `chunker_version`, compared against a
+constant in the code. A row whose version is behind is treated exactly like a
+changed file: re-extracted, re-chunked, old chunks dropped.
+
+The default is zero. So **bumping the constant makes every existing row stale
+at once**, with no manual step and no migration. The corpus heals itself over
+the nightly schedule.
+
+That is a nice property and it has a cost I underestimated, which is now
+written down as three explicit warnings:
+
+**The first run after a bump re-embeds almost everything.** Documents are the
+obvious half. Mail is the larger one and easy to overlook, because a change to
+the characters-per-token estimate moves every chunk *boundary*, so every
+message beyond about 1,200 characters re-chunks at different boundaries, misses
+the content-addressed embedding cache (which is keyed on the chunk's exact
+text), and is genuinely re-embedded rather than reusing a stored vector.
+
+**Search returns little or nothing in between.** Retrieval excludes chunks with
+no vector, so from the moment the re-chunk deletes the old chunks until
+embedding finishes, the corpus is largely invisible, partially, then fully, as
+the backlog drains. An operator who searches the next morning and gets nothing
+is seeing this, not a broken index. It resolves by itself.
+
+**And the lexical arm deliberately does not rescue those chunks.** This is the
+one that took the most thought, because the obvious hope is reasonable: a chunk
+with no vector but perfectly good text ought to still be findable by its words.
+
+It must not be. The exclusion runs **once**, before either retrieval arm sees
+the population, so both arms rank the same rows. If they did not, a rank would
+stop being common currency between them. A missing embedding would make the
+dense side raise rather than rank, and a chunk carrying *another model's*
+vector could be admitted under a confident, meaningless cosine. A shorter
+invisible window is worth more than a laundering route into a draft.
+
+## Seven minutes, which was actually three and a half hours
+
+Now the measurement I got wrong, because it's the most useful thing in this
+article.
+
+The corpus documentation said a full backfill of this corpus took **seven
+minutes**. That number came from a benchmarking command that ships with the
+project, it was written down with its command line, and it was quoted in
+reasoning about overnight windows more than once.
+
+The real figure is about **three and a half hours.**
+
+Two independent factors, and neither is anybody being dishonest:
+
+**Host versus container.** The 54.2 texts/second on record was measured against
+a model served by a runtime running *on the host*, not against the container
+replai actually ships. Running the same sample through the shipped container:
+**14.7 texts/second.** A 3.7× gap, and nothing in the recorded number said
+which one it described.
+
+**The sample versus a real chunk.** The benchmark's built-in sample is about 70
+tokens. The chunker targets **400**. So a real chunk is roughly 5.5× longer,
+and at 385-token chunks the container measures **1.8 texts/second.**
+
+Multiply those out over a realistic 22,400-item backfill and you get 212
+minutes.
+
+Three things I changed, and the third is the one I'd argue for:
+
+**The number is corrected with its provenance attached**, which hardware,
+which serving path, which sample length. A number with no provenance is exactly
+what let the wrong one stand for weeks, because there was no way to notice it
+described a different system.
+
+**The command still prints the optimistic extrapolation, on purpose.** Making
+its sample chunk-length would change what every previously recorded benchmark
+means. So the command's line is documented as a **lower bound**, and the
+document is the place a person reads before trusting it.
+
+**The correction says where the old number came from**, rather than just
+replacing it. If I had silently swapped 7 for 212, the next person to run the
+command would get 7 again and reasonably conclude the document was stale.
+
+The generalisation, which I now apply to any figure in any of these
+repositories: **a measurement without its measurement conditions isn't a
+measurement.** It is a number that will travel, and it will travel further and
+faster than any caveat you leave beside it.
+
+Next: what all of this exists for, one incoming mail becoming one draft, in
+nine stages, only one of which is a call to the drafting model.

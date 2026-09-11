@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 356" width="700" height="356" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .vr  { stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .k   { font-size: 11.5px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+  </style>
+  <rect class="bg" x="0" y="0" width="700" height="356"/>
+  <rect class="card" x="16" y="14" width="668" height="326" rx="6"/>
+  <text class="t h" x="32" y="38">Two thresholds, and neither of them is a count</text>
+  <line class="rule" x1="16" y1="50" x2="684" y2="50"/>
+  <line class="vr" x1="350" y1="50" x2="350" y2="158"/>
+
+  <text class="t lbl" x="32" y="70">BEFORE THE RERANK</text>
+  <text class="t k" x="32" y="92">on the collection's own scale</text>
+  <text class="t n" x="32" y="112">Compared to nothing else. It exists only</text>
+  <text class="t n" x="32" y="126">to keep obvious noise out of a call that</text>
+  <text class="t n" x="32" y="140">costs real time.</text>
+
+  <text class="t lbl" x="366" y="70">AFTER IT</text>
+  <text class="t k" x="366" y="92">on the one shared scale</text>
+  <text class="t n" x="366" y="112">One model scored both the local chunk</text>
+  <text class="t n" x="366" y="126">and the foreign point, from the same</text>
+  <text class="t n" x="366" y="140">pairs. This is the bar that admits.</text>
+
+  <line class="rule" x1="16" y1="158" x2="684" y2="158"/>
+  <text class="t h" x="32" y="180">And the first one's label flips with the metric</text>
+
+  <text class="t m" x="32" y="206">cosine · dot</text>
+  <text class="t n" x="150" y="206">answer a similarity, so higher is closer</text>
+  <text class="t k" x="32" y="226">reads "Minimum score"</text>
+  <text class="t n" x="200" y="226">and raising it admits fewer points</text>
+
+  <text class="t m" x="32" y="256">euclid</text>
+  <text class="t n" x="150" y="256">answers a distance, so the closest point scores lowest</text>
+  <text class="t k" x="32" y="276">reads "Maximum distance"</text>
+  <text class="t n" x="212" y="276">and raising it admits more</text>
+
+  <line class="rule" x1="16" y1="292" x2="684" y2="292"/>
+  <circle cx="40" cy="312" r="3" class="red"/>
+  <text class="t b" x="54" y="316">One fixed comparison would be right for two of the three metrics and exactly backwards for</text>
+  <text class="t b" x="32" y="332">the third, so an admin tightening the number would get worse results with nothing erroring.</text>
+</svg>

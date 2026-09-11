@@ -1,0 +1,87 @@
+---
+title: "replai"
+summary: "An on-premises AI suite for a German firm: a RAG pipeline over fifteen years of legacy CRM history, an email assistant that drafts grounded replies nobody sends without deciding to, and a hard-forked chat product sharing its identity, its embedder and its design system."
+gradient: "orange"
+stack: ["Python", "Django", "Postgres/pgvector", "Qdrant", "llama.cpp", "React", "Keycloak", "Docker"]
+featured: true
+order: 2
+readingOrder: "oldest-first"
+---
+
+A firm came to us with fifteen years of service history locked inside a CRM
+nobody had touched in a decade, and a question that sounded simple: could the
+people answering their mail be given something that already knew all of it.
+
+The answer turned into three products that ship together. A **pipeline** that
+gets that history out of a legacy system and into a queryable index. **replai**,
+an email assistant that reads an incoming mail, retrieves what the firm already
+knows about it, drafts a reply grounded in that evidence, and then stops, every
+draft waits for a person. And **chatty**, a hard fork of an open-source chat
+product, rebuilt to run inside the same network on the same identity and the
+same models.
+
+## The one constraint that shaped everything
+
+**On-premises is not a deployment preference here, it is the point.** The
+mailbox, the documents, the CRM history and every model stay inside the
+customer's own network. That single requirement decides more than it looks like
+it does: it rules out every hosted embedding API, it makes a GPU a capacity
+planning problem rather than a line item, and it means the interesting
+engineering is in what you can build with a llama.cpp container and a Postgres
+instance rather than in which vendor to call.
+
+It also makes the guardrails enforceable instead of aspirational. The model
+runtime refuses to start against an endpoint that resolves to a public address.
+A hard fork of a chat product had an outbound code-fetching path removed
+because a product whose premise is that nothing leaves the network cannot ship
+one. Those are tests and startup checks, not paragraphs in a policy document.
+
+## Three things that happened more than once
+
+The articles below read forward, in the order the work happened. But three
+patterns run the whole length of it, and they are the part I would actually
+want somebody to take away.
+
+**A certificate the firm cannot issue.** It closed the SOAP route into the
+legacy CRM before the project properly started, because an NTLM channel
+binding needed one. Five weeks later it killed the mutual-TLS transport
+carrying logs between two hosts, and an SSH tunnel went in instead. Then it
+decided how the identity provider is reached, and produced a chat session that
+died fifteen minutes after every apparently successful login. Four dead ends,
+four different technologies, one organisational fact, and I did not recognise
+it as the same thing until the third time.
+
+**Controls that report success.** A collection that answered "no attachments"
+when it meant "not enumerable on this build". A cache key that would have paid
+for a hundred thousand model calls and matched none of them, with nothing
+logging a problem. A retrieval source created, tested green, acknowledged,
+enabled, and never once queried. A log tunnel running healthy with zero bytes
+through it. A tool-approval policy that was both unreviewable and inert. Every
+one of them passed its own check.
+
+**Measurements overruling documents.** Fourteen seconds of profiling
+invalidated most of a written specification, including a chunking rule that was
+inverted. A backfill documented at seven minutes turned out to take three and a
+half hours once somebody asked which machine the number came from. A design was
+specified in full and then shelved by a disk measurement. An eval set was
+57.1% unusable, and benchmarking against it unfixed would have selected the
+model best at retrieving invoice references.
+
+That last pattern is why the final article is about tests whose subject is the
+documentation rather than the code.
+
+## How I think about it
+
+- **Measured, not assumed.** Almost every decision in these articles was
+  settled by profiling the real corpus or timing the real server, and several
+  of them overruled a written specification. Where a number appears below, it
+  was measured.
+- **The failures are most of the value.** A SharePoint 2010 farm
+  fails in ways no documentation predicts, and an error message that is true of
+  every possible cause is worse than no error message at all.
+- **Nothing sends itself.** Every draft this system writes needs a person to
+  accept it and a second, separate confirmation to put it on the wire. That is
+  a design commitment, not a missing feature.
+
+Three parts: the pipeline that gets the history out, replai built feature by
+feature on top of it, and the fork that shares its identity and its design.

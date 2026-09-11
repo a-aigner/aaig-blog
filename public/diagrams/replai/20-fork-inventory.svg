@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 588" width="700" height="588" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .out { fill: #ffffff; stroke: #db0a12; stroke-width: 1; stroke-dasharray: 4 3; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .k   { font-size: 11.5px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .v   { font-size: 10.5px; font-weight: 700; }
+  </style>
+  <rect class="bg" x="0" y="0" width="700" height="588"/>
+
+  <rect class="card" x="16" y="14" width="668" height="196" rx="6"/>
+  <text class="t h" x="32" y="38">Every top-level directory, classified before anything was touched</text>
+  <line class="rule" x1="16" y1="50" x2="684" y2="50"/>
+
+  <text class="t v" x="32" y="72">KEEP</text>
+  <text class="t n" x="150" y="72">the chat core, the client, the schemas, the tool-calling layer, config, the cache</text>
+
+  <text class="t v" x="32" y="98">STRIP</text>
+  <text class="t n" x="150" y="98">the search engine, reopened later, see below</text>
+
+  <text class="t v" x="32" y="124">REMOVED</text>
+  <text class="t n" x="150" y="124">the Kubernetes charts, and the whole CI directory: 45 files, 20+ workflows</text>
+  <text class="t n" x="150" y="138">publishing to registries under upstream's owner and secrets</text>
+
+  <text class="t v" x="32" y="164">DEFER</text>
+  <text class="t n" x="150" y="164">the end-to-end suite, most of it exercises surfaces being withdrawn</text>
+
+  <text class="t v red" x="32" y="190">REVERSED</text>
+  <text class="t n" x="150" y="190">"strip the tracing directory", after measuring, it is not a directory</text>
+  <text class="t n" x="150" y="204">at all: the instrumentation is a dependency. Pinned off instead.</text>
+
+  <!-- outbound -->
+  <rect class="out" x="16" y="232" width="668" height="238" rx="6"/>
+  <text class="t h red" x="32" y="256">Five inherited defaults that pointed out of the customer's network</text>
+  <text class="t n" x="32" y="274">In a product whose entire premise is that nothing leaves it.</text>
+
+  <text class="t k" x="32" y="300">Three hosted providers, shipped switched on</text>
+  <text class="t n" x="32" y="318">Their keys read</text>
+  <text class="t m" x="128" y="318">user_provided</text>
+  <text class="t n" x="228" y="318">, which is not a placeholder: a non-empty value means</text>
+  <text class="t n" x="32" y="332">"this endpoint exists", so it appears in the interface and asks each person for their own key.</text>
+
+  <text class="t k" x="32" y="358">An embeddings provider named after a vendor</text>
+  <text class="t n" x="32" y="376">The name is the wire format, not a destination, and the base URL defaulted to empty, so</text>
+  <text class="t n" x="32" y="390">switching on file upload would have sent every document's text to that vendor.</text>
+
+  <text class="t k" x="32" y="416">A skills subsystem that fetches from a public code host</text>
+  <text class="t k" x="32" y="440">236 test files in the production image, one carrying a published encryption key</text>
+  <text class="t k" x="32" y="464">Release workflows publishing images under somebody else's account</text>
+
+  <rect class="card" x="16" y="492" width="668" height="80" rx="6"/>
+  <text class="t k" x="32" y="516">How each was found</text>
+  <text class="t b" x="32" y="538">By building the image and looking, not by reading the Dockerfile. By running the guard against a</text>
+  <text class="t b" x="32" y="554">built container, not by reasoning about what it covers. Two of the five were invisible in the diff.</text>
+</svg>

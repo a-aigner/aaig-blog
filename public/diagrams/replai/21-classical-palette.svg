@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 502" width="700" height="502" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .n   { font-size: 10px; fill: rgb(10 10 10 / 0.6); }
+    .sw  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8.5px; }
+  </style>
+  <rect class="bg" x="0" y="0" width="700" height="502"/>
+  <rect class="card" x="16" y="14" width="668" height="302" rx="6"/>
+  <text class="t h" x="32" y="38">One ramp shared, one accent each, nine steps generated on a single lightness scale</text>
+
+  <text class="t lbl" x="32" y="54">NEUTRAL · SHARED, THE SOURCE OF TRUTH</text>
+  <rect x="32" y="62" width="66" height="38" rx="3" fill="#f8f4f4" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="38" y="86" fill="#0a0a0a">#f8f4f4</text>
+  <rect x="103" y="62" width="66" height="38" rx="3" fill="#eae7e7" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="109" y="86" fill="#0a0a0a">#eae7e7</text>
+  <rect x="174" y="62" width="66" height="38" rx="3" fill="#d7d3d3" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="180" y="86" fill="#0a0a0a">#d7d3d3</text>
+  <rect x="245" y="62" width="66" height="38" rx="3" fill="#bab6b6" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="251" y="86" fill="#0a0a0a">#bab6b6</text>
+  <rect x="316" y="62" width="66" height="38" rx="3" fill="#9b9797" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="322" y="86" fill="#0a0a0a">#9b9797</text>
+  <rect x="387" y="62" width="66" height="38" rx="3" fill="#7d7979" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="393" y="86" fill="#ffffff">#7d7979</text>
+  <rect x="458" y="62" width="66" height="38" rx="3" fill="#605d5d" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="464" y="86" fill="#ffffff">#605d5d</text>
+  <rect x="529" y="62" width="66" height="38" rx="3" fill="#444141" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="535" y="86" fill="#ffffff">#444141</text>
+  <rect x="600" y="62" width="66" height="38" rx="3" fill="#2d2b2b" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="606" y="86" fill="#ffffff">#2d2b2b</text>
+
+  <text class="t lbl" x="32" y="130">BRASS · replai</text>
+  <text class="t n" x="150" y="130">the source palette's own accent</text>
+  <rect x="32" y="138" width="66" height="38" rx="3" fill="#fff3e4" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="38" y="162" fill="#0a0a0a">#fff3e4</text>
+  <rect x="103" y="138" width="66" height="38" rx="3" fill="#ffe3bf" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="109" y="162" fill="#0a0a0a">#ffe3bf</text>
+  <rect x="174" y="138" width="66" height="38" rx="3" fill="#facb8d" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="180" y="162" fill="#0a0a0a">#facb8d</text>
+  <rect x="245" y="138" width="66" height="38" rx="3" fill="#e1ad66" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="251" y="162" fill="#0a0a0a">#e1ad66</text>
+  <rect x="316" y="138" width="66" height="38" rx="3" fill="#c28d41" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="322" y="162" fill="#0a0a0a">#c28d41</text>
+  <rect x="387" y="138" width="66" height="38" rx="3" fill="#a06f24" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="393" y="162" fill="#ffffff">#a06f24</text>
+  <rect x="458" y="138" width="66" height="38" rx="3" fill="#7d5411" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="464" y="162" fill="#ffffff">#7d5411</text>
+  <rect x="529" y="138" width="66" height="38" rx="3" fill="#5a3b0a" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="535" y="162" fill="#ffffff">#5a3b0a</text>
+  <rect x="600" y="138" width="66" height="38" rx="3" fill="#3a270d" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="606" y="162" fill="#ffffff">#3a270d</text>
+
+  <text class="t lbl" x="32" y="206">LILAC · chatty</text>
+  <text class="t n" x="150" y="206">Softy's hue, carried across the same nine steps</text>
+  <rect x="32" y="214" width="66" height="38" rx="3" fill="#f5f3fd" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="38" y="238" fill="#0a0a0a">#f5f3fd</text>
+  <rect x="103" y="214" width="66" height="38" rx="3" fill="#e9e5fa" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="109" y="238" fill="#0a0a0a">#e9e5fa</text>
+  <rect x="174" y="214" width="66" height="38" rx="3" fill="#d6cdfa" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="180" y="238" fill="#0a0a0a">#d6cdfa</text>
+  <rect x="245" y="214" width="66" height="38" rx="3" fill="#bbacf6" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="251" y="238" fill="#0a0a0a">#bbacf6</text>
+  <rect x="316" y="214" width="66" height="38" rx="3" fill="#9c87f2" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="322" y="238" fill="#0a0a0a">#9c87f2</text>
+  <rect x="387" y="214" width="66" height="38" rx="3" fill="#7d60ed" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="393" y="238" fill="#ffffff">#7d60ed</text>
+  <rect x="458" y="214" width="66" height="38" rx="3" fill="#5a36e9" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="464" y="238" fill="#ffffff">#5a36e9</text>
+  <rect x="529" y="214" width="66" height="38" rx="3" fill="#3816c2" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="535" y="238" fill="#ffffff">#3816c2</text>
+  <rect x="600" y="214" width="66" height="38" rx="3" fill="#260f82" stroke="rgb(10 10 10 / 0.12)"/>
+  <text class="sw" x="606" y="238" fill="#ffffff">#260f82</text>
+
+  <line class="rule" x1="16" y1="270" x2="684" y2="270"/>
+  <text class="t b" x="32" y="290">Every lilac step inherits the relative luminance of its brass predecessor, so every contrast ratio survives</text>
+  <text class="t b" x="32" y="306">the switch, measured, deviation at most 0.03.</text>
+
+  <rect class="card" x="16" y="336" width="668" height="150" rx="6"/>
+  <text class="t h" x="32" y="360">Two places the derivation deliberately stops</text>
+  <text class="t b" x="32" y="384">The gold ramp stays, and does not become lilac. After the switch it serves only the warning colours,</text>
+  <text class="t b" x="32" y="400">because a signal colour that borrows the accent stops signalling. A lilac warning beside a lilac submit</text>
+  <text class="t b" x="32" y="416">button would no longer be a warning.</text>
+  <text class="t b" x="32" y="442">And the hover shade is not luminance-faithful. Derived that way it sat ΔE 2.8 from the accent and would</text>
+  <text class="t b" x="32" y="458">have been invisible as a state change: in the gold, that separation came from saturation, which a fixed hue</text>
+  <text class="t n" x="32" y="474">no longer offers. The shipped value restores the gold pair's distance at ΔE 7.1.</text>
+</svg>

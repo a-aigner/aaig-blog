@@ -1,0 +1,198 @@
+---
+title: "The customer has no IT department, and the only admin surface was a Python shell"
+summary: "Django's admin was disqualified by three measured facts, including one verified by mutation. So the console: a settings row where every column is nullable and NULL means inherit, a sixty-second cache chosen so the screen can make an honest promise, and emergency access that expires instead of being a second permanent door."
+date: "2026-09-02"
+tags: ["django", "product-design", "operations", "settings", "observability"]
+part: "II · replai"
+---
+
+## Why this exists
+
+Three articles ago, a foreign vector source connection-tested green, was
+schema-read, acknowledged and enabled, and was never queried, because the
+reranker it depended on was switched off in a file nobody could see.
+
+That is the shape of the problem this console exists for. **The customer has no
+IT department.** There is nobody to SSH in, read an environment file, and
+correlate it against a settings screen.
+
+And the only administration surface that existed was Django's admin, which
+three measured facts disqualify.
+
+<Figure
+  src="/screenshots/replai/console-status.png"
+  alt="The console's Service status screen, headed 'Every service this installation depends on, dialled just now. A reason is this product's own classification, nothing a remote service said is repeated here.' Eight rows grouped by kind, each with a state chip: the model runtime and dense embedder working; the sparse embedder not configured, with the consequence that the lexical arm falls back to Postgres full-text search and a pointer to COMPOSE_PROFILES; the cross-encoder unreachable, with the consequence that no Qdrant source is queried and no foreign hit can be admitted, pointing at Console then System settings; one Qdrant source working and a second unusable because the collection reports a different vector size than the source declares; the mail account working; and the Keycloak realm working."
+  caption="The commissioning check this install never had, on synthetic data. Every row carries four things: a state, a reason, what stops working, and where to change it."
+/>
+
+## Three facts that disqualified the existing admin
+
+**It is unreachable without the identity provider.** The session-refresh
+middleware redirects every admin request, so an account created on the command
+line with a valid session gets a redirect. That was **verified by mutation**:
+remove the middleware and the same session gets a 200.
+
+I want to dwell on that method for a second, because it's the difference
+between believing something and knowing it. "The middleware redirects admin
+requests" is a claim about code you can satisfy yourself of by reading. Deleting
+the middleware and watching the behaviour change is the only way to know the
+redirect you observed came from *that* line.
+
+**A superuser there reads every user's mail.** Which the compliance annex
+already discloses as a finding a security review would make anyway, so the
+existing admin is not merely inconvenient, it is a documented liability.
+
+**And it cannot reach the setting that matters most.** The reranker toggle lived
+only in an environment file and appeared in no interface at all.
+
+## NULL means inherit, and no migration seeds the row
+
+The core design decision, and the one I'd reuse.
+
+There is one unowned settings row for the whole installation. **Every column is
+nullable, and a NULL column means "use the deployment's configured value".**
+The row is not created by a migration; it comes into being when an
+administrator first writes a setting, and only the columns they wrote are
+non-NULL.
+
+<Figure
+  src="/diagrams/replai/18-null-means-inherit.svg"
+  alt="Three cards. The first shows the stored row, where every column is nullable and only what was written is set, and the deployment's environment file, both feeding one accessor that overlays them, re-validates every endpoint and caches for sixty seconds, producing the effective value plus where it came from, with a note that the console always displays both. The second card explains the rejected alternative, a migration seeding the row from the environment, on two grounds: it would depend on which container ran it, and it would freeze the deployment's value so a later edit to the environment file would be silently ignored. The third card names two escape hatches deliberately different in kind: a flag that ignores the row entirely, which shows a banner while set, and a time-boxed grant rather than a second flag, because a flag left on after an incident is indistinguishable from one never set."
+  caption="The whole design is in the first card. The second is the alternative I nearly built."
+/>
+
+That is what buys a **no-op upgrade for free**: no existing installation changes
+behaviour when this ships, because an install that never opens the screen never
+acquires a row it did not ask for. It is the same shape the firm-profile row
+already used, adopted deliberately rather than reinvented.
+
+The alternative, a data migration that reads the environment and seeds the row, was rejected on two counts, and the second is the one I'd have missed.
+
+**It makes the migration's result depend on which container ran it.** There is
+already a rule in this repository, recorded in a model's own docstring, that a
+migration must not depend on a value it cannot see in the database.
+
+**And more importantly, a seeded row *freezes* the deployment's value at
+upgrade time.** An operator who later edited the environment file would find it
+silently ignored, which is the exact reverse of the property this change is
+supposed to give them.
+
+That second point is why the console always displays **two** things per
+setting: the effective value, and where it came from, *inherited* or *set
+here*. And clearing a setting in the console returns it to inherited, which is
+a third state distinct from "overwrite it with the same text". The API
+distinguishes them: a present null means go back to inheriting, and an omitted
+key means keep what is there, so a screen saving one section cannot clear the
+seven settings it did not render.
+
+## Sixty seconds, chosen so the screen can make an honest promise
+
+One accessor is the only way any code reads these settings. It reads the row,
+overlays it on the process configuration, **re-runs the locality validation on
+every resolved endpoint**, and caches the result per process for sixty seconds.
+
+Sixty, and not zero, and not until-restart:
+
+**Zero** means a database read on every embedding call in a nightly loop over
+thousands of chunks.
+
+**Until-restart** means the console cannot honestly claim a change takes
+effect, and this deployment has no operator to restart anything.
+
+**Sixty seconds** is short enough that the console can say *in effect within one
+minute* and be believed, and long enough that the read never appears in a
+profile.
+
+And the interval the console displays is **read from the server** rather than
+written into the frontend, so the sentence the screen shows and the number the
+server actually uses cannot drift apart. That is a two-line decision that
+prevents a very specific and very embarrassing class of bug: a UI that promises
+a timing the backend stopped honouring.
+
+A consequence worth stating: a scheduled task resolves settings **when it
+runs**, not when it was scheduled, so the overnight run always reads a value at
+most a minute old.
+
+**Rejected: pub/sub invalidation.** It would make a change immediate. It also
+adds a failure mode. A worker that missed the message runs on a stale value
+with nothing saying so, to buy an improvement over sixty seconds that nobody
+in this deployment can perceive. And the broker has no password today, so
+putting configuration changes on it widens what an unauthenticated port can do.
+
+## Two escape hatches, deliberately different in kind
+
+You cannot put settings in a database without answering the question: what if a
+stored value breaks the thing that would fix it.
+
+**A flag that makes the accessor ignore the row entirely.** It recovers a
+stored value that has broken the product. And when it is set, **the console
+displays a banner saying stored settings are being disregarded and changes made
+there will not take effect**, otherwise the escape hatch becomes a way to make
+an administrator believe they changed something.
+
+**Emergency administrative access is a time-boxed grant, not a flag.** A command
+run on the host mints a single-use grant valid for a stated number of minutes
+and prints the URL that redeems it. While a grant is live, the middleware that
+redirects every administrative request stands aside for that one session, and
+redeeming it **writes an audit record**.
+
+The rejected alternative is instructive: an environment flag that disables the
+redirect. It satisfies the letter of "there must be a documented recovery path"
+and fails the requirement that it not become a second permanent door, because
+**a flag left on after an incident is indistinguishable from one that was never
+set, and nothing would ever notice.**
+
+Expiry is what makes the difference, and it is why the grant is time-boxed
+rather than merely single-use.
+
+There was a third rejected option, and rejecting it is the whole premise of the
+console: the command line alone. That is what the code claimed as the recovery
+path before this shipped, and the measurement is what disqualified it. **A
+shell is not administration**, and an operator in an incident needs the screens,
+not a Python session against an ORM.
+
+## The status screen: four answers, and two that keep them honest
+
+The status page dials every endpoint the stack depends on and answers per row.
+The state vocabulary is six words, and the comment beside it says why:
+collapsing any two costs an operator the action they would take.
+
+Look again at the two interesting rows in the screenshot. Neither says "error".
+Each says four things:
+
+- **a state**, `unreachable`, `not configured`, `unusable`
+- **a reason**, in this product's own vocabulary, never the remote service's words
+- **the consequence**, *no Qdrant source is queried, and no foreign hit can be admitted*
+- **where to change it**. A settings screen, or the name of the variable
+
+The consequence field is the one I'd add to every status page I ever build
+again. "The reranker is unreachable" is a fact about a container. *"No foreign
+hit can be admitted"* is the same fact stated in terms of what the person in
+front of the screen is trying to do, and it's exactly the sentence that would
+have saved the three-article-old defect from ever being a mystery.
+
+And this screen needed no new discipline to build, only new callers. The probes
+already existed, each with a real and a fake implementation, each with a bounded
+timeout, each answering from a fixed vocabulary. It is also, incidentally,
+**the commissioning check this installation never had**. The one thing that can
+answer "is this install actually working" in one page.
+
+## What the console is deliberately not
+
+Two non-goals, stated as non-goals.
+
+**It is not the only administration surface.** Django's admin stays for the
+cases the console does not cover. What changes is that ordinary diagnosis no
+longer requires it.
+
+**Tool policy is not runtime-editable.** The chat product requires its tool set
+to be fixed at deployment, and this design does not weaken that. It makes the
+policy *visible*, along with where it is set, without making it changeable from
+a browser.
+
+Which is the seam into the last act. The chat product is a hard fork of an
+open-source project, and it shares this installation's identity, its embedder
+and its design system.
+
+Next: one account for two products, and the realm setting that refuses the very
+first login.

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 452" width="700" height="452" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .vr  { stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .k   { font-size: 11.5px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+  </style>
+  <rect class="bg" x="0" y="0" width="700" height="452"/>
+
+  <!-- attack shapes -->
+  <rect class="card" x="16" y="14" width="668" height="112" rx="6"/>
+  <text class="t h" x="32" y="38">Four shapes, none of them speculative</text>
+  <text class="t k" x="32" y="62">path traversal</text>
+  <text class="t m" x="32" y="79">../../etc/passwd</text>
+  <text class="t k" x="250" y="62">decompression bombs</text>
+  <text class="t n" x="250" y="79">kilobytes that become gigabytes</text>
+  <text class="t k" x="32" y="104">nesting</text>
+  <text class="t n" x="112" y="104">up to a zip that contains itself</text>
+  <text class="t k" x="250" y="104">member floods</text>
+  <text class="t n" x="360" y="104">a million one-byte files</text>
+
+  <!-- structural guard -->
+  <rect class="card" x="16" y="146" width="668" height="118" rx="6"/>
+  <text class="t h" x="32" y="170">The strongest guard is structural: nothing is written to disk</text>
+  <text class="t b" x="32" y="194">Members are yielded as</text>
+  <text class="t m" x="188" y="194">(path, bytes)</text>
+  <text class="t b" x="282" y="194">. So there is no extraction</text>
+  <text class="t b" x="32" y="212">directory for a traversal to escape, and a bomb meets a byte counter rather than</text>
+  <text class="t b" x="32" y="230">a filesystem.</text>
+  <line class="rule" x1="16" y1="242" x2="684" y2="242"/>
+  <text class="t n" x="32" y="258">The cost: a member has to fit in memory, which is why the per-member ceiling is a parameter.</text>
+
+  <!-- two guards + measured -->
+  <rect class="card" x="16" y="284" width="668" height="154" rx="6"/>
+  <text class="t h" x="32" y="308">Size is guarded twice, and it has to be</text>
+  <text class="t b" x="32" y="330">1 · Refuse on the size the header declares, before anything is decompressed.</text>
+  <text class="t b" x="32" y="348">2 · Cap the read itself, because a header is written by whoever built the archive.</text>
+  <line class="rule" x1="16" y1="360" x2="684" y2="360"/>
+  <text class="t lbl" x="32" y="378">MEASURED</text>
+  <text class="t lbl" x="440" y="378">UNGUARDED</text>
+  <text class="t lbl" x="580" y="378">CAPPED</text>
+
+  <text class="t b" x="32" y="400">a 199 KB zip declaring 1 KB, deflating to 200 MB</text>
+  <text class="t m red" x="440" y="400">438 MB</text>
+  <text class="t m" x="580" y="400">nothing</text>
+
+  <text class="t b" x="32" y="424">a 1 MB gzip holding a gigabyte of zeros</text>
+  <text class="t m red" x="440" y="424">2.1 GB</text>
+  <text class="t m" x="580" y="424">92 MB</text>
+</svg>

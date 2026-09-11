@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 772" width="700" height="772" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .box { fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .src { fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .chip{ fill: #ffffff; stroke: #0a0a0a; stroke-width: 1; }
+    .side{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; stroke-dasharray: 4 3; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 12.5px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(10 10 10 / 0.66); }
+    .v   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 700; }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+    .lnd { stroke: rgb(10 10 10 / 0.35); stroke-width: 1; fill: none; stroke-dasharray: 4 3; }
+    .red { fill: #db0a12; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+    <marker id="ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(10 10 10 / 0.35)"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="772"/>
+
+  <!-- source -->
+  <rect class="src" x="140" y="14" width="520" height="52" rx="6"/>
+  <text class="t lbl" x="156" y="34">THE EXTRACT, ON DISK</text>
+  <text class="t m" x="156" y="54">tickets_with_comments.jsonl · users.jsonl · the blob store</text>
+
+  <path class="ln" d="M 400 66 L 400 104" marker-end="url(#a)"/>
+  <rect class="chip" x="300" y="72" width="200" height="24" rx="12"/>
+  <text class="t v" x="330" y="88">ingest</text>
+  <text class="t n" x="398" y="88">offline</text>
+
+  <!-- L0 -->
+  <rect class="box" x="140" y="104" width="520" height="76" rx="6"/>
+  <text class="t h" x="156" y="126">L0 · raw, append-only</text>
+  <text class="t m" x="156" y="145">revisions.jsonl · current.jsonl (derived)</text>
+  <text class="t n" x="156" y="166">One revision per ingest. A line it cannot parse raises, rather than being skipped.</text>
+
+  <path class="ln" d="M 400 180 L 400 218" marker-end="url(#a)"/>
+  <rect class="chip" x="300" y="186" width="200" height="24" rx="12"/>
+  <text class="t v" x="330" y="202">l1</text>
+  <text class="t n" x="398" y="202">offline</text>
+
+  <!-- attachments side branch -->
+  <rect class="side" x="16" y="240" width="112" height="48" rx="6"/>
+  <text class="t v" x="28" y="260">attachments</text>
+  <text class="t n" x="28" y="278">offline</text>
+  <path class="lnd" d="M 128 264 L 136 264" marker-end="url(#ad)"/>
+
+  <!-- L1 -->
+  <rect class="box" x="140" y="218" width="520" height="92" rx="6"/>
+  <text class="t h" x="156" y="240">L1 · cleaned</text>
+  <text class="t m" x="156" y="259">tickets.jsonl · segments.jsonl · attachment_text.jsonl</text>
+  <text class="t n" x="156" y="280">A pure function of L0, so a rebuild after a cleaning change is byte-comparable</text>
+  <text class="t n" x="156" y="296">against the previous one. That is how a cleaning change gets reviewed here.</text>
+
+  <path class="ln" d="M 400 310 L 400 348" marker-end="url(#a)"/>
+  <rect class="chip" x="300" y="316" width="200" height="24" rx="12"/>
+  <circle cx="315" cy="328" r="3.5" class="red"/>
+  <text class="t v" x="330" y="332">enrich</text>
+  <text class="t n" x="398" y="332">a model runtime</text>
+
+  <!-- L2 -->
+  <rect class="box" x="140" y="348" width="520" height="76" rx="6"/>
+  <text class="t h" x="156" y="370">L2 · the model-call store</text>
+  <text class="t m" x="156" y="389">keyed per comment, per task, per prompt version</text>
+  <text class="t n" x="156" y="410">Resumable by construction: a second run pays only for what the first did not finish.</text>
+
+  <path class="ln" d="M 400 424 L 400 462" marker-end="url(#a)"/>
+  <rect class="chip" x="300" y="430" width="200" height="24" rx="12"/>
+  <text class="t v" x="330" y="446">chunks · pairs</text>
+  <text class="t n" x="443" y="446">offline</text>
+
+  <!-- L3 -->
+  <rect class="box" x="140" y="462" width="520" height="76" rx="6"/>
+  <text class="t h" x="156" y="484">L3 · embedding-ready</text>
+  <text class="t m" x="156" y="503">chunks.jsonl · pairs.jsonl</text>
+  <text class="t n" x="156" y="524">A pure function of L1 and L2. There is no database anywhere above this line.</text>
+
+  <path class="ln" d="M 400 538 L 400 576" marker-end="url(#a)"/>
+  <rect class="chip" x="300" y="544" width="200" height="24" rx="12"/>
+  <circle cx="315" cy="556" r="3.5" class="red"/>
+  <text class="t v" x="330" y="560">embed</text>
+  <text class="t n" x="391" y="560">the embedder · Qdrant</text>
+
+  <!-- qdrant -->
+  <rect class="box" x="140" y="576" width="520" height="60" rx="6"/>
+  <text class="t h" x="156" y="598">Qdrant · one collection</text>
+  <text class="t m" x="156" y="617">dense + sparse vectors · nine payload indexes</text>
+
+  <path class="ln" d="M 400 636 L 400 674" marker-end="url(#a)"/>
+  <rect class="chip" x="300" y="642" width="200" height="24" rx="12"/>
+  <circle cx="315" cy="654" r="3.5" class="red"/>
+  <text class="t v" x="330" y="658">query</text>
+  <text class="t n" x="386" y="658">both, + reranker</text>
+
+  <rect class="src" x="140" y="674" width="520" height="44" rx="6"/>
+  <text class="t n" x="156" y="702">Hits with scores, grouped so one ticket cannot fill the results.</text>
+
+  <text class="t n" x="16" y="742">Five of the eight verbs open no socket at all, they run on a laptop with nothing else installed.</text>
+  <circle cx="20" cy="760" r="3.5" class="red"/>
+  <text class="t n" x="32" y="764">The three that need a service are the three that talk to a model or to Qdrant.</text>
+</svg>

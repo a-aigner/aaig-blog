@@ -1,0 +1,214 @@
+---
+title: "One account for two products, and a refusal that has never fired"
+summary: "Local password forms are removed rather than disabled, so creating a superuser makes a database row and not a way to sign in. And one line in a realm template will refuse the very first login on the first machine that is not a developer's, because every developer machine is exempt, which is the whole problem."
+date: "2026-09-03"
+tags: ["keycloak", "oidc", "identity", "deployment", "security"]
+part: "III · The fork"
+---
+
+## Why this exists
+
+Two products now share this installation: replai, and a chat product forked
+from LibreChat. One firm, one set of people, and nobody wants two account
+systems.
+
+So there is one realm, three clients, and a group membership that decides who
+administers what. That part is ordinary. The interesting part is a single line
+in a realm template that will refuse the first login on the first machine that
+is not a developer's, and which, as of writing, **has never fired on any
+machine.**
+
+<Figure
+  src="/diagrams/replai/19-identity-spine.svg"
+  alt="Three cards. The first shows one realm with three clients and one shared scope, feeding replai, chatty and the administration surface, with group membership deciding who administers, re-decided on every login. The second states there is no local account path left in either product: routes removed rather than disabled, and creating a superuser on the command line makes a database row rather than a way to sign in. The third shows a sequence (open a protected page, redirected to the realm, and a red box reading 'HTTPS required' where the realm refuses) noting it fires before anything in the application runs, followed by a section on the session cookie marked Secure, which is a real defect that produces no symptom of its own because nobody gets far enough for a session to matter."
+  caption="The identity spine, and the two HTTPS problems. The one an installer will find is not the one refusing them."
+/>
+
+## Removed, not disabled
+
+Both products have Keycloak-only authentication, and in both the local account
+path is **removed** rather than switched off.
+
+That distinction earned its own commit in the chat fork. *"The local account
+routes are gone, not disabled"*, and the reason is the same one that applied
+to replai's own password form: **a disabled feature is a configuration away
+from being enabled**, and the configuration lives in a file somebody will edit
+during an incident at 2am.
+
+Here is how far it goes: running the command that creates a superuser still
+works, and it **creates a database row, not a way to sign in over the
+network.** There is no page left that would accept a password. The account
+exists for the day the identity provider is unreachable and somebody needs to
+operate on the data directly (a shell, a management command, a test client) never for opening a browser.
+
+<Figure
+  src="/screenshots/replai/chatty-login.png"
+  alt="The chat product's login page: a lilac cloud mascot at the top, the heading 'Welcome back' in a serif face, and a single bordered button reading 'Mit Firmenkonto anmelden'. There is no email field, no password field, and no registration link."
+  caption="The chat product's login page, running. One button, no fields, which is what 'removed rather than disabled' looks like from the front."
+/>
+
+That screenshot is the whole policy in one frame. There is no email input to
+fill, no password field greyed out, no "register" link pointing at a route
+that 404s. One button.
+
+## The group decides, and it decides again every time
+
+Administration rights are not a database flag somebody sets once. A group in
+the customer's own directory is what confers them, and **membership is
+re-evaluated on every login**, both for reaching the administration surface at
+all and for holding the two permissions the settings screens gate on.
+
+Which means revoking somebody's access is an action in the firm's directory,
+where their other access already lives, rather than a second place an
+administrator has to remember. A person who leaves the firm loses replai when
+they lose everything else.
+
+There is a seeded bootstrap account for first boot, and the documentation is
+blunt about what it is: a credential that **nothing federates and nothing
+expires**. So it has to be treated that way, known to as few people as the
+firm can manage, and its password changed the moment it has served its purpose,
+*the same as any other credential that outlives its own audit trail.*
+
+I like that framing more than "rotate your bootstrap credentials". It names the
+actual property that makes it dangerous.
+
+## One line that will refuse the first real login
+
+Now the part of this article I'd most want somebody deploying this to read.
+
+The realm template sets HTTPS to be required for every request **except the
+ones the identity provider treats as local**, loopback, and the private IPv4
+ranges.
+
+Three properties of that, each of which matters:
+
+**The test is on the address a request arrives from**, not on the hostname in
+the URL.
+
+**It is a property of the realm, not of this application.** Nothing in this
+repository's configuration surface turns it off, no application setting, no
+compose variable, no environment value. It is changed inside the realm or not
+at all.
+
+**And every developer machine is exempt, which is the whole problem.** A
+browser on the same host reaches the identity provider over loopback, the
+exemption applies, and the entire login round trip runs over plain HTTP with
+nothing to indicate that a realm-level HTTPS requirement exists at all.
+
+Nothing in the test suite reaches it either. It is a property of a running
+service answering a request from a particular address, not of any file in the
+repository.
+
+**So the first machine on which it can fire is a customer's, and it fires on
+the first login anyone attempts.**
+
+That is the shape of defect I find most worth documenting, because no amount of
+care in development surfaces it. It isn't untested; it's **untestable from
+here**, and the honest thing to do is write down that it exists, when it falls
+due, and what the options are.
+
+The documentation also declines to guess about the near-miss case: a LAN
+appliance *may* be exempt too, since browsers on a private range sit inside the
+exemption, but whether the service sees the browser's own address or an
+address belonging to Docker's port publishing depends on the host's networking,
+and that was not determined. So: **an install that logs in over plain HTTP on a
+LAN has not shown the setting to be inert, only that one path was exempt.**
+
+## The decoy defect
+
+This is the detail that makes the whole section worth writing, and it is a
+lovely piece of accidental cruelty.
+
+When the refusal fires, it fires **before anything in the application runs.**
+The person opens a protected page, the app redirects them to the identity
+provider's authorization endpoint, and the provider refuses. What renders is
+*its* error page, carrying the message `HTTPS required`. No password is typed,
+no authorization code is issued, the callback is never reached.
+
+Meanwhile there is a **second** HTTPS problem on the same deployment, and it is
+the one an installer will find. The session cookie is marked `Secure` whenever
+debug is off, so a browser on plain HTTP will not send it back. That is a real
+defect on that install, and it **produces no symptom of its own**, because
+nobody gets far enough for a session to matter.
+
+So: the installer debugging a failed login finds the cookie setting, which
+looks exactly like the cause, is in application code, and is already
+documented. And the setting actually refusing them sits in a realm template
+that no test can reach.
+
+I've wasted days on this shape of problem, two plausible causes, one
+visible and wrong, one invisible and right. The only defence is to write the
+ordering down: *`HTTPS required` is the realm's answer, not the
+application's.*
+
+## The advice that was itself a defect
+
+Worth recording because it is a good example of documentation going wrong in a
+direction that reads as helpful.
+
+Until recently, the documented way to get a session cookie working on a
+plain-HTTP install was to turn debug mode on. Which was **true**, and was also
+advice to fix a cookie by putting the root logger back at DEBUG. A defect this
+same repository had already removed once, in production, where it had been
+drowning the signal in third-party log noise.
+
+So there is now a second lever that does **only the one thing**: it drops
+`Secure` from the session and CSRF cookies while leaving debug alone. Unset,
+both flags follow debug exactly as they always did, which is what every install
+that has not heard of it continues to do.
+
+One flag, one consequence. A flag that also changes your logging posture isn't
+a flag, it's a bundle.
+
+## Two options, and a page that refuses to choose
+
+A deployment on a routable hostname has to answer the HTTPS question before its
+first login, and the page lays out both shapes with their costs:
+
+**Terminate TLS in front of the identity provider.** A change of topology
+rather than a flag, since it is published directly today with nothing in front
+of it. It needs a certificate the firm's own browsers already trust, which on
+an on-premises install usually means the firm's internal CA. And it moves the
+issuer from `http` to `https`, which matters on an install where anyone has
+already signed in, and requires correcting the registered origin **inside the
+realm**, because redirect URIs are matched by exact string, scheme included,
+and bringing the stack up will not re-import a changed template.
+
+**Or relax the requirement on the realm**, which costs exactly what it sounds
+like: the password, the authorization code, the tokens and the session cookie
+all cross the customer's network in the clear. And it does not on its own
+produce a working install. The cookie problem is still there, so the failure
+moves one step later rather than going away.
+
+Then the sentence that closes it: *which of these an install gets, and whether
+this customer issues a certificate for the appliance at all, is a deployment
+decision for the firm and for whoever is running the install. It is
+deliberately not made here.* What the section claims is only that the choice
+exists, that it falls due before the first non-localhost login, and that
+**nobody should discover it from an error page.**
+
+There is also a certificate question hiding in that first option, and by now it
+is a familiar one: this is the third place in this project where the answer
+depends on a certificate the firm does not issue.
+
+## The header that had to come out
+
+One last operational detail, because it is a good illustration of a setting
+whose correctness depends entirely on its neighbours.
+
+A proxy-headers option was set while the identity provider ran behind a shared
+reverse proxy, and was **removed when it stopped**. With nothing in front to
+sanitise forwarded headers, and hostname resolution left dynamic, **anyone able
+to reach the published port could set a forwarded-host header and steer the
+issuer the provider emits.**
+
+Putting a proxy back in front is the condition under which it returns, together with that proxy stripping inbound forwarded headers.
+
+That is the kind of configuration that is correct, then silently becomes a
+vulnerability because something *else* changed. The only version of this that
+survives is the one where the setting's comment names the condition it depends
+on, which is why that comment is the authority and the other document points at
+it rather than restating it.
+
+Next: the fork itself, what a hard fork actually inherits, and the inventory
+that decided what stays.

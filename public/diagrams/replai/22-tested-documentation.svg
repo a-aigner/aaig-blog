@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 534" width="700" height="534" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .k   { font-size: 11.5px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+  </style>
+  <rect class="bg" x="0" y="0" width="700" height="534"/>
+
+  <rect class="card" x="16" y="14" width="668" height="252" rx="6"/>
+  <text class="t h" x="32" y="38">Twenty-odd tests whose subject is the prose, not the code</text>
+  <line class="rule" x1="16" y1="50" x2="684" y2="50"/>
+
+  <text class="t lbl" x="32" y="70">THAT A CLAIM IS NO LONGER MADE</text>
+  <text class="t m" x="32" y="90">test_the_docs_do_not_still_claim_retrieval_ignores_qdrant</text>
+
+  <text class="t lbl" x="32" y="120">THAT A NUMBER STILL MATCHES THE THING IT DESCRIBES</text>
+  <text class="t m" x="32" y="140">test_the_split_host_bind_table_matches_the_binds_compose_declares</text>
+  <text class="t m" x="32" y="158">test_the_page_and_the_code_agree_on_how_often_archive_logs_in</text>
+
+  <text class="t lbl" x="32" y="188">AND · THE USEFUL ONE · THAT A LIMITATION IS STILL ADMITTED</text>
+  <text class="t m red" x="32" y="208">test_identity_still_says_back_channel_logout_is_not_achieved</text>
+  <text class="t m red" x="32" y="226">test_the_nightly_proposal_still_describes_an_unguarded_sweep</text>
+  <text class="t m red" x="32" y="244">test_the_threshold_claim_is_narrowed_rather_than_deleted</text>
+  <text class="t m red" x="32" y="262">test_compliance_names_the_three_free_text_exceptions_it_counts</text>
+
+  <rect class="card" x="16" y="288" width="668" height="112" rx="6"/>
+  <text class="t h" x="32" y="312">Why the last group is the point</text>
+  <text class="t b" x="32" y="336">A caveat has no defender. It makes a document longer, it makes a product sound weaker, and</text>
+  <text class="t b" x="32" y="352">deleting it breaks nothing, so it is the first thing a tidying pass removes.</text>
+  <text class="t b" x="32" y="378">These tests give the caveats a defender.</text>
+
+  <rect class="card" x="16" y="422" width="668" height="96" rx="6"/>
+  <text class="t lbl" x="32" y="446">THE THREE CLAIMS THE WHOLE SET RESTS ON</text>
+  <text class="t b" x="32" y="468">It runs on the customer's premises · one port is reachable and it is the product's own interface ·</text>
+  <text class="t b" x="32" y="484">what makes us a processor is support access, not shipping software</text>
+  <text class="t n" x="32" y="508">Changing any one of the three invalidates a section. Which is why each is written as a fact with consequences.</text>
+</svg>

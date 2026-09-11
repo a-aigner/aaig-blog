@@ -1,0 +1,220 @@
+---
+title: "One mail becomes one draft, and only one of the nine stages is the model"
+summary: "The gate is pure SQL, so a mail that will never be drafted costs nothing. Two different strings go to the two retrieval arms. And when the prompt does not fit, what gets dropped first is everything that makes the reply sound right, because correctness outranks voice."
+date: "2026-08-18"
+tags: ["local-llm", "rag", "prompt-engineering", "django", "architecture"]
+part: "II · replai"
+---
+
+## Why this exists
+
+This is the stage the whole product exists for: an incoming mail arrives, and a
+draft reply appears for somebody to review.
+
+The thing I didn't expect going in is how little of it's the model. Nine
+stages, three model calls, and the two that matter most. The gate at the front
+and the assessment at the back, contact no model at all.
+
+<Figure
+  src="/diagrams/replai/13-drafting-pipeline.svg"
+  alt="Top card: nine stages down a vertical rail, each marked with a dot showing whether it calls a generative model, a retrieval service, or nothing. Gate is pure SQL so a mail that will never be drafted costs nothing. Classify asks for one of seven intents plus a language code at temperature zero and refuses rather than guessing. Condense turns the mail into a short German search query. Few-shot and gather collect the firm's own past replies, retrieval and the thread tail, sending two different strings to the two arms. Fit drops to the budget in a fixed order. Assemble is deterministic with German prompt text in files. Generate is the one call to the drafting model, capped at 800 output tokens. Assess traces every figure mechanically, computed from the prompt rather than asked of a model. Persist writes a draft at PENDING or HELD with one source row per citation. Bottom card: the fixed drop order and the rule that correctness outranks voice."
+  caption="Nine stages. Three red dots. The gate and the assessment, the two that decide most, are both model-free."
+/>
+
+## The gate is SQL, and that is the point
+
+`messages_awaiting_a_draft` is pure SQL. Every rule runs before any model is
+contacted, so **a message that will never be drafted costs nothing**, not a
+token, not a round trip.
+
+Six conditions have to hold. Most are obvious once stated (it must be incoming;
+there must be no later outgoing message in the thread; there must not already
+be a draft). Three are worth the words:
+
+**A seven-day window.** The IMAP backfill imports full mailbox history. Without
+a window, the first overnight run would draft a reply to **every unanswered
+message the firm has ever received**, thousands of drafts, almost all for
+conversations that ended years ago. Seven days, because a business mail still
+unanswered after a week has either been handled outside the mailbox or is not
+going to be. It is a per-user field, so a firm that genuinely works a longer
+queue can raise it.
+
+**Results come back oldest first.** A run cut short should have drafted the
+most overdue replies, not the newest ones. One `ORDER BY`, and it is the
+difference between a partial run being useful and being arbitrary.
+
+**Bulk mail is excluded, and the flag is decided at sync time**, because the
+headers that reveal it are gone by the time drafting asks. Four signals, and
+two of them have a subtlety I got wrong first:
+
+- `Auto-Submitted` is tested for *any value other than `no`*, not for the
+  header's presence. The RFC defines `no` as an ordinary human message, so
+  testing presence alone drops real mail from servers that always set it.
+- The sender local-part blacklist compares the **whole local part**, not a
+  substring. A person called Reply and a firm called Newsletter GmbH both send
+  real mail.
+
+Neither of those is clever. Both are the difference between a filter and a
+filter that eats correspondence.
+
+## Classification refuses rather than guesses
+
+`classify` asks the utility model for one of seven intents plus a language
+code, as JSON, at temperature zero. Anything unusable **raises, and no draft is
+written**: output that is not JSON, an intent outside the seven, a missing or
+blank language.
+
+The reason to refuse rather than fall back is the specific failure shape this
+product cannot have. The intent silently steers the entire prompt, so a draft
+built on a misclassification is **wrong in a way that reads as fluent.** It is
+not garbled. It is a confident, well-written reply to a different kind of
+question, and a reviewer skimming a queue will approve it.
+
+The language is required for the same reason: it selects the signature variant.
+Defaulting it attaches a German signature to an English reply, which is the
+sort of thing that looks like carelessness to a customer rather than like a
+software bug.
+
+One small accommodation that I think is correct: a JSON block wrapped in a
+fenced code block is unwrapped before parsing. Small instruct models fence
+routinely, and refusing that would be failing on output that's correct in
+every way that matters. Strictness should be about the content, not about
+punctuation the model added.
+
+A failure here costs exactly one message. The run logs it and moves to the
+next.
+
+## Two strings, two arms
+
+This is the design detail I'd most want to keep in another project.
+
+`gather` passes **two different strings** into one search call. The only place
+in the product where they differ:
+
+**The condensed query goes to the dense arm.** An embedding of a whole mail is
+dominated by the greeting, the signature and the quoted history underneath it.
+Five German nouns are not. That is what condensing was written for.
+
+**The raw mail goes to the lexical arm**, subject and body, exactly the string
+that was handed to the condenser. Because the terms that identify the right
+document are the ones the customer actually typed, and condensing is *precisely*
+the step that throws away the project number, the order reference and the
+surname. Handing those to a lexical arm and then condensing them away first
+defeats the arm's only advantage.
+
+The two rankings are fused before the reranker sees anything.
+
+Three things it deliberately does **not** do, each of which I considered:
+
+**It does not re-clean the raw text.** Mail preprocessing already decides what
+the body is, and a second cleaned form here would be a second definition of
+"the mail" that drifts from the first. If quoted history turns out to swamp the
+lexical arm, that is a finding for the eval harness and a change to
+preprocessing, not a private cleanup inside retrieval.
+
+**It does not also send the raw text to the dense arm.** That is two dense
+embeddings per draft, a second round trip on the interactive path, to answer a
+question the harness already answers with a flag.
+
+**And it changes nothing about the search endpoint**, where a human typed one
+query and there is no raw mail anywhere. There, both arms correctly read the
+same string.
+
+There is also a test pinning where the raw customer mail goes, rather than
+leaving it to reading. Under the shipped lexical backend it never leaves
+Postgres; under the alternative it reaches a container on the same host behind
+the same local-endpoint guardrail as every other model call; and it reaches no
+foreign vector source at all. *"The raw customer mail is now flowing somewhere
+new"* is the shape of a defect nobody finds by re-reading a diff.
+
+## The budget, and the mailbox that broke the model
+
+The context budget is derived from the same settings that bound retrieval,
+rather than being a flat constant, so raising the number of documents to
+retrieve raises both what comes back *and* the room to carry it. The setting
+cannot be made to retrieve more than the prompt can hold.
+
+Then there is a hard ceiling of 12,000 tokens on top, and that ceiling exists
+because of a specific, instructive failure.
+
+A mailbox configured to rank 90 message chunks produced a budget of **22,800
+tokens**, and one draft carried **73 retrieved excerpts**. A 24,655-token user
+block on a 32,768-token model. At which point the model **stopped obeying its
+system prompt altogether.** It answered an English mail in German. It printed a
+subject line. It wrote markdown headings. It produced two alternative letters.
+And then it ran past the 800-token reply cap and was refused as truncated.
+
+That is a failure mode I hadn't internalised before this: instruction
+adherence isn't a constant property of a model, it **degrades with context
+pressure**, and it degrades into confident nonsense rather than into refusal.
+A setting about *how many chunks to rank* was also, with nothing above it,
+deciding *how large a prompt to build*.
+
+The ceiling sits above the shipped defaults, so a mailbox that never raised the
+setting is unaffected by it.
+
+## Two honest notes about that arithmetic
+
+Both of these are in the documentation as properties rather than as
+achievements, and I'd rather have them stated than tidy.
+
+**The answered mail appears twice in the prompt and is charged once.** It is in
+the thread tail, which the budget counts, and it is appended again under its own
+heading, which the budget does not count. So for a long incoming mail the real
+prompt is meaningfully larger than the arithmetic suggests. Nothing has been
+measured against a running model here, so it is written as a property of the
+code and not as a problem with a known size.
+
+**Only the ceiling is measured.** The per-token coefficients and the 800-token
+reply reserve are engineering choices sized to a small local context window.
+The document says so: treat the rest as knobs. Publishing which of your numbers
+are measured and which are guesses is, I have come to think, more valuable than
+publishing the numbers.
+
+## The drop order is the product's ethics in three lines
+
+When the context does not fit, `fit` drops in one fixed order:
+
+1. **All few-shot examples**, at once.
+2. **The oldest thread-tail messages**, one at a time, never below one.
+3. **The lowest-ranked retrieved sources**, from the bottom up.
+
+The message being answered is never dropped, because a reply written without it
+is not a reply to anything.
+
+That order encodes one rule and I think it's the most important sentence in the
+whole stage: **correctness outranks voice.**
+
+The few-shot examples are what make the draft sound like this firm. The sources
+and the conversation are what make it *true*. So the stylistic material goes
+first, always, and the grounding material survives, because a draft that
+sounds slightly generic is edited in thirty seconds, and a draft that sounds
+exactly right and quotes a price from nowhere is the failure this product cannot
+have.
+
+And step 3 is only survivable because reranking is a precondition for foreign
+sources being queried at all: what gets dropped is what the cross-encoder scored
+worst, never whatever happened to sit at the end of an unranked list.
+
+## Refusing a truncated reply
+
+The generation step is the only function in the stage that talks to the drafting
+model. Two outcomes are worth describing.
+
+**If the runtime reports it stopped on length, nothing is written.** A
+half-finished business letter sitting in the queue **looks finished**. The
+reviewer sees a plausible opening, approves it, and sends a mail that stops
+mid-sentence. Refusing costs one draft, and the person still has the original
+mail in their inbox.
+
+**If the runtime reports no finish reason at all, the draft is kept and the
+uncertainty is recorded on it** as a German note. Refusing everything from a
+runtime that reports nothing would mean drafting nothing at all.
+
+Those two are the same judgement in opposite directions, and the difference is
+whether the uncertainty can be *shown to the person who decides*. When it can,
+keep the draft and label it. When the failure is invisible in the output, which is exactly what a truncation is, refuse.
+
+That principle is the whole subject of the next article: every draft in this
+system arrives carrying a verdict on itself, and that verdict is computed
+rather than asked for.

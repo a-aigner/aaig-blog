@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 620" width="700" height="620" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .host{ fill: rgb(10 10 10 / 0.03); stroke: rgb(10 10 10 / 0.2); stroke-width: 1; }
+    .svc { fill: #ffffff; stroke: rgb(10 10 10 / 0.14); stroke-width: 1; }
+    .noauth{ fill: #ffffff; stroke: #db0a12; stroke-width: 1.1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .k   { font-size: 11.5px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; fill: rgb(10 10 10 / 0.66); }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+    .lnr { stroke: #db0a12; stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#db0a12"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="620"/>
+
+  <rect class="card" x="16" y="14" width="668" height="242" rx="6"/>
+  <text class="t h" x="32" y="38">Two hosts, and the transport dials the opposite way to the data</text>
+
+  <rect class="host" x="32" y="52" width="284" height="172" rx="5"/>
+  <text class="t lbl" x="44" y="72">THE LINUX SERVER</text>
+  <rect class="svc" x="44" y="82" width="260" height="28" rx="4"/>
+  <text class="t k" x="54" y="101">the application</text>
+  <rect class="svc" x="44" y="116" width="260" height="28" rx="4"/>
+  <text class="t k" x="54" y="135">the log aggregator</text>
+  <rect class="svc" x="44" y="150" width="260" height="28" rx="4"/>
+  <text class="t k" x="54" y="169">the tunnel container</text>
+  <text class="t n" x="152" y="169">dials out</text>
+  <text class="t n" x="44" y="198">Holds a private key and is the one process</text>
+  <text class="t n" x="44" y="212">in the stack that dials out of the firm's network.</text>
+
+  <rect class="host" x="384" y="52" width="284" height="172" rx="5"/>
+  <text class="t lbl" x="396" y="72">THE SPARK · arm64</text>
+  <rect class="noauth" x="396" y="82" width="260" height="28" rx="4"/>
+  <text class="t k" x="406" y="101">embedder</text>
+  <text class="t n" x="486" y="101">no authentication</text>
+  <rect class="noauth" x="396" y="116" width="260" height="28" rx="4"/>
+  <text class="t k" x="406" y="135">reranker</text>
+  <text class="t n" x="486" y="135">no authentication</text>
+  <rect class="noauth" x="396" y="150" width="260" height="28" rx="4"/>
+  <text class="t k" x="406" y="169">sparse-embedder</text>
+  <text class="t n" x="486" y="169">no authentication</text>
+  <text class="t n" x="396" y="198">Their only callers are on the other machine now,</text>
+  <text class="t n" x="396" y="212">so all three binds have to widen.</text>
+
+  <path class="lnr" d="M 320 108 L 380 108" marker-end="url(#ar)"/>
+  <text class="t n red" x="322" y="100">SSH, out</text>
+  <path class="ln" d="M 380 148 L 320 148" marker-end="url(#a)"/>
+  <text class="t n" x="326" y="140">logs, in</text>
+
+  <line class="rule" x1="16" y1="232" x2="684" y2="232"/>
+  <text class="t n" x="32" y="250">The collector opens the tunnel; the log lines still travel the other way down it.</text>
+
+  <!-- what the bind is -->
+  <rect class="card" x="16" y="276" width="668" height="128" rx="6"/>
+  <text class="t h" x="32" y="300">What is exposed, and what only looks like it</text>
+  <text class="t m" x="32" y="324">--host 0.0.0.0</text>
+  <text class="t b" x="136" y="324">inside a container is not the exposure, and must not be read as one.</text>
+  <text class="t b" x="32" y="344">That is the bind inside the container, and it is what makes any published port work at all,</text>
+  <text class="t b" x="32" y="360">a container binding its own loopback could not be published to the host either.</text>
+  <text class="t b" x="32" y="384">The exposure is the left-hand side of the port mapping, which is what the split changes.</text>
+
+  <!-- the guard -->
+  <rect class="card" x="16" y="424" width="668" height="180" rx="6"/>
+  <text class="t h" x="32" y="448">Two failures that report success</text>
+  <line class="rule" x1="16" y1="460" x2="684" y2="460"/>
+
+  <circle cx="40" cy="480" r="3" class="red"/>
+  <text class="t k" x="54" y="484">A widening bind that sshd will happily honour</text>
+  <text class="t n" x="32" y="502">With the required server option set, the client picks the bind address, including every</text>
+  <text class="t n" x="32" y="516">interface. The forward succeeds, the tunnel is healthy, and the port is simply public. So the</text>
+  <text class="t n" x="32" y="530">container refuses to start instead, where a restart loop is something a person can see.</text>
+
+  <circle cx="40" cy="554" r="3" class="red"/>
+  <text class="t k" x="54" y="558">A tunnel carrying nothing</text>
+  <text class="t n" x="32" y="576">It stayed running, healthy, with zero traffic, and nothing reported it. Verify at commissioning</text>
+  <text class="t n" x="32" y="590">by looking at the agent, never at the tunnel, the tunnel cannot tell you.</text>
+</svg>

@@ -1,0 +1,156 @@
+---
+title: "Fifteen years of history, and one door into it"
+summary: "A CRM built on SharePoint 2010, a written specification describing a database that does not exist, and two of the three ways in closed before we started. What was left was OData v2 at three requests per second, which turned out to be enough."
+date: "2026-07-16"
+tags: ["sharepoint", "odata", "rag", "legacy-systems", "python"]
+part: "I · The pipeline"
+---
+
+## Why this exists
+
+A firm asked whether the people answering their service mail could be given
+something that already knew their own history. Not a chatbot bolted onto a
+website. An assistant that, when a mail arrives, has already read the fifteen
+years of tickets in which something very like it was answered before.
+
+Everything about that idea is downstream of one question: can you get the
+history out at all. The history lived in a CRM built on **SharePoint 2010**, on
+a farm nobody had upgraded in a decade, reachable only from inside the
+customer's network. We had a service account, read access, and an explicit
+instruction to change nothing on their side.
+
+This article is about the four weeks before a single vector was written, which
+is the part I underestimated by roughly four weeks.
+
+<Figure
+  src="/diagrams/replai/01-system-context.svg"
+  alt="System diagram: a SharePoint 2010 CRM at the top, with a crossed-out red branch to a SOAP endpoint labelled 'client certificate never issued'. The kept path runs down through sp-extract on an extraction host, which writes JSONL files, into a pipeline with four layers L0 to L3, into a single Qdrant collection, which feeds two products, replai and chatty. A dashed box on the right holds llama.cpp services on a separate host."
+  caption="What was eventually built. The red branch is the route I expected to take."
+/>
+
+## Three doors, two of them locked
+
+**A database dump** was the first thing I asked for and the first thing ruled
+out. Not for political reasons. It genuinely would not have helped. A CRM
+built on SharePoint lists does not store tickets in a relational schema you can
+read; it stores them in SharePoint's own content database, where a ticket is a
+row of loosely typed property bags addressed by internal field names, and a
+comment is another one in a different list pointing at the first by a lookup
+column. Anything you can read from the outside, SharePoint's own API gives you
+in better shape than a dump does. And it was not our server.
+
+**SOAP** was the door I expected to walk through. SharePoint 2010 exposes a
+full set of `.asmx` web services, they are well documented, and there is a
+decade of prior art for reading lists out of them. This is also where the first
+month went.
+
+The short version is that the SOAP endpoints were the only requests this farm
+actually challenged for a credential, and the NTLM handshake on those requests
+couldn't be made to complete. The next article is entirely about why, because
+the *why* took weeks and is genuinely interesting. The relevant part here is
+where it ended: the handshake needed a certificate on the customer's side that
+they couldn't reissue, and every workaround that would have got us past it
+required a change on their farm. A relaxed Extended Protection setting, a
+direct route to the web front end, a corrected binding, that was never going
+to happen. Reaching for plain HTTP to dodge the certificate is the obvious
+instinct and it's a dead end: the farm doesn't serve HTTP at that URL, and
+with verification switched off the certificate cannot cause a rejection *by
+itself* anyway. What it can do is feed the NTLM channel binding, and that's
+not a thing you can opt out of from the client when the server requires it.
+
+So SOAP was ruled out, by the operator, on the customer's side, for a reason
+neither of us could resolve. The connector I built still contains all of its
+SOAP machinery. The pipeline never calls any of it.
+
+**REST** was the third door and the one that opened. `_vti_bin/ListData.svc`,
+OData v2, sixty-eight collections, and a service that answers.
+
+## What REST costs
+
+It answers, and then it charges you for it.
+
+```
+host    https://<farm>:443     a bare IP, not the DNS name
+auth    NTLM as DOMAIN\service-account
+TLS     verification off, legacy TLS on, channel bindings off
+tuning  timeout 300s · max retries 2 · 3 requests/second
+```
+
+Every line of that is a scar. The bare IP is there because the DNS name routed
+somewhere that behaved differently. Channel bindings are off because they were
+being validated against the wrong certificate. Three requests per second is
+self-imposed: a fifteen-year-old farm serving a production business is not
+something to hammer, and nothing in the extraction is urgent enough to justify
+it.
+
+Three requests per second is also the number that shapes the whole design
+downstream. It is why the extraction runs on a host inside the customer's
+network and writes files, rather than being a step in a pipeline that runs
+anywhere. It is why attachments are a separate pass measured in hours rather
+than an inline fetch. And it is why the pipeline that consumes those files was
+built so that five of its eight stages open no network socket at all, if
+getting the data is the expensive, fragile, once-a-night part, then everything
+after it should be a pure function of files on disk, runnable on a laptop with
+nothing installed.
+
+## The specification described a database that does not exist
+
+We were given a written specification for the pipeline, and it is a good
+document in the sense that it is specific. It specifies a relational CRM: a
+categories table, an internal-comment flag, a closed-at timestamp, a reopen
+counter, account and customer and agent tables. It even has an entity-relationship
+diagram.
+
+None of that is there. Not renamed, not approximated, absent. There is no
+category, no internal flag, no closure timestamp, no reopen count, and no
+customer table.
+
+What is there instead is better, and differently shaped: a location hierarchy
+five levels deep, and an equipment taxonomy hanging off each ticket. That is
+richer than the flat category the specification wanted, and it means the
+useful facets for retrieval are structural rather than a single label. But it
+is not what the document says, and anything built from the document without
+looking would have been built against fields that return nothing.
+
+I want to be careful about the lesson here, because "the spec was wrong" is a
+cheap thing to say. The specification was written by people who had seen the
+web interface, and the web interface shows you forms, not the schema behind
+them. It is an entirely reasonable document to have produced without a
+credential. The mistake would have been to treat it as ground truth once we
+*had* one, and that mistake is easy to make, because the document is more
+confident than the server is.
+
+Two later articles are about what happened when I finally measured the corpus
+properly rather than reading about it: roughly half the specification's
+processing rules turned out to be solving problems this data doesn't have, and
+one of them was inverted. It would have shattered the index into a hundred
+thousand fragments while believing it was preventing exactly that.
+
+## What was actually behind the door
+
+Once the credential worked and the property names resolved, the shape of the
+thing was clear within an afternoon:
+
+| | |
+|---|---|
+| tickets | **14,729**, forty-four properties each |
+| comments | **102,625**, linked to tickets by a lookup column |
+| users | a list of about sixty, which is how an author becomes a name |
+| attachments | keyed on *(list, item, filename)*, hanging off tickets only |
+| history | **2011 to 2026**, fifteen years, not the twenty the spec claimed |
+
+A hundred thousand comments across fifteen thousand tickets, in German, written
+by a small number of people, almost all of them closed. That is a good corpus
+for retrieval and a slightly awkward one for everything else, for reasons that
+took a profiling run to see.
+
+## Where this goes
+
+The next four articles are the extraction, in the order the problems appeared:
+why a 401 has six meanings and only one of them is the password; why the same
+service answers in two languages and both answers are correct; why the server
+refuses to count its own rows and times out on the one query you most want; and
+why the collection that lists attachments returns an empty feed on a corpus
+where 57.5% of tickets carry files.
+
+Then the pipeline itself, layer by layer, and what profiling did to the plan.
