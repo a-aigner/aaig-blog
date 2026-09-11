@@ -70,18 +70,24 @@ export default function PrivacyPage() {
 
         <H>Who is responsible</H>
         <p>
-          {contact.name}
+          ARSoftware UG (haftungsbeschränkt)
           <br />
-          <Fill what="street address" />
+          Johannisweg 3
           <br />
-          {contact.location}
+          84030 Ergolding, Deutschland
+          <br />
+          Geschäftsführer: Andre Aigner
           <br />
           <a href={`mailto:${contact.email}`} className="underline underline-offset-2 hover:opacity-70">
             {contact.email}
           </a>
         </p>
         <p className="text-sm text-secondary">
-          <Fill what="state whether the controller is you personally or ARSoftware UG; if the UG, use its registered name, address and register number" />
+          Amtsgericht Landshut, HRB 15048 · USt-IdNr. DE459104738. Full details on the{" "}
+          <a href="/impressum" className="underline underline-offset-2 hover:opacity-70">
+            Impressum
+          </a>
+          .
         </p>
 
         <H>Hosting</H>
@@ -133,8 +139,8 @@ export default function PrivacyPage() {
           Mail sent to the address above is processed to answer it, on the basis of
           Art. 6(1)(f) GDPR, or Art. 6(1)(b) where the message is about a contract. I keep
           correspondence for as long as the matter is live and as long as commercial or tax
-          law requires, and then delete it. The mailbox is hosted by{" "}
-          <Fill what="your email provider, e.g. Apple, for the iCloud address above" />.
+          law requires, and then delete it. The mailbox is an iCloud
+          mailbox, so it is hosted by Apple.
         </p>
 
         <H>Links off this site</H>
