@@ -1,0 +1,184 @@
+---
+title: "I profiled the corpus and it overruled half the specification"
+summary: "Fourteen seconds of profiling over 238 MB answered questions a written design had guessed at for pages. The median comment is 36 tokens against a rule that splits above 800, so the chunking was inverted, and five other processing rules turned out to be solving problems this data does not have."
+date: "2026-07-31"
+tags: ["rag", "chunking", "data-profiling", "python", "measurement"]
+part: "I · The pipeline"
+---
+
+## Why this exists
+
+We had a written specification for this pipeline before we had a credential for
+the server. That is a normal way for a project to start and it isn't a
+criticism. You cannot wait for access to begin designing. But it does mean the
+document is a set of *hypotheses about data nobody has seen*, and the moment the
+data arrives, those hypotheses become checkable.
+
+So who writes a specification for data nobody has seen? Everybody does, and
+reasonably. I wrote a profiler before trusting it. It is one file at the repository root, it takes the
+joined extract, and it emits a JSON report. On 238 MB it runs in **fourteen
+seconds**.
+
+Fourteen seconds. Against pages of prose specifying how to clean, segment and
+chunk this corpus. I want to lead with that ratio, because it's the actual
+lesson of the article: the cheapest thing in the project was the thing that
+decided the most.
+
+<Figure
+  src="/diagrams/replai/06-profile-vs-spec.svg"
+  alt="Top card: a linear token axis for 102,625 comments, with a shaded band from zero to 115 labelled as containing 90 percent of every comment, a tick at median 36, and far to the right a red dashed line at 800 marked as where the specification splits, with a note that only 0.2 percent of comments lie to its right. Middle card: a nine-row table of what the profile overruled, each with the specification's rule, the measured figure, and a verdict of inverted, dropped, wrong shape, overruled or corrected. Bottom card: the joined extract at 14,728 tickets, 102,625 comments, 59 authors of whom ten write 93.2 percent."
+  caption="Nine rules, nine measurements. Only two of the nine survived contact with the data unchanged."
+/>
+
+## The inverted rule
+
+Here is the finding that mattered most, and it is visible in the chart above
+without reading a word of prose.
+
+The specification's chunking rule **splits a segment when it exceeds 800
+tokens.** That is a sensible rule. It is the rule you write when your mental
+model of the corpus is long-form support tickets with detailed diagnostic
+write-ups, which is a completely reasonable thing to imagine a CRM contains.
+
+The measured reality: **the median comment is 36 tokens. The 90th percentile is
+115. Only 0.2% exceed 800.**
+
+So the splitting rule would fire on roughly two comments in a thousand, and do
+nothing at all the rest of the time. Which sounds harmless. A rule that never
+triggers is just dead code. Except that a chunking strategy is the rule you
+wrote plus everything you didn't write. Building the index with
+splitting as the operative concern produces **about a hundred thousand
+four-word fragments**, each embedded as its own vector, each carrying almost no
+retrievable meaning.
+
+The operation that actually matters on this corpus is the opposite one:
+**merging** adjacent short turns by the same author into a segment that says
+something. That is not a tweak to the specified rule. It is the other direction.
+
+It also moved the capacity number. The specification budgeted 123,000 chunks;
+merging-first gives roughly **75,000**. Which changes what hardware this needs,
+and that number was in a plan somebody was going to cost.
+
+## The rules that were solving problems this data does not have
+
+Four more of the specification's processing rules turned out to be unnecessary,
+and each one is a small lesson in the same shape.
+
+**Mojibake repair.** The document specifies running a text-repair library over
+every comment to fix encoding damage. Measured: **five comments in 102,625**
+show any mojibake at all. Not five per cent, five comments. A dependency, a
+processing pass over the whole corpus, and a class of bug where the repair
+itself mangles correct text, to fix five rows that could be looked at by hand.
+
+**Word and Outlook markup stripping.** The document specifies rules for the
+markup Word and Outlook inject into pasted HTML. Measured: **zero
+occurrences**. None. The corpus *is* 99.9% HTML, but it is the web
+interface's own HTML, with inline styles on 47.3% of comments and old font tags
+on 16.8%, not office-suite paste debris.
+
+**Status taxonomy mapping.** The document specifies mapping historical status
+values onto current ones, on the reasonable assumption that a fifteen-year
+system has renamed its statuses at least once. Measured: **six values, no drift
+whatsoever**, all six of them spanning the whole 2011-2026 range. There is
+nothing to map.
+
+**Verification weighting.** The document scores whether a ticket was resolved
+successfully, and gives "closed successfully" a weight of 0.25, its second
+largest term. Measured: **99.8% of tickets are closed.** A term that is true of
+almost every row discriminates nothing; it is a constant with a weight on it.
+
+Each of those is individually small. Together they are a meaningful chunk of the
+pipeline's processing budget and a meaningful chunk of its surface area for
+bugs, and all four were deleted by numbers that took fourteen seconds to
+produce.
+
+## The rule that was the right idea in the wrong shape
+
+Signature detection is the interesting one, because here the specification was
+solving a real problem and had picked a mechanism that could not work.
+
+The document detects a signature **statistically**: find text blocks that recur
+across more than 80% of a given author's comments. That is a clever,
+language-independent heuristic and I like it.
+
+Measured: **no author exceeds 80%.** The rule finds nothing, ever. Meanwhile
+**11,324 comments carry a sign-off**, so the problem is real and large, and the
+detector is silent on all of it.
+
+Why it fails is worth understanding rather than just patching. The statistic
+assumes signatures are per-author constants, and people do not work that way:
+the same person signs some replies and not others. Concretely, the most prolific
+author writes **50.1% of all comments in the corpus** and signs **22% of them**.
+That is a wildly distinctive pattern and the 80% threshold cannot see it,
+because the threshold is asking whether a signature is habitual when the actual
+answer is that it is situational.
+
+The replacement is boring and works: literal patterns for the German sign-off
+phrases this corpus actually uses. Boring is correct here. The set of ways
+German business correspondence closes is small, closed, and observable.
+
+## The rule I overruled with a different article's data
+
+The specification routes attachment content to a separate filesystem pipeline,
+away from the ticket index. Given the sampling from the previous article, **57.5% of tickets carry a file**, that would separate more than half of all
+tickets from their own evidence at retrieval time. Attachments are ingested
+here instead, and that number is the whole argument.
+
+## Where the specification was simply out of date
+
+Two corrections that cost nothing and are worth recording anyway, because they
+calibrate how much of the rest to trust. The document says roughly twenty years
+of history; it is **fifteen** (2011-2026, peaking in 2014 and declining after
+2019). And it describes a shared embedder and reranker across two pipelines,
+which stopped being true when the inference services moved to their own
+hardware.
+
+## The thing I got wrong about all this
+
+For about a day I held the position that the specification was a bad document.
+That was wrong and it made me worse at reading it.
+
+The specification was written by people who had seen the web interface. A web
+interface shows you forms, and forms tell you what fields exist, not how they
+are distributed. There is no way to know from looking at a ticket form that the
+median comment on it's 36 tokens, or that 99.8% of tickets are closed, or that
+one person wrote half of everything. Every wrong rule in that document is a
+reasonable inference from the only evidence its authors had.
+
+The failure mode is not writing the document. It is **continuing to treat it as
+ground truth after acquiring the ability to check it**, and that failure is
+seductive, because the document is far more confident than the server is. The
+document has section numbers and weights to two decimal places. The server has
+a 500 and a German error message.
+
+## What I actually changed in how I work
+
+**Profile before you plan, and make the profiler cheap enough to re-run.**
+Fourteen seconds means it runs after every change to the extraction, not once
+at the start as a ceremony. A profiling step that takes an hour gets run once
+and its output becomes a stale document, which is the problem it was supposed
+to solve.
+
+**Write the invalidation down next to the rule it kills.** Every one of these
+findings lives in the design document as a section saying *the specification
+says X, the measurement is Y, therefore Z*, not as a silent absence in the
+code. Six months from now somebody will notice there is no mojibake handling
+and reasonably wonder whether it was forgotten. The answer needs to be on
+paper, with its number.
+
+**Distinguish "this rule never fires" from "this rule is harmless".** The
+splitting rule would have fired twice in a thousand. That made it look like
+dead code and it was actually the load-bearing assumption of the whole
+chunking design.
+
+One open question this couldn't answer, and I want to name it because it's
+still open: **whether any of the 59 authors is a customer rather than a
+technician.** Several of the specification's segment classes and its largest
+verification term depend on customer-authored text existing. The profile counts
+authors; it cannot read their roles. That answer needs the user list read by a
+person, and until it exists, that part of the design is unvalidated rather than
+validated, which is a different thing from wrong, and needs to be labelled as
+such.
+
+Next: the pipeline those measurements produced, four layers, eight verbs, and
+no database above the third one.

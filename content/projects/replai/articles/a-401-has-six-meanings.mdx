@@ -1,0 +1,197 @@
+---
+title: "A 401 has six meanings, and only one of them is the password"
+summary: "Four weeks of NTLM against a SharePoint 2010 farm, and the diagnostic I should have built on day one. Channel bindings fail in two opposite directions, a handshake torn onto a fresh socket is byte-identical to a rejected credential, and an access-denied page arrives with HTTP 200."
+date: "2026-07-19"
+tags: ["ntlm", "sharepoint", "authentication", "diagnostics", "python"]
+part: "I · The pipeline"
+---
+
+## Why this exists
+
+The credential was correct. I want to establish that first, because for about
+three weeks it was the thing I kept going back to check, and every hour spent
+checking it was an hour the actual problem was sitting still.
+
+`Check SP_USERNAME / SP_PASSWORD` is what the connector printed on a rejection.
+That sentence is *true of every possible cause of a 401* and therefore carries
+no information at all. It is worse than printing nothing, because printing
+nothing at least sends you looking. This article is about the six things a 401
+can actually mean on a farm like this one, and about the shape of the
+diagnostic that finally told them apart.
+
+The commit titles from that fortnight read like a confession, which is why I
+like them:
+
+```
+Make a 401 say which of its causes this one is
+Stop blaming the password for a handshake that completed and was then refused
+Stop reading SharePoint's access-denied page as a successful login
+Ask the server for its domain, and stop blaming credentials never tried
+Say which steps never ran when the probe fails early
+```
+
+## Four facts, all of them already on the response
+
+The breakthrough wasn't a discovery about NTLM. It was noticing that
+everything needed to separate the causes was already in my hands and I was
+throwing it away.
+
+**Did we send a credential at all?** No `Authorization` header means the auth
+handler never ran. That is a configuration problem in my own process, not a
+rejection by anybody.
+
+**Did the server re-challenge?** A 401 *with* a `WWW-Authenticate` header means
+the credential was rejected. A 401 *without* one generally means it was
+accepted and then denied access. An authorisation problem, where no amount of
+password-fixing will help.
+
+**How many round trips?** NTLM needs three. One means the handshake never
+started. Two means it broke halfway. Three means it completed and the final
+message was refused, which is a completely different conversation.
+
+**Did the server close the connection?** NTLM authenticates a *connection*, not
+a request. A close mid-handshake fails it regardless of the credential.
+
+Those four questions, asked of the response object I already had, split a 401
+into six diagnoses.
+
+<Figure
+  src="/diagrams/replai/02-401-meanings.svg"
+  alt="A two-column table. Left column, what comes back: no Authorization header; 401 with a challenge over one, two, or three round trips; 401 with no challenge with a credential sent; 401 with no challenge and nothing sent; only unusable schemes offered; and in red, HTTP 200. Right column gives the real meaning of each, with the three-round-trip row expanding into four numbered causes. A footer explains how to settle it with the IIS log's sc-win32-status."
+  caption="The six meanings, and the one that is not a 401 at all. Only the fourth row is about a password."
+/>
+
+## NTLM authenticates a connection, and the HTTP library did not care
+
+Here is the mechanism that cost the most time, and it is not a SharePoint bug
+or a credential problem. It is an interaction between two entirely reasonable
+implementations.
+
+`requests-ntlm` replays the **full request body** on all three legs of the
+handshake. WinHTTP and .NET do not: they send the early legs empty and attach
+the body only to the final, authenticated one. And IIS commonly tears the
+connection down when it returns a 401 to a request that is carrying a body. The server logs a logon immediately followed by a logoff. So the three legs
+land on three different sockets, and since NTLM authenticates the socket, the
+negotiation can never complete. Forever. With a perfect password.
+
+The fix is to authenticate the connection with something harmless first, and
+then let the real request reuse it. Which sounds like one line of code and is
+actually a ladder with three rungs, each of which exists because the one above
+it fails somewhere real:
+
+1. **An empty POST** to the same endpoint. Same method, same URL, no body to
+   provoke the teardown. This is first because it differs from the real call in
+   exactly one respect, so nothing method-specific can explain the result away.
+2. **A bodyless GET**, for farms that answer a contentless POST oddly.
+3. **A GET to a URL that demands a credential.**
+
+## Why the third rung exists
+
+The third rung looks like belt-and-braces and is the one that mattered.
+
+On a farm with **anonymous access enabled**, which is not a rare
+configuration, every contentless request to `_vti_bin` is served without a
+challenge. No handshake starts. No authenticated connection is left in the
+pool. Meanwhile the one request the farm *does* challenge is the very request
+whose handshake cannot complete. Priming has nowhere to stand, and the first
+two rungs merely confirm that it has nowhere to stand.
+
+Which produces the rule that took me embarrassingly long to write down: **a
+request served anonymously proves nothing and primes nothing.** The credential
+has to actually be exercised. Somewhere that refuses anonymous callers is the
+only place a handshake can be got done at all.
+
+There is a second-order version of this that I got wrong and then fixed. My
+first ladder stopped at the first *refusal*, on the reasonable theory that a
+refused credential is a refused credential and further attempts just burn failed
+logons against an account that may have a lockout policy. But a 401 on a
+contentless POST is ambiguous in a way no heuristic can resolve: **a rejected
+credential and a handshake torn onto a fresh socket produce byte-identical
+responses**, challenge present, third message already sent. The bodyless GET
+*can* separate them, because it carries no body for IIS to tear the connection
+down over. Declining to send it, to save one failed logon, left exactly the
+farms the workaround exists for completely unreadable. Worse trade. So a
+refusal now costs one more attempt, and no more than one.
+
+## Channel bindings fail in two opposite directions
+
+This is the part I'd tell anyone debugging NTLM over TLS, because it's a
+trap with symmetry.
+
+Channel binding ties the NTLM exchange to the TLS channel it happens over. It
+can be **wrong**: where TLS is terminated by a proxy, the client binds to the
+certificate it can see rather than the one the server expects, and the server
+rejects the result. Turning the binding off fixes that.
+
+It can equally be **missing and required**: where IIS has Extended Protection
+set to *Required*, a client that sends no binding is refused. Turning the
+binding off there makes matters strictly worse, and the real fix is to present
+the right certificate by reaching the web front end directly, or to have an
+admin relax Extended Protection to *Accept*.
+
+Both produce a 401 after a completed handshake. Both look identical. And there
+are two traps in testing which one you have:
+
+- A client that sends no binding at all, `curl --ntlm`, is refused under
+  *Required* too. So its failing proves nothing either way, and it is the first
+  thing everybody reaches for.
+- The direct-route test must run with bindings **on**. If you still have the
+  binding disabled from the previous experiment, there is no binding to
+  validate, and the right certificate cannot help you.
+
+This is where the SOAP route died, and where the previous article's certificate
+problem actually lives. The binding needed a certificate the customer's side
+could not present, and the two ways out both needed a change on their farm.
+
+## Settling it without an admin
+
+The single most useful thing I learned, and the thing I'd do first next
+time: **authenticate the same account against a file share on the same domain.**
+
+```
+smbclient -L //<host> -U 'DOMAIN\user'
+```
+
+That reaches the domain controller without IIS, HTTP, TLS or any proxy in the
+path. If it works there but not over HTTP, the problem is on the farm side, split challenge and response, or channel bindings. If it fails there too, it's
+the account: wrong password, locked out, or not permitted to log on to that
+machine over the network. Either way you have halved the search space in one
+command, and you needed nobody's permission to run it.
+
+If you can get an admin's attention, the IIS log answers it outright. Read
+`sc-win32-status` for the failing requests: `1326` is a bad password,
+`2148074248` (`SEC_E_INVALID_TOKEN`) is a split handshake or a binding problem,
+`2148074257` is DNS or domain trust. One number decides where the next hour
+goes.
+
+## Two smaller things that were quietly lying
+
+**An access-denied page arrives with HTTP 200.** SharePoint serves it as a
+perfectly ordinary successful response, and my first implementation read that
+as a working login and carried on. It is the seventh row of the table and the
+only one that is not a 401 at all, and it stayed undetected longer than any of
+the others precisely because nothing about it looks like a failure.
+
+**A redirect is a configuration fact, not something to retry.** The transport
+now refuses to follow redirects at the auth probe, on SOAP posts, and at the
+base-URL check, and prints one explanation instead, single-sourced, because
+three hand-written versions of that paragraph would drift into three different
+diagnoses of the same fact. If the target is a forms-authentication login page,
+that is a farm this connector cannot talk to and should say so rather than
+looping. If the scheme changes, the base URL is wrong. If the host changes, it
+is most likely an alternate access mapping for another zone.
+
+## What I actually took from this
+
+The diagnostic was the deliverable. Not `probe` as a convenience command. The
+*discipline* that a failure must name which of its causes this one is, and must
+say plainly which steps never ran when it gives up early. Almost every commit
+in that fortnight is a variation on that: stop overstating what a refused
+bodyless GET proves; say which scheme we answered with when two were offered;
+warn about settings that were set and then silently ignored; report a client
+that couldn't be built as a configuration problem rather than as step one
+failing.
+
+None of that got a single row of data out of the farm. All of it is why the
+next problem took an afternoon instead of a fortnight, and the next problem
+was that the same service answers in two languages, and both answers are right.

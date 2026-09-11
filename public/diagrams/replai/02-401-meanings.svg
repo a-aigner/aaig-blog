@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 706" width="700" height="706" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .vr  { stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .obs { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; fill: #0a0a0a; }
+    .b   { font-size: 11.5px; }
+    .n   { font-size: 11px; fill: rgb(10 10 10 / 0.62); }
+    .k   { font-size: 11.5px; font-weight: 700; }
+    .red { fill: #db0a12; }
+    .f   { font-size: 11px; fill: rgb(10 10 10 / 0.5); }
+  </style>
+  <rect class="bg" x="0" y="0" width="700" height="706"/>
+  <rect class="card" x="16" y="14" width="668" height="620" rx="6"/>
+
+  <text class="t lbl" x="32" y="36">WHAT COMES BACK</text>
+  <text class="t lbl" x="312" y="36">WHAT IT ACTUALLY MEANS</text>
+  <line class="rule" x1="16" y1="46" x2="684" y2="46"/>
+  <line class="vr" x1="296" y1="46" x2="296" y2="634"/>
+
+  <!-- 1 -->
+  <text class="t obs" x="32" y="68">No Authorization header</text>
+  <text class="t obs" x="32" y="83">left the process</text>
+  <text class="t b" x="312" y="68">The auth handler never ran. A configuration</text>
+  <text class="t b" x="312" y="83">problem, not a rejection.</text>
+  <line class="rule" x1="16" y1="98" x2="684" y2="98"/>
+
+  <!-- 2 -->
+  <text class="t obs" x="32" y="120">401 + a challenge,</text>
+  <text class="t obs" x="32" y="135">one round trip</text>
+  <text class="t b" x="312" y="120">The handshake never started. NTLM needs</text>
+  <text class="t b" x="312" y="135">three.</text>
+  <line class="rule" x1="16" y1="150" x2="684" y2="150"/>
+
+  <!-- 3 -->
+  <text class="t obs" x="32" y="172">401 + a challenge,</text>
+  <text class="t obs" x="32" y="187">two round trips</text>
+  <text class="t b" x="312" y="172">It broke halfway. IIS tears the connection</text>
+  <text class="t b" x="312" y="187">down when it 401s a request carrying a body,</text>
+  <text class="t b" x="312" y="202">so the legs land on different sockets.</text>
+  <line class="rule" x1="16" y1="217" x2="684" y2="217"/>
+
+  <!-- 4 -->
+  <text class="t obs" x="32" y="239">401 + a challenge,</text>
+  <text class="t obs" x="32" y="254">three round trips</text>
+  <text class="t n" x="32" y="278">the one that costs</text>
+  <text class="t n" x="32" y="292">an afternoon</text>
+  <text class="t k" x="312" y="239">The handshake completed and the final</text>
+  <text class="t k" x="312" y="254">message was refused.</text>
+  <text class="t b" x="312" y="272">Four causes, and only one is the password:</text>
+  <text class="t n" x="312" y="294">1 · challenge and response reached different</text>
+  <text class="t n" x="322" y="308">servers, or arrived from different client IPs</text>
+  <text class="t n" x="312" y="326">2 · channel bindings, wrong under a</text>
+  <text class="t n" x="322" y="340">TLS-terminating proxy, missing under</text>
+  <text class="t n" x="322" y="354">Extended Protection: Required</text>
+  <text class="t n" x="312" y="372">3 · an LmCompatibilityLevel mismatch</text>
+  <text class="t n" x="312" y="390">4 · the account</text>
+  <line class="rule" x1="16" y1="404" x2="684" y2="404"/>
+
+  <!-- 5 -->
+  <text class="t obs" x="32" y="426">401, no challenge,</text>
+  <text class="t obs" x="32" y="441">credential was sent</text>
+  <text class="t b" x="312" y="426">Accepted, and then denied. An authorisation</text>
+  <text class="t b" x="312" y="441">problem on this resource. No password fixes it.</text>
+  <line class="rule" x1="16" y1="456" x2="684" y2="456"/>
+
+  <!-- 6 -->
+  <text class="t obs" x="32" y="478">401, no challenge,</text>
+  <text class="t obs" x="32" y="493">nothing was sent</text>
+  <text class="t b" x="312" y="478">The server never asked. Its own logs show the</text>
+  <text class="t b" x="312" y="493">request arriving with no credentials at all.</text>
+  <line class="rule" x1="16" y1="508" x2="684" y2="508"/>
+
+  <!-- 7 -->
+  <text class="t obs" x="32" y="530">only unusable schemes</text>
+  <text class="t obs" x="32" y="545">are offered</text>
+  <text class="t b" x="312" y="530">The credential was never tried. Blaming it</text>
+  <text class="t b" x="312" y="545">resets an account that was always fine.</text>
+  <line class="rule" x1="16" y1="560" x2="684" y2="560"/>
+
+  <!-- coda -->
+  <circle cx="36" cy="578" r="3" class="red"/>
+  <text class="t obs red" x="46" y="582">HTTP 200</text>
+  <text class="t n" x="32" y="600">not a 401 at all</text>
+  <text class="t b" x="312" y="582">An access-denied page, served with a good</text>
+  <text class="t b" x="312" y="597">status, and read as a successful login until</text>
+  <text class="t b" x="312" y="612">somebody read the body.</text>
+
+  <text class="t f" x="16" y="662">Settle it with the IIS log's sc-win32-status for these requests. 1326 is a bad password;</text>
+  <text class="t f" x="16" y="678">2148074248 is cause 1 or 2; 2148074257 is DNS or domain trust. One number decides</text>
+  <text class="t f" x="16" y="694">where the next hour goes.</text>
+</svg>

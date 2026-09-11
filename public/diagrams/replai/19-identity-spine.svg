@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 610" width="700" height="610" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .box { fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.12); stroke-width: 1; }
+    .stop{ fill: #ffffff; stroke: #db0a12; stroke-width: 1.3; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .k   { font-size: 11.5px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+    .lnd { stroke: rgb(10 10 10 / 0.35); stroke-width: 1; fill: none; stroke-dasharray: 4 3; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="610"/>
+
+  <rect class="card" x="16" y="14" width="668" height="164" rx="6"/>
+  <text class="t h" x="32" y="38">One realm, and a group that is re-read on every login</text>
+
+  <rect class="box" x="32" y="52" width="180" height="50" rx="5"/>
+  <text class="t k" x="44" y="72">one realm</text>
+  <text class="t n" x="44" y="90">three clients, one shared scope</text>
+
+  <path class="ln" d="M 212 77 L 236 77" marker-end="url(#a)"/>
+
+  <rect class="box" x="240" y="42" width="204" height="30" rx="4"/>
+  <text class="t k" x="252" y="62">replai</text>
+  <rect class="box" x="240" y="76" width="204" height="30" rx="4"/>
+  <text class="t k" x="252" y="96">chatty</text>
+  <rect class="box" x="240" y="110" width="204" height="30" rx="4"/>
+  <text class="t n" x="252" y="130">the administration surface</text>
+
+  <path class="lnd" d="M 444 90 L 468 90" marker-end="url(#a)" stroke="rgb(10 10 10 / 0.35)"/>
+
+  <rect class="box" x="472" y="62" width="196" height="56" rx="5"/>
+  <text class="t k" x="484" y="82">group membership</text>
+  <text class="t n" x="484" y="100">decides who administers,</text>
+  <text class="t n" x="484" y="112">re-decided on every login</text>
+
+  <line class="rule" x1="16" y1="150" x2="684" y2="150"/>
+  <text class="t b" x="32" y="170">A customer's own directory group synced into it is the route meant for ordinary use.</text>
+
+  <rect class="card" x="16" y="198" width="668" height="106" rx="6"/>
+  <text class="t h" x="32" y="222">There is no local account path left in either product</text>
+  <text class="t b" x="32" y="246">The routes are removed, not disabled, so they cannot come back by flipping a setting.</text>
+  <text class="t b" x="32" y="268">Creating a superuser on the command line makes a database row, not a way to sign in over the</text>
+  <text class="t b" x="32" y="284">network: there is no page left that would accept a password.</text>
+
+  <!-- the two https problems -->
+  <rect class="card" x="16" y="324" width="668" height="266" rx="6"/>
+  <text class="t h" x="32" y="348">Two HTTPS problems, and the easy one is not the one refusing you</text>
+  <line class="rule" x1="16" y1="360" x2="684" y2="360"/>
+
+  <rect class="box" x="32" y="376" width="180" height="34" rx="4"/>
+  <text class="t n" x="44" y="397">open a protected page</text>
+  <path class="ln" d="M 212 393 L 230 393" marker-end="url(#a)"/>
+  <rect class="box" x="234" y="376" width="180" height="34" rx="4"/>
+  <text class="t n" x="246" y="397">redirected to the realm</text>
+  <path class="ln" d="M 414 393 L 432 393" marker-end="url(#a)"/>
+  <rect class="stop" x="436" y="376" width="232" height="34" rx="4"/>
+  <text class="t m red" x="448" y="397">HTTPS required</text>
+  <text class="t n" x="556" y="397">the realm refuses</text>
+
+  <text class="t b" x="32" y="434">That fires before anything in the application runs. No password is typed, no code is issued,</text>
+  <text class="t b" x="32" y="450">and the callback is never reached. What renders is the realm's own error page.</text>
+
+  <line class="rule" x1="16" y1="464" x2="684" y2="464"/>
+  <text class="t lbl" x="32" y="482">MEANWHILE, THE ONE AN INSTALLER WILL FIND</text>
+  <text class="t b" x="32" y="504">The session cookie is marked Secure, so a browser on plain HTTP will not send it back. A real</text>
+  <text class="t b" x="32" y="520">defect on that install, and it produces no symptom of its own, because nobody gets far</text>
+  <text class="t b" x="32" y="536">enough for a session to matter.</text>
+  <text class="t n" x="32" y="560">It looks exactly like the cause, and it is already written down. The setting actually refusing them sits in a realm</text>
+  <text class="t n" x="32" y="574">template, where no test in the repository can reach it.</text>
+</svg>

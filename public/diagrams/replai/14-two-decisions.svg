@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 604" width="700" height="604" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .box { fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.12); stroke-width: 1; }
+    .human{ fill: #ffffff; stroke: #0a0a0a; stroke-width: 1.4; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .k   { font-size: 11.5px; font-weight: 700; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="604"/>
+
+  <rect class="card" x="16" y="14" width="668" height="212" rx="6"/>
+  <text class="t h" x="32" y="38">Two human acts, and neither of them is automatic</text>
+
+  <rect class="human" x="32" y="52" width="188" height="46" rx="5"/>
+  <text class="t k" x="44" y="72">1 · Accept or Edit</text>
+  <text class="t n" x="44" y="89">per draft. Opens no socket.</text>
+
+  <path class="ln" d="M 220 75 L 240 75" marker-end="url(#a)"/>
+
+  <rect class="box" x="244" y="52" width="164" height="46" rx="5"/>
+  <text class="t m" x="256" y="72">QUEUED / EDITED</text>
+  <text class="t n" x="256" y="89">waiting, not sending</text>
+
+  <path class="ln" d="M 408 75 L 428 75" marker-end="url(#a)"/>
+
+  <rect class="human" x="432" y="52" width="236" height="46" rx="5"/>
+  <text class="t k" x="444" y="72">2 · Confirm the batch</text>
+  <text class="t n" x="444" y="89">a separate act, on everything queued</text>
+
+  <line class="rule" x1="16" y1="112" x2="684" y2="112"/>
+
+  <rect class="box" x="32" y="126" width="118" height="42" rx="5"/>
+  <text class="t m" x="42" y="143">claim</text>
+  <text class="t n" x="42" y="159">one caller wins</text>
+  <path class="ln" d="M 150 147 L 164 147" marker-end="url(#a)"/>
+  <rect class="box" x="168" y="126" width="140" height="42" rx="5"/>
+  <text class="t m" x="178" y="143">open_sender</text>
+  <text class="t n" x="178" y="159">one SMTP connection</text>
+  <path class="ln" d="M 308 147 L 322 147" marker-end="url(#a)"/>
+  <rect class="box" x="326" y="126" width="112" height="42" rx="5"/>
+  <text class="t m" x="336" y="143">build</text>
+  <text class="t n" x="336" y="159">no network</text>
+  <path class="ln" d="M 438 147 L 452 147" marker-end="url(#a)"/>
+  <rect class="box" x="456" y="126" width="94" height="42" rx="5"/>
+  <text class="t m" x="466" y="143">send</text>
+  <text class="t n" x="466" y="159">paced</text>
+  <path class="ln" d="M 550 147 L 564 147" marker-end="url(#a)"/>
+  <rect class="box" x="568" y="126" width="100" height="42" rx="5"/>
+  <text class="t m" x="578" y="143">archive</text>
+  <text class="t n" x="578" y="159">lazily</text>
+
+  <text class="t n" x="32" y="192">The batch step is deliberately absent from the nightly chain, and a test asserts its absence by reading</text>
+  <text class="t n" x="32" y="208">the function's own source, so a nightly step that sends has to be committed on purpose.</text>
+
+  <!-- four outcomes -->
+  <rect class="card" x="16" y="246" width="668" height="212" rx="6"/>
+  <text class="t h" x="32" y="270">Four outcomes, and they are not interchangeable</text>
+  <line class="rule" x1="16" y1="282" x2="684" y2="282"/>
+
+  <text class="t k" x="32" y="302">the connection never opens</text>
+  <text class="t n" x="300" y="302">Nothing is touched. Every draft is released, the</text>
+  <text class="t n" x="300" y="316">batch is deleted. One problem, not forty.</text>
+
+  <text class="t k" x="32" y="342">SMTP 5xx</text>
+  <text class="t n" x="300" y="342">Permanent. The draft fails, carries the server's</text>
+  <text class="t n" x="300" y="356">reason, is released, and the batch continues.</text>
+
+  <text class="t k" x="32" y="382">SMTP 4xx</text>
+  <text class="t n" x="300" y="382">Transient. Retried once, in place, and it resends</text>
+  <text class="t n" x="300" y="396">the message already built, so the id is identical.</text>
+
+  <text class="t k" x="32" y="422">the archive fails after sending</text>
+  <text class="t n" x="300" y="422">The draft stays sent. The mail is gone; marking it</text>
+  <text class="t n" x="300" y="436">failed would invite sending the same letter twice.</text>
+
+  <!-- the inversion -->
+  <rect class="card" x="16" y="478" width="668" height="112" rx="6"/>
+  <circle cx="40" cy="502" r="3.5" class="red"/>
+  <text class="t k" x="54" y="506">The codes invert against HTTP</text>
+  <text class="t b" x="32" y="528">In SMTP, 4xx is the transient one and 5xx is the permanent refusal. A greylister answers 450 at the</text>
+  <text class="t b" x="32" y="544">recipient step, so "every recipient was refused" is not the same as "refused permanently", only</text>
+  <text class="t b" x="32" y="560">all-4xx is treated as transient. Mapping that exception to permanent as a class, which is the obvious</text>
+  <text class="t b" x="32" y="576">reading of its name, would have permanently failed every greylisted reply on the first attempt.</text>
+</svg>

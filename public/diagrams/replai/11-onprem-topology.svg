@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 594" width="700" height="594" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .svc { fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.12); stroke-width: 1; }
+    .open{ fill: #ffffff; stroke: #db0a12; stroke-width: 1.2; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .k   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; font-weight: 700; }
+    .n   { font-size: 10px; fill: rgb(10 10 10 / 0.6); }
+    .b   { font-size: 11px; }
+    .red { fill: #db0a12; }
+    .ln  { stroke: rgb(10 10 10 / 0.4); stroke-width: 1; fill: none; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(10 10 10 / 0.4)"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="594"/>
+
+  <!-- the application -->
+  <rect class="card" x="16" y="14" width="424" height="176" rx="6"/>
+  <text class="t lbl" x="32" y="34">THE APPLICATION</text>
+  <rect class="open" x="32" y="44" width="184" height="40" rx="4"/>
+  <text class="t k" x="42" y="60">frontend</text>
+  <text class="t n" x="42" y="76">nginx · the only bind off loopback</text>
+  <rect class="svc" x="228" y="44" width="196" height="40" rx="4"/>
+  <text class="t k" x="238" y="60">web</text>
+  <text class="t n" x="238" y="76">Django · session, admin</text>
+  <rect class="svc" x="32" y="94" width="184" height="40" rx="4"/>
+  <text class="t k" x="42" y="110">api</text>
+  <text class="t n" x="42" y="126">the SPA's own backend</text>
+  <rect class="svc" x="228" y="94" width="196" height="40" rx="4"/>
+  <text class="t k" x="238" y="110">worker</text>
+  <text class="t n" x="238" y="126">indexing, drafting, sending</text>
+  <rect class="svc" x="32" y="144" width="184" height="34" rx="4"/>
+  <text class="t k" x="42" y="165">beat</text>
+  <text class="t n" x="102" y="165">the overnight schedule</text>
+  <text class="t n" x="228" y="165">Four processes, four copies of the settings.</text>
+
+  <!-- identity -->
+  <rect class="card" x="456" y="14" width="228" height="176" rx="6"/>
+  <text class="t lbl" x="472" y="34">IDENTITY</text>
+  <rect class="svc" x="472" y="44" width="196" height="40" rx="4"/>
+  <text class="t k" x="482" y="60">keycloak</text>
+  <text class="t n" x="482" y="76">one realm, three clients</text>
+  <text class="t b" x="472" y="106">Local account routes are</text>
+  <text class="t b" x="472" y="122">removed, not disabled, so</text>
+  <text class="t b" x="472" y="138">they cannot come back by</text>
+  <text class="t b" x="472" y="154">flipping a setting.</text>
+  <text class="t n" x="472" y="176">Group membership decides who administers.</text>
+
+  <!-- model runtimes -->
+  <rect class="card" x="16" y="206" width="424" height="164" rx="6"/>
+  <text class="t lbl" x="32" y="226">MODEL RUNTIMES · one llama.cpp image, three commands</text>
+  <rect class="svc" x="32" y="236" width="392" height="34" rx="4"/>
+  <text class="t k" x="42" y="257">embedder</text>
+  <text class="t n" x="126" y="257">mandatory. Not behind a profile. No screen turns it off.</text>
+  <rect class="svc" x="32" y="278" width="392" height="34" rx="4"/>
+  <text class="t k" x="42" y="299">reranker</text>
+  <text class="t n" x="122" y="299">optional, behind a profile, the cross-encoder</text>
+  <rect class="svc" x="32" y="320" width="392" height="34" rx="4"/>
+  <text class="t k" x="42" y="341">sparse-embedder</text>
+  <text class="t n" x="176" y="341">the same weights, pooling off, for the lexical arm</text>
+
+  <!-- state -->
+  <rect class="card" x="456" y="206" width="228" height="164" rx="6"/>
+  <text class="t lbl" x="472" y="226">STATE</text>
+  <rect class="svc" x="472" y="236" width="196" height="46" rx="4"/>
+  <text class="t k" x="482" y="252">db</text>
+  <text class="t n" x="482" y="268">Postgres + pgvector · one</text>
+  <text class="t n" x="482" y="280">corpus, vectors in-table</text>
+  <rect class="svc" x="472" y="292" width="196" height="40" rx="4"/>
+  <text class="t k" x="482" y="308">redis</text>
+  <text class="t n" x="482" y="324">the broker. No password.</text>
+  <text class="t n" x="472" y="352">Every mail password is encrypted at rest</text>
+  <text class="t n" x="472" y="364">with a key you must back up separately.</text>
+
+  <!-- logging -->
+  <rect class="card" x="16" y="386" width="668" height="104" rx="6"/>
+  <text class="t lbl" x="32" y="406">LOGGING · everything passes one redaction transform</text>
+  <rect class="svc" x="32" y="418" width="180" height="34" rx="4"/>
+  <text class="t k" x="42" y="439">vector</text>
+  <text class="t n" x="100" y="439">an agent per host</text>
+  <path class="ln" d="M 216 435 L 240 435" marker-end="url(#a)"/>
+  <rect class="svc" x="244" y="418" width="180" height="34" rx="4"/>
+  <text class="t k" x="254" y="439">aggregator</text>
+  <text class="t n" x="336" y="439">scrub, then ship</text>
+  <path class="ln" d="M 428 435 L 452 435" marker-end="url(#a)"/>
+  <rect class="svc" x="456" y="418" width="212" height="34" rx="4"/>
+  <text class="t k" x="466" y="439">victorialogs</text>
+  <text class="t n" x="558" y="439">30 days, two limits</text>
+  <text class="t n" x="32" y="478">An OpenTelemetry exporter would bypass this transform, which is why tracing stays pinned off.</text>
+
+  <text class="t b" x="16" y="518">Every port but one is bound to loopback. Every URL and bind is an environment variable, and the</text>
+  <text class="t b" x="16" y="534">convention distinguishes them: one names the in-network address, the other the host bind including</text>
+  <text class="t b" x="16" y="550">its interface. There is no host or port literal in the code.</text>
+  <circle cx="20" cy="572" r="3.5" class="red"/>
+  <text class="t b" x="32" y="576">A model endpoint that resolves to a public address does not fail at request time. The process refuses to start.</text>
+</svg>

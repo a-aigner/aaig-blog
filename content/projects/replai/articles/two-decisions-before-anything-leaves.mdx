@@ -1,0 +1,189 @@
+---
+title: "Two decisions before anything leaves the building"
+summary: "Accept queues. It does not send. A second, separate act sends the batch, and a test asserts that the sending function is absent from the nightly chain by reading the function's own source. Plus SMTP's status codes, which invert against every HTTP intuition you have."
+date: "2026-08-22"
+tags: ["smtp", "imap", "product-design", "error-handling", "django"]
+part: "II · replai"
+---
+
+## Why this exists
+
+This is the first code in the product that can put mail on the wire, and two
+sentences shape all of it.
+
+**Nothing sends itself.** Sending requires two separate human acts: an Accept
+on one draft, and a confirmation on the batch those accepted drafts gathered
+into.
+
+**A sent mail cannot be recalled.** A draft that fails costs one reply. A draft
+that goes out wrong costs the firm's standing with a customer, and no status
+field fixes that afterwards.
+
+<Figure
+  src="/diagrams/replai/14-two-decisions.svg"
+  alt="Three cards. The first shows two human acts in outlined boxes. Accept or Edit per draft, which opens no socket, leading to a queued state, leading to a separate confirmation of the batch, above a second row showing the machine sequence: claim where one caller wins, open_sender with one SMTP connection, build with no network, send paced, and archive done lazily. A note says the batch step is deliberately absent from the nightly chain and a test asserts its absence by reading the function's own source. The second card lists four outcomes: the connection never opening touches nothing and releases every draft; SMTP 5xx fails one draft permanently and continues; SMTP 4xx is retried once in place resending the already-built message so the id is identical; and an archive failure after sending leaves the draft sent. The third card notes that SMTP's codes invert against HTTP and that only an all-4xx recipient refusal is transient."
+  caption="The two human acts are the product. Everything below the rule is what happens after the second one."
+/>
+
+## The test that guards the absence of a feature
+
+The nightly chain refreshes the corpus, syncs mail, and writes drafts. It does
+not send, and there is a test asserting that, by **reading the source of the
+nightly function** and checking the sending call is not in it.
+
+That is an unusual test and I want to defend it, because a colleague's first
+reaction was reasonably "that's testing the implementation".
+
+The failure it prevents isn't a bug. It is a feature arriving by accident. A
+nightly step that sends **is** the auto-send capability this product explicitly
+refuses; nobody would ever add it deliberately, and somebody might very
+plausibly add it while wiring up a new nightly task and following the pattern of
+the ones already there. The test's job is to make that accident **impossible to
+commit without noticing**. The test fails, you read why, and now adding
+auto-send is a decision somebody signed for rather than a line in a chain.
+
+I've started reaching for this shape more often: when the product guarantee
+is an *absence*, the absence needs a test, and a source-reading test is
+sometimes the only honest way to express it.
+
+## Accept queues, and the second act is separate
+
+Accept moves a draft to queued, stamps the decision time, and writes one event
+row. Edit does the same to a different status, and both are what a batch
+gathers. **Neither opens a socket.**
+
+What sends is a second act (a command, or one API call), which gathers every
+queued draft the user has, into one batch, and confirms it.
+
+Is a second click worth it? It buys the thing this product is for. Reviewing
+is fast, per-draft, low-stakes work: read, accept, next. Sending is the
+irreversible act, and it should feel different, be counted, and happen once for
+a whole morning's queue rather than forty times invisibly.
+
+## Four outcomes, and the differences between them are the design
+
+**The connection never opens: nothing is touched.** The batch asks "can we
+reach this server at all" exactly once, before a single draft is read. A failed
+socket or a rejected login raises before anything is marked, the drafts are
+released, and the batch is deleted.
+
+*A connection that never opens is one problem. Forty drafts marked failed is
+forty.*
+
+**A 5xx fails one draft, permanently, and the batch continues.** The server's
+own response is stored on the draft, because "550 no such user" is a
+permanently bad address and "451 try again" is a greylist, and which of the two
+it is decides whether re-queuing is worth anything.
+
+**A failed draft is released from its batch.** That is what makes "failed" mean
+*released and re-decidable* rather than *buried*. It earns its keep on a
+dropped connection: one SMTP connection serves the whole batch and the library
+does not reconnect, so a connection lost at draft 5 of 40 fails the remaining
+35 as transient. Released, those are 35 replies a person re-queues. Not
+released, they were 35 replies permanently gone.
+
+And the cost of that release is named rather than hidden: a failed draft leaves
+the batch, so the batch endpoint can no longer report it. It counts only what
+is still attached. The reason still lives on the draft's own row.
+
+**A 4xx is retried once, in place.** Once and no more: a server that refuses
+twice is not greylisting, and a second retry only lengthens the batch.
+
+## The retry resends the message that was already built
+
+This is my favourite detail in the stage.
+
+A transient failure can be raised **after** the message body has been
+transmitted, which means copy one may genuinely have been delivered. So the
+message is built once per draft, *outside* the retry, and both attempts carry
+an identical `Message-ID`.
+
+Rebuilding would mint a fresh id, and the one possible duplicate would become a
+duplicate **that no mail server and no mail client can recognise as the same
+message.**
+
+It is not deduplication. It is the difference between a duplicate that *can* be
+collapsed downstream and one that cannot. Two lines of code, and the
+difference between a customer's client quietly hiding a repeat and a customer
+reading the same letter twice.
+
+## SMTP inverts every HTTP intuition you have
+
+Worth its own heading because I got it wrong in my head before I got it right
+in code.
+
+**In SMTP, 4xx is the transient one** (greylisting, mailbox busy, try again) **and 5xx is the permanent refusal.** Anyone carrying HTTP intuitions into this
+maps them the wrong way round on first read.
+
+And there is a sharper version of the same trap. The library raises a single
+exception meaning "every recipient was refused", carrying the response for each
+address. A greylister answers **450 right there**, at the recipient step.
+
+So "every recipient was refused" is *not* the same as "refused permanently".
+Only an all-4xx refusal is treated as transient; anything else is a real
+refusal.
+
+Mapping that exception to permanent as a class, which is the obvious reading
+of its name, and what I'd have written without looking at the payload, **would have permanently failed every greylisted reply the firm ever sent, on
+the first attempt, with no retry.** Silently, and looking exactly like a bad
+address.
+
+I also want to flag the limit of my own reasoning here, because the
+documentation does: the immediate in-place retry is *weakest* for greylisting
+specifically. A real greylister defers for minutes, so an immediate retry
+usually draws the same 450 and the draft correctly falls into the manual path.
+The retry earns its keep on the other transient refusals. A mailbox
+momentarily busy, a server briefly out of space, a connection dropped between
+two drafts. Treating 4xx as retryable is right; expecting it to rescue
+greylisted mail isn't, and it would have been easy to write the rationale as
+though it did.
+
+## One hostile mail costs one draft
+
+A subtle one. Building a message raises on a header value containing a newline, and the subject line the reply is built from is whatever a remote sender's
+encoded subject header decoded to.
+
+So a hostile inbound mail can carry a subject that decodes to something like
+`Rückfrage\nBcc: attacker@…`, and the mail library refuses to build it. That
+refusal is caught **per draft**, alongside permanent failures, which is what
+makes one hostile inbound mail cost one draft rather than aborting every draft
+queued behind it.
+
+Both sources of that refusal fire **before anything reaches the wire**, which
+is what makes failing the single draft safe: there is no case where it is
+raised after a mail has left.
+
+## An archive failure leaves the draft sent
+
+The sequence is: send, mark sent, write the event, and *only then* file the
+copy into the account's Sent folder over IMAP.
+
+That last call is wrapped in a deliberately wide catch, which is not laziness:
+the IMAP library raises its own exception types raw, and a narrower clause
+would let one escape and undo the write above it.
+
+If it fails, **the draft stays sent** and the reason is recorded on the row in
+German: *sent, but not filed in the Sent folder.*
+
+Because the mail is gone. Marking it failed would invite a person to re-queue
+it and send the customer the same letter twice, trading a missing archive
+copy, which is an annoyance, for a duplicate, which is the thing the whole
+stage is built to avoid.
+
+That asymmetry is the shape of nearly every decision in this stage: when a
+partial success has happened, record the partial truth. Never roll a status
+back to a state that invites repeating an irreversible act.
+
+## The claim, and why it is one UPDATE
+
+The batch is claimed with a single conditional update, set it to sending
+*where* it is still open, so exactly one caller proceeds. Two operators
+pressing the button at the same moment, or a retried task, cannot both open an
+SMTP connection over the same drafts.
+
+That is the whole concurrency story for this stage, and it is one statement
+because the database is the only thing that can arbitrate honestly. Any
+application-level check has a window between reading and acting.
+
+Next: the screen that asks whether any of this is working, does the
+confidence number actually predict how much a reply had to be changed.

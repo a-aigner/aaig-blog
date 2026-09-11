@@ -1,0 +1,218 @@
+---
+title: "A hard fork, and the five inherited defaults that pointed out of the network"
+summary: "Forking an MIT-licensed chat product and making it on-premises. The dangerous inheritance was not the code. It was configuration: a key value that reads like a placeholder and is not, a provider name that is a wire format rather than a vendor, and 236 test files in the production image carrying a published key."
+date: "2026-09-05"
+tags: ["forking", "open-source", "security", "docker", "node"]
+part: "III · The fork"
+---
+
+## Why this exists
+
+replai's identity seam was built against a chat product that did not exist. The
+realm template already provisioned a chat role attached to a chat group, the
+realm renderer already defaulted a chat origin so an install without chat still
+booted, and the identity documentation already specified the exact configuration
+block the chat product would have to read.
+
+Nothing filled that seam. So we forked LibreChat, which is MIT licensed, was already the
+product the seam was designed against, and has a React and Tailwind frontend,
+which made porting our design system a port rather than a rewrite.
+
+**Hard fork, not dependency.** Upstream is kept as a remote so security fixes
+can be cherry-picked; it is never merged from and nothing tracks it. That is
+what buys control over the design, the administration surface and the
+orchestration, and it is the only way the product can be ours rather than
+somebody else's project with a logo swapped.
+
+<Figure
+  src="/diagrams/replai/20-fork-inventory.svg"
+  alt="Three cards. The first classifies every top-level directory: keep for the chat core, client, schemas, tool-calling layer, config and cache; strip for the search engine, noted as reopened later; removed for the Kubernetes charts and the whole CI directory of 45 files and 20-plus workflows publishing under upstream's owner and secrets; defer for the end-to-end suite; and, in red, reversed, 'strip the tracing directory', which after measuring turned out not to be a directory at all because the instrumentation is a dependency, so it was pinned off instead. The second card, outlined in red dashes, lists five inherited defaults that pointed out of the customer's network: three hosted providers shipped switched on whose keys read user_provided which is not a placeholder; an embeddings provider named after a vendor where the name is the wire format and the base URL defaulted to empty; a skills subsystem fetching from a public code host; 236 test files in the production image one carrying a published encryption key; and release workflows publishing under somebody else's account. The third card states how each was found: by building the image and looking, not by reading the Dockerfile."
+  caption="The inventory, and the part that mattered. Two of the five outbound paths were invisible in the diff."
+/>
+
+## Classify first, delete second
+
+The first artefact was not a commit, it was a table: **every top-level
+directory, with a verdict and a reason.**
+
+The verdicts were keep, strip, defer, and removed, and the one I want to
+highlight is the fifth: **reversed.**
+
+"Strip the tracing directory" was the obvious call for a product that must not
+phone home. Then somebody measured, and tracing **is not a directory**. The
+instrumentation is a set of dependencies wired into the server, so deleting the
+directory would have removed a folder and left the instrumentation in place. The worst of both outcomes, with a diff that looked like a fix.
+
+It is also **opt-in**, gated on an environment variable that ships commented
+out, and inert with no exporter configured. So removing it was a large diff for
+no behaviour change. It is pinned off by a task and a note instead, with the
+reason written down: an exporter would bypass the redaction transform every
+other container's output passes through.
+
+Two habits out of that. **Classify before you cut**. The inventory table took
+an afternoon and prevented a deletion that would have felt like progress. And
+**a verdict is allowed to be reversed by a measurement**, provided the reversal
+is recorded next to the original call rather than quietly applied.
+
+The "strip the search engine" verdict got reversed later too, and honestly: the
+search stayed, *and the second copy of every message it keeps stayed with it*, which is a cost recorded rather than discovered.
+
+## The inheritance that actually mattered
+
+I expected the risk in a fork to be code. It was configuration.
+
+**Three hosted model providers, shipped switched on.** The example environment
+file carried keys for three large model vendors, all set to a value that reads
+exactly like a placeholder.
+
+It is not a placeholder. The endpoint service treats **any non-empty value** as
+"this endpoint exists", and the initialisers then read the key from a
+per-user record. So the endpoint **appears in the interface and asks each person
+for their own key**, and the firm's conversations go to a third party the
+moment one person pastes in a key they brought from home.
+
+And here is why it is the worst of the five: **no configuration review catches
+it, because the credential is not in the configuration.** It is in a per-user
+database record. The existing startup guard never saw it either, because that
+guard reads a different part of the config.
+
+**An embeddings provider named after a vendor.** The provider setting defaulted
+to a vendor's name and the base URL defaulted to nothing, which together mean
+that vendor's public API. So switching on file upload, without touching either, would have sent the text of every uploaded document out of the network. Not
+hypothetical: *it is what the shipped image does when left alone.*
+
+The fix reuses replai's own embedder, which is already running for the mail
+product. And the provider setting **stays** as the vendor's name, because that
+name identifies the **wire format**, not a destination.
+
+Which is precisely what makes the base URL load-bearing and worth a startup
+guard: **the provider name looks like a vendor and is not one.** A reviewer
+reading that line will conclude the wrong thing twice, first that it is a
+leak when it is not, then that it is fine when the base URL is blank.
+
+**A skills subsystem that fetches from a public code host.** An inbound path
+for executable code in a product whose premise is that nothing crosses the
+boundary. Removed rather than configured off.
+
+**236 test files in the production image, one of them a published key.** The
+image build copied a directory wholesale, so every spec, mock and fixture went
+in, including a test environment file carrying upstream's committed encryption
+key and initialisation vector. Those values are **public**: they are in the
+upstream repository, and now they were in a container meant for the firm's
+conversations.
+
+The write-up is careful about what that is: **not an exposure.** Nothing outside
+the test runner loads that file, and blank secrets generate temporary ones
+rather than falling back to it. It is **surface**, and a published encryption
+key sitting in a production container is the first thing an enterprise security
+review finds, whether or not anything reads it.
+
+**And the release machinery**, which is the one I had already learned about the
+hard way on a different project: 45 files and twenty-odd workflows publishing
+images to registries under upstream's owner and secrets, plus a funding file
+soliciting for upstream and a security policy routing vulnerability reports
+there. All removed in the first commit, and the version reset from upstream's
+to `0.1.0`.
+
+## Found by building, not by reading
+
+The methodological thread through all five, and the reason I trust this audit
+more than I trust most of mine:
+
+The test-file problem was *"found by building the image rather than by reading
+the Dockerfile"*, and verified by **rebuilding and looking**, 236 matching
+files before, zero after, the directory gone, and the key string absent.
+
+The cookie problem in the next section was *"confirmed against the built image
+rather than reasoned about"*, with the two environment combinations and their
+outcomes recorded.
+
+That is the difference between an audit and a code review. A code review tells
+you what the source says. Only the built artefact tells you what ships, and
+every one of these five lived in the gap between the two.
+
+## The same cookie, the second codebase, a different failure
+
+Worth its own section because of what it says about porting a policy across
+languages.
+
+The previous article described replai's session cookie being marked secure and
+a browser on plain HTTP refusing to send it back. The chat product has the
+identical problem, in a completely different codebase, with a **different and
+much nastier failure mode.**
+
+Its cookie helper falls back to "production and not localhost". The deployment
+sets production, the pilot's address is a LAN hostname, and the firm has ruled
+there are no certificates on these servers. So the refresh cookie goes out
+marked secure, over plain HTTP, and the browser discards it.
+
+And then: **signing in appears to work.** The access token comes back in the
+response body, the interface loads, everything is fine, and the session dies
+**fifteen minutes later**, when a refresh needs the cookie the browser threw
+away.
+
+Same root cause, same organisational constraint, and a failure that presents as
+"the app randomly logs me out" rather than as "login is broken". Which is
+exactly why it became a startup check rather than a note in a document: a
+failure that takes fifteen minutes to appear and looks like flakiness will be
+attributed to almost anything else.
+
+## Two more from the pre-go-live audit
+
+**A status code that was an oracle.** The message routes answered `403` when a
+conversation existed and belonged to somebody else, and `404` when it did not
+exist at all.
+
+That pair answers a question the caller wasn't entitled to ask: hand the
+endpoint an identifier and the status code tells you whether a conversation
+with it exists, without ever showing its contents. Identifiers are UUIDs, so it
+is a weak oracle, and it's exactly the property the specification names. The
+module was *already* reasoning this way three lines below, where subagent
+threads deliberately answer 404 "so the read boundary doesn't disclose whether
+a supplied child id exists". The fix applies the same boundary to the ownership
+case.
+
+I like this one because the correct pattern was already in the file. The defect
+was an inconsistency, not an oversight, and inconsistency is much harder to
+see than absence.
+
+**A tool-approval policy that was gitignored.** The file governing which tools
+may run without consent was not versioned, and its patterns matched no tool that
+can actually run. So the policy was simultaneously unreviewable and inert. There
+is a cluster of commits around it. A variable that named a machine and a role
+and was wrong about both, an address allowlist copied through without
+interpolation so it permitted nothing, a schema that rejected the one entry
+shape the interpolation was written for, and an attached code environment that
+switched approval off for a whole run.
+
+Every one of those is a *security control that reported success*. That is the
+theme of this entire series by now, and it's why the audit's method, build it,
+run it, look at what the container actually holds, is the only one I'd
+trust for this kind of work.
+
+## What the fork cost, written down before it was paid
+
+The proposal lists the consequences rather than the benefits, which is the part
+of it I'd keep as a template:
+
+A second datastore, kept as upstream ships it, which is a deliberate
+speed-over-coherence trade, and means a second backup target, a second
+credential store, a second erasure path, and a second technology for an
+on-premises customer to operate. Node and a second React client joining a stack
+that was otherwise Python and one small Vite app.
+
+And a compliance set that **moves**: the published-port count changes for the
+third time, the backup measure now misses a datastore, and the deletion concept
+gains a second retention mechanism in a database with different erasure
+semantics.
+
+There is even a test that fires on any new published bind, asserting that three
+documents agree on how many ports are reachable, and the proposal says
+explicitly that this firing is **the correct failure and must be answered
+rather than weakened.**
+
+Writing down what a decision costs, at the moment you make it, is the only way
+the cost stays visible once the decision looks obvious in hindsight.
+
+Next: the design system both products share, and the one thing they
+deliberately do not.

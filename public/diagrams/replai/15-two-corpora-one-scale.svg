@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 584" width="700" height="584" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .box { fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.12); stroke-width: 1; }
+    .scale{ fill: #ffffff; stroke: #0a0a0a; stroke-width: 1.4; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .k   { font-size: 12px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(10 10 10 / 0.66); }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .num { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 700; }
+    .red { fill: #db0a12; }
+    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="584"/>
+
+  <rect class="card" x="16" y="14" width="668" height="248" rx="6"/>
+  <text class="t h" x="32" y="38">Two corpora that share exactly one scale</text>
+
+  <rect class="box" x="32" y="52" width="306" height="94" rx="5"/>
+  <text class="t lbl" x="44" y="72">LOCAL</text>
+  <text class="t k" x="44" y="92">chunks, in this database</text>
+  <text class="t n" x="44" y="112">Two arms, fused. Bounded by two settings</text>
+  <text class="t n" x="44" y="126">that also bound the prompt's budget.</text>
+  <text class="t m" x="44" y="142">clears no floor of its own</text>
+
+  <rect class="box" x="378" y="52" width="306" height="94" rx="5"/>
+  <text class="t lbl" x="390" y="72">FOREIGN</text>
+  <text class="t k" x="390" y="92">points, in a firm-owned collection</text>
+  <text class="t n" x="390" y="112">Read-only. Never stored here as a chunk,</text>
+  <text class="t n" x="390" y="126">so it is a draft's evidence, not this corpus.</text>
+  <text class="t m" x="390" y="142">must clear a floor</text>
+
+  <path class="ln" d="M 185 146 L 185 162 L 350 162 L 350 176" marker-end="url(#a)"/>
+  <path class="ln" d="M 531 146 L 531 162 L 350 162"/>
+
+  <rect class="scale" x="32" y="176" width="652" height="46" rx="5"/>
+  <text class="t k" x="44" y="196">the cross-encoder</text>
+  <text class="t n" x="188" y="196">one model, scoring both from the same (query, text) pairs</text>
+  <text class="t n" x="44" y="214">The only scale on which a local chunk and a foreign point are genuinely comparable.</text>
+
+  <line class="rule" x1="16" y1="234" x2="684" y2="234"/>
+  <text class="t b" x="32" y="254">Which is why no reranker means no foreign source is asked at all, rather than asked, and its answer discarded.</text>
+
+  <!-- six gates -->
+  <rect class="card" x="16" y="282" width="668" height="286" rx="6"/>
+  <text class="t h" x="32" y="306">Six gates, cheapest first · the order a person would ask them in</text>
+  <line class="rule" x1="16" y1="318" x2="684" y2="318"/>
+
+  <text class="t num" x="32" y="340">1</text>
+  <text class="t b" x="56" y="340">Enabled. Off is off.</text>
+
+  <text class="t num" x="32" y="366">2</text>
+  <text class="t b" x="56" y="366">A reranker is configured, and it is off by default, so on a stock install</text>
+  <text class="t b" x="56" y="382">every row stops here and nothing foreign is ever queried.</text>
+
+  <text class="t num" x="32" y="408">3</text>
+  <text class="t b" x="56" y="408">No stored schema error, from the discovery step or the nightly sweep.</text>
+
+  <text class="t num" x="32" y="434">4</text>
+  <text class="t b" x="56" y="434">The declared embedding model matches this install's. A vector from</text>
+  <text class="t b" x="56" y="450">another embedding space compares to nothing.</text>
+
+  <text class="t num" x="32" y="476">5</text>
+  <text class="t b" x="56" y="476">The URL still resolves privately. Two failures, opposite meanings: public</text>
+  <text class="t b" x="56" y="492">is a defect and logs an error; unresolvable is an outage and logs a warning.</text>
+
+  <text class="t num" x="32" y="518">6</text>
+  <text class="t b" x="56" y="518">The thread has a company, when the source is scoped to one. An unscoped</text>
+  <text class="t b" x="56" y="534">source refuses to save enabled until somebody acknowledges what it means.</text>
+
+  <line class="rule" x1="16" y1="546" x2="684" y2="546"/>
+  <text class="t n" x="32" y="562">The settings screen calls the same function retrieval does, never a second copy that could drift from it.</text>
+</svg>

@@ -1,0 +1,211 @@
+---
+title: "16,400 files nobody has validated in fifteen years"
+summary: "A CRM attachment is a file somebody emailed in a decade ago, and the corpus is mostly archives. The strongest guard turned out to be structural, nothing is ever written to disk, and the second size check, which looks like belt-and-braces, is worth 438 MB of resident memory on a single 199 KB zip."
+date: "2026-08-07"
+tags: ["security", "python", "data-engineering", "rag", "defensive-programming"]
+part: "I · The pipeline"
+---
+
+## Why this exists
+
+More than half the tickets in this corpus carry a file, which the sampling
+article established, and the extension survey says most of those files are
+**archives**. Zips, tarballs, gzipped things, going back fifteen years.
+
+Each one is a file a human being attached to a support ticket at some point
+between 2011 and now, and **nothing has validated any of them since**. Not on
+upload. The CRM stores attachments, it does not inspect them. Not since. They
+have been sitting in a content database being backed up.
+
+So the module that opens them is the only part of this pipeline that processes
+genuinely hostile input, and I wrote it as though it were. Not because anyone
+is attacking this system, because "a file from an unknown source, fifteen
+years old, opened by an automated process on a machine that also holds a
+customer's mail" is the definition of untrusted regardless of intent.
+
+<Figure
+  src="/diagrams/replai/09-hostile-archives.svg"
+  alt="Three cards. The first names four attack shapes: path traversal with an example member path, decompression bombs described as kilobytes that become gigabytes, nesting up to a zip that contains itself, and member floods of a million one-byte files. The second explains the structural guard, members are yielded as path and bytes tuples, so there is no extraction directory for a traversal to escape and a bomb meets a byte counter rather than a filesystem, at the cost that a member must fit in memory. The third shows size guarded twice, refusing on the declared header size before decompressing and capping the read itself, with two measured rows: a 199 KB zip declaring 1 KB that deflates to 200 MB costs 438 MB unguarded and nothing capped, and a 1 MB gzip of a gigabyte of zeros costs 2.1 GB unguarded and 92 MB capped."
+  caption="The four shapes are the known ones, not a threat-modelling exercise. The measurements are why the second size guard is not redundant."
+/>
+
+## The guard that does the most work is structural
+
+The single decision that makes this module defensible is that **nothing is
+written to disk.** Members come out as `(path, bytes)` tuples and go straight
+into text extraction.
+
+Everything else follows from that. There is no extraction directory, so there
+is nothing for a `../../` member path to escape *into*. The traversal class of
+bug is not defended against, it is structurally absent. A decompression bomb
+meets a byte counter instead of a filesystem, so the worst case is a refused
+member rather than a full disk on a machine that also has a database on it. And
+a member flood is a loop bound rather than a million inodes.
+
+The cost is real and worth stating: a member has to fit in memory. That is why
+there is a per-member ceiling, and it is a parameter rather than a constant.
+
+I like this decision because it's the kind that makes a whole category of
+review question go away. Nobody has to audit the path-sanitising code, because
+there's no path-sanitising code and no path being used.
+
+## Size is guarded twice, and the second one is not redundant
+
+Here is where I'd have got it wrong, and where a measurement changed my
+mind.
+
+**Guard one reads the header.** A zip's central directory declares each
+member's uncompressed size; a tar header does the same. Read that, compare it
+to the ceiling, refuse before decompressing anything. This is the cheap,
+obvious guard, and it is genuinely good: a bomb refused *after* materialising a
+gigabyte is not refused.
+
+**Guard two caps the read itself.** And when I first wrote guard one, guard two
+looked like exactly the sort of defensive duplication that makes code harder to
+read for a benefit nobody can demonstrate.
+
+The demonstration: **those header fields are written by whoever built the
+archive, and a hostile one lies.**
+
+So I built the liars and measured them.
+
+A **199 KB zip** whose header declares a member of 1 KB, and whose deflate
+stream actually expands to 200 MB. Guard one waves it through, 1 KB is fine.
+Then the standard library's `read()` inflates the stream **to its end** and only
+afterwards notices the CRC does not match what was declared. Cost: **438 MB of
+resident memory** to receive an error. With the read capped: nothing
+measurable.
+
+A **1 MB gzip** holding a gigabyte of zeros. The one-shot decompress helper has
+no opinion about limits at all. There is no size to declare and nothing to
+check. Cost: **2.1 GB**. With the read capped: 92 MB.
+
+Two numbers, and they turned a stylistic argument into a settled one. There is
+a comment in that module now saying: do not "simplify" a capped read back into
+the one-liner. That *is* the hole, not the tidy version.
+
+The tar-specific data filter from the standard library is applied to every
+member as well. It is a second opinion, not the primary one, and the module is
+explicit about that distinction. A guard you have delegated is a guard you have
+stopped understanding.
+
+## Extraction is a pure function, and that is an economic decision
+
+The text extractor takes bytes and returns text. Same bytes, same text. No
+clock, no network, no state.
+
+That sounds like a tidiness preference. It is a cost decision, and it follows
+directly from the extraction economics: **a rule change here is a re-run over
+the blob store, not a re-fetch of 16,400 files at three requests a second.**
+
+Purity is what lets the two be different operations. The connector fetches
+bytes once, into a content-addressed store, inside the customer's network. This
+module reads those bytes as many times as the rules need refining. Had text
+extraction been part of the fetch, every improvement to how a spreadsheet gets
+read would have cost another eighty-minute pass against a fifteen-year-old
+server.
+
+## What gets read, what does not, and why the distinction is recorded
+
+Almost everything here is standard library. `.docx`, `.xlsx` and `.pptx` are
+ZIP containers full of XML, so a zip reader plus an XML parser handles all
+three with no dependency. Mail files are handled by the standard mail library.
+Only PDF needs a real dependency, it is an optional extra, it is imported
+lazily, and its absence degrades PDFs to "not extracted" rather than breaking
+the run.
+
+Then two categories that produce no text, and they are deliberately **two**
+categories rather than one:
+
+**Skipped by design.** Images and video. Reading text out of a screenshot means
+OCR, and OCR was scoped out. So a screenshot contributes its filename and
+nothing else.
+
+**No reader available.** A handful of document formats have no standard-library
+reader, and adding each one means a dependency per format.
+
+Both end up as an attachment with no searchable text, and from a distance they
+look identical. They are recorded separately, each with its reason, because
+*"we opened it and there was genuinely no text"* and *"we have no reader for
+this"* are different facts, and only one of them is worth revisiting when
+somebody asks why a file isn't findable. A single "no text" status would have
+merged an answered question with an open one.
+
+## Two bugs that came from writing a list down twice
+
+Both of these are the same mistake in different clothes, and I keep making it.
+
+**Compound suffixes.** Deciding whether a file is an archive needs a list of
+archive extensions. There was already such a list, in the module that unpacks
+them, and it correctly handles compound suffixes like `.tar.bz2`, because
+asking a path for its suffix gives you `.bz2`, not `.tar.bz2`.
+
+I wrote a second, shorter list in the extractor. It drifted **the moment it was
+written down twice**: `.tar.bz2` and `.tar.xz` attachments were classified as
+"other" and never opened, even though the unpacker handles them perfectly well.
+The fix is that kind detection defers to the unpacker's own predicate, which is
+now the single source of truth for what counts as an archive.
+
+**The kind table itself** is the connector's, carried across unchanged rather
+than rewritten, specifically because the extension survey that sized this
+entire piece of work was run using it. A "tidied up" copy would have quietly
+invalidated the number that justified the work.
+
+## A few bounds that came from the first real run
+
+The commits from this stretch are almost all one shape, something was bounded
+in the wrong unit, and a real file found it:
+
+**An oversized archive is truncated, not discarded.** The first version refused
+an archive that exceeded its aggregate ceiling. But an archive of logs where
+the first twenty members fit and the twenty-first does not is mostly useful
+content, and throwing all of it away to enforce a limit is the wrong trade.
+
+**Members are bounded in aggregate, not just individually.** A thousand members
+each under the per-member ceiling still adds up. Two different limits, both
+needed, and the second one was missing until arithmetic pointed it out.
+
+**Slide order is deterministic.** Presentation slides come out of a zip
+container in whatever order the container lists them, which is not necessarily
+their order in the deck. A non-deterministic output breaks the property the
+whole architecture rests on, that a rebuild is comparable to the previous one.
+
+**Oversized lines are hard-split and carriage returns normalised.** A machine
+log with no newlines is one line, and one line can exceed any chunk budget.
+
+**Chunk ids are keyed on `(name, sha256)`, not on the hash alone.** The same
+bytes attached to two tickets under two filenames are one blob and two
+attachments, and keying only on content collapsed them into one, silently, and
+in a way that made a chunk appear on the wrong ticket.
+
+## The design I wrote and then shelved
+
+The last thing in this stage is a specification I wrote fully and then marked
+**do not implement**, which I think is the healthiest artefact in the
+repository.
+
+The concern was disk. Sixteen thousand four hundred files of unknown total size
+landing on a machine that also holds model weights and a database is a real
+worry, so I specified a streaming mode: bytes present only until they have been
+read, so the corpus is never on the device at once. It also specified, at equal
+length, what the mode would *log*, because a feature whose entire purpose is
+bounding disk use is worthless if it cannot show you the bound it achieved.
+
+Then I did what the specification's own first section said to do, and measured.
+**The target machine has a terabyte.** The offline pipeline is about a gigabyte
+on the real corpus. Model weights and images are another four. Even the
+pessimistic end of the unmeasured attachment range is around eighty gigabytes, **8% of the disk.**
+
+There is no disk pressure to relieve. So the streaming mode does not exist.
+
+The file stays, with a header explaining that it was measured out of rather than
+abandoned, and that anyone returning to it. A smaller edge box, a customer with
+a quota, a corpus that grew, should start at the measurement again rather than
+trusting the note, because the disk figure is the only thing that changed the
+answer.
+
+"We considered streaming and measured our way out of it" is worth considerably
+more to whoever asks next than an empty directory and a vague memory.
+
+Next: the last piece of the pipeline, two retrieval arms fused server-side,
+and the harness that exists as much to refuse a number as to produce one.

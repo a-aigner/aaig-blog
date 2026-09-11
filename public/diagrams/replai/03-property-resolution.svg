@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 586" width="700" height="586" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+    .mg  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; fill: rgb(10 10 10 / 0.6); }
+    .n   { font-size: 11px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .step{ fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.12); stroke-width: 1; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="586"/>
+
+  <rect class="card" x="16" y="14" width="668" height="330" rx="6"/>
+  <text class="t h" x="32" y="38">One service, two schemas · and both are correct</text>
+  <text class="t lbl" x="32" y="62">ROLE</text>
+  <text class="t lbl" x="230" y="62">GERMAN · the web's own</text>
+  <text class="t lbl" x="470" y="62">ENGLISH · en-US</text>
+  <line class="rule" x1="16" y1="70" x2="684" y2="70"/>
+
+  <text class="t b" x="32" y="90">identity</text><text class="t m" x="230" y="90">ID</text><text class="t m" x="470" y="90">Id</text>
+  <text class="t b" x="32" y="116">created</text><text class="t m" x="230" y="116">Erstellt</text><text class="t m" x="470" y="116">Created</text>
+  <text class="t b" x="32" y="142">modified</text><text class="t m" x="230" y="142">Geändert</text><text class="t m" x="470" y="142">Modified</text>
+  <text class="t b" x="32" y="168">author</text><text class="t m" x="230" y="168">ErstelltVonId</text><text class="t m" x="470" y="168">CreatedById</text>
+  <text class="t b" x="32" y="194">modified by</text><text class="t m" x="230" y="194">GeändertVonId</text><text class="t m" x="470" y="194">ModifiedById</text>
+  <text class="t b" x="32" y="220">content type</text><text class="t m" x="230" y="220">Inhaltstyp</text><text class="t m" x="470" y="220">ContentType</text>
+  <text class="t b" x="32" y="246">path</text><text class="t m" x="230" y="246">Pfad</text><text class="t m" x="470" y="246">Path</text>
+  <text class="t b" x="32" y="272">attachments</text><text class="t m" x="230" y="272">Anlagen</text><text class="t m" x="470" y="272">Attachments</text>
+
+  <line class="rule" x1="16" y1="288" x2="684" y2="288"/>
+  <text class="t b" x="32" y="308">custom columns</text>
+  <text class="t mg" x="230" y="308">Title · Description · TicketNumber, identical in both</text>
+  <text class="t n" x="32" y="330">So switching language moves some names, never all.</text>
+
+  <rect class="card" x="16" y="364" width="668" height="206" rx="6"/>
+  <text class="t h" x="32" y="388">Resolve by role. Never match a name literally.</text>
+
+  <rect class="step" x="30" y="404" width="150" height="52" rx="4"/>
+  <text class="t b" x="42" y="424">a role</text>
+  <text class="t mg" x="42" y="442">identity</text>
+
+  <rect class="step" x="194" y="404" width="150" height="52" rx="4"/>
+  <text class="t b" x="206" y="424">its aliases, ordered</text>
+  <text class="t mg" x="206" y="442">("Id", "ID")</text>
+
+  <rect class="step" x="358" y="404" width="150" height="52" rx="4"/>
+  <text class="t b" x="370" y="424">exact match over</text>
+  <text class="t b" x="370" y="440">the row's own keys</text>
+
+  <rect class="step" x="522" y="404" width="150" height="52" rx="4"/>
+  <text class="t b" x="534" y="424">else one case-</text>
+  <text class="t b" x="534" y="440">insensitive pass</text>
+
+  <path class="ln" d="M 180 430 L 190 430" stroke="#0a0a0a" stroke-width="1.25" marker-end="url(#a)"/>
+  <path class="ln" d="M 344 430 L 354 430" stroke="#0a0a0a" stroke-width="1.25" marker-end="url(#a)"/>
+  <path class="ln" d="M 508 430 L 518 430" stroke="#0a0a0a" stroke-width="1.25" marker-end="url(#a)"/>
+
+  <text class="t n" x="32" y="482">The case-insensitive pass logs a warning even though it is documented behaviour: an exact</text>
+  <text class="t n" x="32" y="498">miss means the wire spelled a column in a case no alias anticipated, and everything</text>
+  <text class="t n" x="32" y="514">downstream then works on a column nobody chose.</text>
+  <circle cx="36" cy="538" r="3" class="red"/>
+  <text class="t m red" x="46" y="542">$filter=Id gt 0</text>
+  <text class="t n" x="152" y="542">returned HTTP 400 against the German service, while a bare</text>
+  <text class="t n" x="32" y="558">read of the same collection worked fine. That is the whole trap in one request.</text>
+</svg>

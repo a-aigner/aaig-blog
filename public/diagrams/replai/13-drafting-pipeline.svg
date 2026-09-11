@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 620" width="700" height="620" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .rail{ stroke: rgb(10 10 10 / 0.18); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .v   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 700; }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .svc { fill: rgb(10 10 10 / 0.35); }
+    .none{ fill: #ffffff; stroke: rgb(10 10 10 / 0.35); stroke-width: 1; }
+  </style>
+  <rect class="bg" x="0" y="0" width="700" height="620"/>
+
+  <rect class="card" x="16" y="14" width="668" height="412" rx="6"/>
+  <text class="t h" x="32" y="38">One mail becomes one draft, in nine stages</text>
+  <line class="rule" x1="16" y1="50" x2="684" y2="50"/>
+  <line class="rail" x1="40" y1="66" x2="40" y2="404"/>
+
+  <circle cx="40" cy="72" r="4" class="none"/>
+  <text class="t v" x="58" y="76">gate</text>
+  <text class="t n" x="210" y="76">Pure SQL. A mail that will never be drafted costs nothing at all.</text>
+
+  <circle cx="40" cy="110" r="4" class="red"/>
+  <text class="t v" x="58" y="114">classify</text>
+  <text class="t n" x="210" y="114">One of seven intents plus a language code, at temperature zero.</text>
+  <text class="t n" x="210" y="127">Anything unusable refuses; no draft is written.</text>
+
+  <circle cx="40" cy="162" r="4" class="red"/>
+  <text class="t v" x="58" y="166">condense</text>
+  <text class="t n" x="210" y="166">The mail into a short German search query.</text>
+
+  <circle cx="40" cy="200" r="4" class="svc"/>
+  <text class="t v" x="58" y="204">few_shot + gather</text>
+  <text class="t n" x="210" y="204">This firm's own past replies, retrieval, and the thread tail.</text>
+  <text class="t n" x="210" y="217">Two different strings go to the two arms, see below.</text>
+
+  <circle cx="40" cy="252" r="4" class="none"/>
+  <text class="t v" x="58" y="256">fit</text>
+  <text class="t n" x="210" y="256">Drop to the budget, in one fixed order.</text>
+
+  <circle cx="40" cy="290" r="4" class="none"/>
+  <text class="t v" x="58" y="294">assemble</text>
+  <text class="t n" x="210" y="294">Deterministic. The German prompt text lives in files, one per prompt;</text>
+  <text class="t n" x="210" y="307">which lines a prompt gets, and in what order, stays in code.</text>
+
+  <circle cx="40" cy="342" r="4" class="red"/>
+  <text class="t v" x="58" y="346">generate</text>
+  <text class="t n" x="210" y="346">The one call to the drafting model. Capped at 800 output tokens.</text>
+
+  <circle cx="40" cy="380" r="4" class="none"/>
+  <text class="t v" x="58" y="384">assess</text>
+  <text class="t n" x="210" y="384">Trace every figure, score it, hold it if untraceable. Mechanical,</text>
+  <text class="t n" x="210" y="397">computed from the prompt, never asked of a model.</text>
+
+  <line class="rule" x1="16" y1="410" x2="684" y2="410"/>
+  <circle cx="40" cy="424" r="4" class="none"/>
+  <text class="t v" x="58" y="428">persist</text>
+  <text class="t n" x="210" y="428">A draft at PENDING or HELD, and one source row per citation.</text>
+
+  <!-- drop order -->
+  <rect class="card" x="16" y="448" width="668" height="156" rx="6"/>
+  <text class="t h" x="32" y="472">When it does not fit, the order is fixed</text>
+  <text class="t b" x="32" y="496">1 · every few-shot example, all at once</text>
+  <text class="t b" x="32" y="516">2 · the oldest thread-tail messages, one at a time, never below one</text>
+  <text class="t b" x="32" y="536">3 · the lowest-ranked retrieved sources, from the bottom up</text>
+  <line class="rule" x1="16" y1="550" x2="684" y2="550"/>
+  <text class="t b" x="32" y="570">The order encodes one rule: correctness outranks voice. A draft that sounds slightly generic is</text>
+  <text class="t b" x="32" y="586">edited in thirty seconds. A draft that sounds exactly right and quotes a price from nowhere is the</text>
+  <text class="t b" x="32" y="602">failure this product cannot have.</text>
+</svg>

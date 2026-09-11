@@ -1,0 +1,223 @@
+---
+title: "What an on-premises promise has to be written down as"
+summary: "Twenty-odd tests whose subject is the documentation rather than the code, and the most useful ones assert that a limitation is still admitted. Because a caveat has no defender: it makes a document longer, makes the product sound weaker, and deleting it breaks nothing."
+date: "2026-09-10"
+tags: ["compliance", "gdpr", "documentation", "testing", "on-premises"]
+part: "III · The fork"
+---
+
+## Why this exists
+
+Twenty-three articles ago this started as a question about getting data out of a
+legacy CRM. It ends as a question about what you have to be able to *write down*, because "nothing leaves the customer's network" is a sentence somebody will
+eventually be asked to sign.
+
+This last article is about the part of the work that has no commits in a
+feature branch: the compliance set, and the mechanism that keeps it from
+quietly becoming untrue.
+
+## Three facts, and everything traces to one of them
+
+The compliance page opens by naming the three architectural decisions every
+obligation follows from, with the note that **changing any one of them
+invalidates a section below**:
+
+**The product runs on the customer's premises.** No data reaches us in normal
+operation, so we are not a processor by virtue of shipping software.
+
+**One port is reachable, and it is the product's own interface.** Everything
+else binds loopback, which is a claim about the compose file, and there is a
+test asserting the document's bind table still matches what compose declares.
+
+**What makes us a processor is support access, not the software.** That is the
+sentence I would keep. The obligation does not arrive with the product; it
+arrives the first time somebody debugs it.
+
+Two consequences of the first one, stated in the document because a blank
+section invites doubt rather than confidence:
+
+**No standard contractual clauses and no transfer impact assessment**, nothing
+leaves the premises and the premises are in the EU, so there is no
+third-country transfer to assess.
+
+**No sub-processors.** And then, immediately, **the condition under which that
+becomes false**: if a customer's logs are ever attached to a ticket in a hosted
+helpdesk, uploaded to a cloud drive, or pasted into a third-party tool, that
+provider becomes a sub-processor and the contract is wrong until it is updated.
+
+What makes that more than a warning is the engineering attached to it: **the
+product deliberately ships no log export and no support-bundle command**, so
+there is nothing that makes it convenient. *Treat it as a constraint, not a
+preference.*
+
+That is the strongest pattern in the whole compliance set. A promise that is
+kept by an absent feature rather than by a policy. Nobody has to remember not
+to export the logs, because there is no export.
+
+## Tests whose subject is the prose
+
+Here is the practice I'd take to every project from now on, and I hadn't
+seen it before this one.
+
+There is a test file whose assertions are about the **documentation**.
+
+<Figure
+  src="/diagrams/replai/22-tested-documentation.svg"
+  alt="Three cards. The first groups test names by what they assert: that a claim is no longer made, with a test checking the docs do not still claim retrieval ignores a vector source; that a number still matches the thing it describes, with tests checking the split-host bind table matches what compose declares and that a page and the code agree on how often archiving logs in; and, highlighted in red, that a limitation is still admitted, tests asserting identity still says back-channel logout is not achieved, the nightly proposal still describes an unguarded sweep, a threshold claim is narrowed rather than deleted, and compliance names the three free-text exceptions it counts. The second card explains why the last group is the point: a caveat has no defender, it makes a document longer and the product sound weaker, and deleting it breaks nothing. The third names the three claims the whole set rests on."
+  caption="The test names are the argument. The red ones assert that a document still admits something inconvenient."
+/>
+
+Three shapes, and they get progressively more interesting.
+
+**That a claim is no longer made.** A test asserting the documentation does not
+still say retrieval ignores foreign vector sources, because it used to, and
+then that changed, and a stale document is a confident lie.
+
+**That a number still matches what it describes.** The split-host bind table
+against the binds compose actually declares. A page's claim about how often the
+archive step logs in, against the code that does it. Three documents agreeing
+on how many ports are reachable, and the fork proposal says explicitly that
+this test firing on a new published bind is **the correct failure and must be
+answered rather than weakened.**
+
+**And the one I had never thought of: that a limitation is still admitted.**
+
+```
+test_identity_still_says_back_channel_logout_is_not_achieved
+test_the_nightly_proposal_still_describes_an_unguarded_sweep
+test_the_threshold_claim_is_narrowed_rather_than_deleted
+test_sending_never_tells_an_operator_to_settle_it_by_reading_the_sent_folder
+```
+
+Read those again. Each one fails if somebody **removes a caveat**.
+
+## Why a caveat needs a test
+
+Because a caveat has no defender.
+
+It makes a document longer. It makes the product sound weaker. It is the kind
+of sentence a reviewer suggests cutting for clarity, and cutting it **breaks
+nothing**, no test goes red, no build fails, no user notices. Every incentive
+in a codebase points at its deletion, and the deletion is invisible in a diff
+full of improvements.
+
+So the caveats get a test, and now the incentive runs the other way: removing
+one is a decision somebody has to make on purpose, with a failing test in front
+of them.
+
+There is a lovely variant in that list. *"The threshold claim is narrowed
+rather than deleted"*. Not "the claim is unchanged". A claim is *allowed* to get
+weaker as the code changes; what is forbidden is for it to quietly disappear.
+
+And one asserting the sending documentation **never** tells an operator to
+settle a question by reading the Sent folder. A wrong diagnostic procedure,
+pinned out of existence, because the article on sending established that an
+archive failure leaves a draft sent and the folder therefore cannot answer.
+
+## Three artefacts written, four still owed
+
+The honest accounting, which the page keeps at the top.
+
+**Written:** a data-protection factsheet, an Art. 32 measures annex, and a
+deletion concept.
+
+**Still owed:** the processing agreement, the remote-access annex, the
+confidentiality undertaking, and the Art. 30(2) record. And the sentence beside
+them: *a design existing is not a substitute for writing them.*
+
+The measures annex has the structure I'd reuse. It splits every measure into
+three groups, **code-verified**, **deployment-dependent**, and **not
+provided**, rather than presenting a flat list of things that sound reassuring.
+
+Because those three have completely different epistemic status. "Redaction is
+allow-list based" is a property of code, pinned by a test. "TLS terminates in
+front of the application" depends on what the installer did. "There is no
+authentication on the model servers" is a gap.
+
+A flat list lets the third kind inherit the confidence of the first. And the
+compliance page does exactly this dance in its own opening paragraph: it says
+the logging claims are *"properties of the code, verified against it, not
+restated from the design"*, and then immediately separates out how support
+access is provisioned as **an operating commitment, not something this codebase
+enforces**, explicitly *"to keep it out of the same list rather than letting it
+inherit the confidence of the sentences above."*
+
+## Counting honestly, in public
+
+A small thing that shows the discipline working.
+
+The logging claims have **three** named free-text exceptions, and the count is
+tested. There is an assertion that the compliance page names the three it
+counts, and another that the annex enumerates the same three.
+
+The count was **two** until a change admitted a third, and the page says so:
+*if a document quoting this page still says two, it is out of date, not a
+different reading.*
+
+Then there is the Postgres statement stream from an earlier article. A path
+reaching the log store without passing the allow-list at all. It is recorded in
+its own subsection, and the page states: **it is not a fourth exception and the
+count of three does not move.** There is a test for that too, asserting the
+document records the path without recounting.
+
+Which is a very fine distinction to defend with a test, and exactly the right
+one: the three are *fields this product's code puts in a log line*. A foreign
+container's stdout is a different claim with a different fix. Blurring them
+would make the number wrong in a way that looks like diligence.
+
+## Two open questions nobody should discover from a customer
+
+The page keeps an **Open** section, and both entries have the same character:
+things where the right answer is unknown and *having no answer is the wrong
+answer.*
+
+**Does the product trigger an impact assessment?** An AI system processing
+email is a plausible candidate, and the customer decides. *"We should know our
+answer before we are asked, because 'we have not considered it' is the wrong
+one."*
+
+**Works council exposure.** Any customer with a works council may require an
+agreement before go-live. The note points out that the current logging
+design (*actions traced, persons not*) is what keeps this small.
+
+And on the pipeline side of the project there is a third, sitting in its own
+handoff document as an open item: **marking under the EU AI Act's
+transparency provisions, or a reasoned exemption, before go-live.** Not
+answered. Written down, with a deadline attached to a milestone rather than to
+a date.
+
+## What I would take from all of this
+
+Twenty-four articles, two products, one pipeline, and the things I actually
+changed about how I work are mostly not technical.
+
+**Profile before you plan, and make the profiler cheap enough to re-run.**
+Fourteen seconds of measurement overruled most of a written specification.
+
+**A measurement without its conditions is not a measurement.** Seven minutes
+became three and a half hours once somebody asked which machine and which
+sample.
+
+**Ask what kind of "no" you got.** A transient failure wants a retry, a missing
+capability wants a flag, a too-large question wants a smaller one, and treating
+all three the same is how a four-minute job takes forty and then dies.
+
+**An error message true of every cause is worse than none**, because it sends
+you somewhere, confidently, and the place it sends you is a password that was
+always correct.
+
+**Arrange the architecture so a probabilistic component's worst case is
+cosmetic.** Do not prompt it more carefully. Give it nothing load-bearing to
+hold.
+
+**Build the artefact and look at it.** Every one of the five outbound paths in
+the forked product was invisible in the source and obvious in the container.
+
+**And write the caveats down where something will defend them.** A system is
+only as honest as its documentation, and documentation decays in exactly one
+direction, towards sounding better than the system is.
+
+The pipeline's full-corpus run still has not happened. The realm's HTTPS
+refusal has never fired. No log traffic has crossed the tunnel. Four compliance
+documents are owed. All of that's written down, in the tense that says so,
+which is the most useful thing I can say about the state of it.

@@ -1,0 +1,248 @@
+---
+title: "Two retrieval arms, and a harness built to refuse a number"
+summary: "BM25 fused with the dense vectors inside Qdrant, one round trip, with the IDF deliberately not ours to hold. Then the eval harness, where 57.1% of the mined eval set was unusable, a chunk id turned out to be the wrong thing to key relevance on, and the most valuable feature is that it says 'no measurable difference'."
+date: "2026-08-09"
+tags: ["rag", "retrieval", "bm25", "qdrant", "evaluation", "python"]
+part: "I · The pipeline"
+---
+
+## Why this exists
+
+Everything before this article produces chunks. This one is about whether
+searching them works, and about how you find out.
+
+Those are two separate pieces of engineering and I want to be clear about which
+matters more. The retrieval improvements were interesting. The **harness** is
+the thing I'd keep, because without it every retrieval change is an
+argument between two people's intuitions about German search queries.
+
+<Figure
+  src="/diagrams/replai/10-two-arms-and-the-harness.svg"
+  alt="Top card: a vertical flow from the question as one string, splitting into a dense arm using one embedder vector compared by cosine, and a lexical arm using BM25 where the term-frequency weight is held locally and the IDF is maintained by the server. Both converge into fusion inside Qdrant in one round trip over a population narrowed once before either arm runs, then into a stage grouped by ticket and optionally reranked, then into hits that keep both scores. Bottom card: the four things the harness refuses. A query no arm could cover, an arm handed no results, two arms compared over different query sets, and a precision it was never given."
+  caption="The query path, and the four refusals. A winner is named only when a seeded bootstrap puts the interval clear of zero."
+/>
+
+## Two arms, fused where the data is
+
+The dense arm is the ordinary one: embed the query, compare against the vectors
+indexing already wrote.
+
+The lexical arm is BM25, and the interesting decision is **where each half of
+BM25 lives**.
+
+BM25 has two parts. There is a term-frequency component, which depends on the
+document, how often a term appears in it, normalised by its length. And there
+is an inverse document frequency, which depends on the whole *collection*, how
+rare the term is across everything.
+
+The term frequency is ours: computed at index time and stored with each
+document's sparse vector.
+
+**The IDF is deliberately not ours.** Qdrant maintains it itself, from the
+collection's own live document frequencies. The alternative, hold an IDF table
+locally, is the version I would have written without thinking, and it has a
+failure mode I would not have seen coming. **A delta run that adds or removes
+documents changes every term's document frequency.** A locally-held table goes
+stale at that moment, silently, and the only repair is a full re-embed of the
+entire corpus. Not a bug you would find. Just a slow, invisible degradation of
+ranking quality with no event to attach it to.
+
+Handing that to the server means it cannot go stale, because the server
+recomputes it from what is actually there.
+
+And the fusion happens **server-side**, in one round trip, rather than by
+running two searches and merging the results in Python. Which matters mostly
+because both arms then rank the same population: the set of candidate chunks is
+narrowed **once**, before either arm runs. So a rank from one arm is comparable
+to a rank from the other, which is the property client-side merging quietly
+doesn't give you.
+
+## The asymmetry I could not engineer away, and wrote down instead
+
+There is a hole in the story above and I want to tell it properly, because I
+spent a while believing I'd solved something I hadn't.
+
+The docstring for that module used to claim the stored weight was
+"per-document and therefore never stale". That is false. BM25's length
+normalisation uses the **average document length across the whole corpus**,
+which is recomputed per run and baked into every weight written *that* run. So
+after enough delta runs, the collection holds documents normalised against
+several different averages.
+
+I went looking for somewhere to hand that off, the way IDF was handed off. It
+doesn't exist:
+
+- There is **no collection-level average-document-length setting**. Patching a
+  collection with one answers `200` and stores a config without the field, silently dropped, which reads exactly like acceptance.
+- The newer server-side BM25 takes an average length in each *document's*
+  options and bakes it into that document's weights. Measured against two
+  pinned versions: the same text at average lengths of 20, default, and 2000
+  stores first weights of `1.6923`, `2.0136`, `2.0422`. So moving the
+  tokenisation server-side would **relocate** this number, not retire it.
+
+The asymmetry is inherent to how BM25 is done here, not a gap in my
+implementation: the server maintains IDF from live frequencies and doesn't
+maintain document length. In practice the average drifts slowly and BM25's
+length term is bounded, so this is **recorded rather than worked around**, with
+a note that large corpus growth is when it stops being ignorable.
+
+Two things I took from that. **A silently-dropped config field is worse than a
+rejected one**, and the only way to know which you got is to read back what was
+stored. And a docstring that claims a property is a claim like any other, that
+one survived review until somebody checked it, and the fix was retracting the
+sentence, not changing the code.
+
+## Small things that were quietly wrong
+
+A cluster of fixes from this stretch, each of which is a category rather than
+an incident:
+
+**The sparse arm was indexing the wrong text.** Each chunk carries a
+model-written context sentence prepended before its body. That is right for the
+dense vector. It is what makes a 36-token comment retrievable. It is wrong for
+BM25, which should be matching the words a person actually wrote, not the
+words a model wrote *about* what they wrote. Two arms, two notions of what the
+document is.
+
+**Fields were being dropped at the embed boundary.** Structured facets and
+attachment identifiers existed in L3 and did not survive into the Qdrant
+payload, so filters that were supposed to narrow by them narrowed by nothing.
+Found by trying to use a filter, not by a test. The payload was well-formed,
+just smaller than intended.
+
+**A failed embed batch is bisected, not abandoned.** One bad chunk in a batch
+used to lose the whole batch, which on a long run means losing a chunk's
+innocent neighbours and having no idea which one was at fault.
+
+**Collections record what they were built under, and refuse to mix builds.** A
+collection embedded with one model, chunker version and prompt version is not
+comparable with one built under another, and the failure of mixing them is
+ranking that is subtly wrong rather than an error. There is also a counter for
+**points no build owns**, orphans from an interrupted run, because "the
+collection has more points than the corpus has chunks" is otherwise an
+unattributable mystery.
+
+**The branch diagnostic went to DEBUG.** A log line that says which arm
+produced a hit is exactly what you want while tuning and pure overhead on every
+production query. It was being charged to every query for a while.
+
+**Nine payload indexes needed more file handles than Qdrant had.** A pure
+operations problem, and the sort of thing that appears as a container that will
+not start rather than as a message about indexes.
+
+## The eval set was 57.1% garbage
+
+Now the harness, and it starts with a number that stopped me building the rest
+of it for a day.
+
+The eval set is mined automatically: find question-and-answer shapes in the
+corpus (a described problem, and the comment that resolved it), and treat the
+resolving segment as the known-good answer for a query built from the problem.
+
+**57.1% of the mined pairs were unusable.** The "solution" the miner had picked
+was, more than half the time, not a solution: an acknowledgement, an
+administrative note, a reference to a document number.
+
+The consequence if I hadn't checked: I'd have benchmarked embedding models
+against that set and picked a winner. And the winner would have been **the
+model best at retrieving invoice references**, because that's what the eval
+set was actually asking for, and nothing in the process would have told me.
+Every downstream number would have been precise, reproducible, and pointed at
+the wrong target.
+
+Which is why the harness starts at the eval set rather than at a scorer. A
+rejection pass now drops the non-solutions, and the miner is honest that the
+rejection is a heuristic.
+
+## The precision header, and refusing to look measured
+
+That heuristic is unvalidated, and the classifier it replaced was *also* an
+unvalidated heuristic, which is how the 57.1% happened in the first place.
+Replacing one unvalidated thing with another and declaring victory is the actual
+failure mode here.
+
+So: **a hundred surviving pairs get read by hand**, and the resulting precision
+is written into the eval set's own header. Every scoreboard produced from that
+file carries it.
+
+And the writer **refuses to claim a precision it was not given.** No number
+means the header records null and the scorer prints "unvalidated" beside every
+metric it produces, rather than letting an unmeasured set look measured.
+
+That is a small amount of code standing in front of a specific institutional
+failure: a scoreboard with four decimal places on it gets screenshotted into a
+document and stops carrying its own caveats.
+
+## Relevance is keyed on a segment, never on a chunk
+
+This one is a design bug I shipped in a first draft and it's worth the
+paragraph, because it looks fine.
+
+The natural key for "this is the right answer" is the chunk id. A chunk id here
+is a hash of the ticket, the granularity, the ordinal, the part and the prompt
+version.
+
+Which means **a chunk id moves when the granularity changes.** An eval set
+holding turn-level chunk ids scores a thread-level arm at **zero across the
+board**, not because thread chunking retrieves worse, but because the eval set
+literally cannot see thread chunks. It would have read as a decisive result.
+
+The fix is that relevance names a **segment**, a ticket and an ordinal, and
+the scorer resolves, per arm, which chunk *contains* that segment. At turn
+granularity that is the turn chunk; at thread granularity it is the thread
+chunk the turn falls inside. Now the two arms are scored against the same eval
+set, which is the entire point of having one.
+
+The same trap catches any future granularity, and it had already caught this
+build's own change to how oversized chunks are split into parts.
+
+## The feature I am proudest of is "no measurable difference"
+
+The headline metric is nDCG@10, with recall at 1, 5 and 10 and MRR beside it.
+Standard.
+
+What isn't standard, and what I'd put in every harness I write from now
+on: **every arm is scored over the same query set, so a comparison is paired
+per query.** The difference per query is resampled with a seeded bootstrap, and
+a winner is named **only when the 95% interval excludes zero.**
+
+At the pool size this settled on, that means it reports "no measurable
+difference" a lot.
+
+That is the harness working. A point estimate to three decimal places from a
+two-thousand-chunk candidate pool is a number that **looks like evidence and is
+not**, and I've watched such numbers decide things. The module exists as much
+to refuse that as to produce anything.
+
+Alongside it, four refusals rather than degradations. Scoring **stops** when a
+query's known-good answers could not be covered by anything in the arm; when an
+arm was handed no results for a query it was supposed to answer; when two arms
+are compared over different query sets; and when a precision was never
+established. Each of those otherwise produces a perfectly plausible score, and
+a plausible wrong score is worse than a stopped run.
+
+And there's a hand-check: two commands rather than a good intention. Because
+"we should read some of these" isn't a step, and a step is what gets done.
+
+## Where the pipeline actually stands
+
+Honest closing position, because this series is not a launch announcement.
+
+The pipeline runs end to end: one clone, one command from the legacy CRM to a
+queryable collection, plus a documented forty-minute walkthrough over 200
+tickets that exercises every stage against the real server. Deletion works. A removed ticket stops being retrieved, guarded so that a mass deletion caused
+by a partial extract is refused rather than executed.
+
+What has **not** happened is the full-corpus sweep. Everything measured is at
+the right volume against a synthetic stand-in. The real corpus is what answers
+how many segments a hundred thousand comments actually make, how often the
+boilerplate patterns cut real prose, and whether any of those 59 authors is a
+customer rather than a technician.
+
+That is written at the top of the handoff document rather than buried, because
+the difference between "measured" and "measured at the right scale on the wrong
+data" is exactly the difference this whole series has been about.
+
+Next, the story moves: a second product, built from nothing, that consumes this
+collection as one of its evidence sources, and whose first design constraint
+is that nothing may leave the customer's network.

@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 646" width="700" height="646" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .n   { font-size: 11px; fill: rgb(10 10 10 / 0.6); }
+    .nn  { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .band{ fill: rgb(10 10 10 / 0.1); }
+    .axis{ stroke: rgb(10 10 10 / 0.35); stroke-width: 1; }
+    .tick{ stroke: #0a0a0a; stroke-width: 1.4; }
+    .cut { stroke: #db0a12; stroke-width: 1.4; stroke-dasharray: 5 3; }
+  </style>
+  <rect class="bg" x="0" y="0" width="700" height="646"/>
+
+  <!-- the chart -->
+  <rect class="card" x="16" y="14" width="668" height="204" rx="6"/>
+  <text class="t h" x="32" y="38">Comment length, and where the specification cut</text>
+  <text class="t n" x="32" y="56">102,625 comments, measured. Linear axis, tokens.</text>
+
+  <!-- the 90% band -->
+  <rect class="band" x="60" y="104" width="81.2" height="34" rx="2"/>
+  <!-- axis -->
+  <line class="axis" x1="60" y1="138" x2="660" y2="138"/>
+  <!-- median tick -->
+  <line class="tick" x1="85.4" y1="98" x2="85.4" y2="144"/>
+  <text class="t m" x="85.4" y="90" text-anchor="middle">median 36</text>
+  <!-- p90 tick -->
+  <line class="tick" x1="141.2" y1="104" x2="141.2" y2="144"/>
+  <text class="t m" x="150" y="118">p90 115</text>
+  <text class="t nn" x="150" y="133">90% of every comment sits inside this band</text>
+  <!-- the spec cut -->
+  <line class="cut" x1="624.7" y1="72" x2="624.7" y2="150"/>
+  <text class="t m red" x="624.7" y="66" text-anchor="middle">800</text>
+  <text class="t nn red" x="624.7" y="164" text-anchor="middle">the spec splits above here</text>
+  <!-- axis labels -->
+  <text class="t nn" x="56" y="156">0</text>
+  <text class="t nn" x="644" y="156">850</text>
+
+  <line class="rule" x1="16" y1="180" x2="684" y2="180"/>
+  <text class="t b" x="32" y="200">0.2% of comments are to the right of the red line. So the operation that matters is</text>
+  <text class="t b" x="32" y="214">merging adjacent short turns by one author, not splitting long ones.</text>
+
+  <!-- what it overruled -->
+  <rect class="card" x="16" y="238" width="668" height="290" rx="6"/>
+  <text class="t h" x="32" y="262">What the profile overruled</text>
+  <text class="t lbl" x="32" y="284">THE SPECIFICATION SAID</text>
+  <text class="t lbl" x="330" y="284">MEASURED</text>
+  <text class="t lbl" x="556" y="284">VERDICT</text>
+  <line class="rule" x1="16" y1="292" x2="684" y2="292"/>
+
+  <text class="t b" x="32" y="312">split segments above 800 tokens</text>
+  <text class="t nn" x="330" y="312">0.2% exceed 800</text>
+  <text class="t b red" x="556" y="312">inverted</text>
+
+  <text class="t b" x="32" y="336">repair mojibake with a library</text>
+  <text class="t nn" x="330" y="336">5 comments in 102,625</text>
+  <text class="t b" x="556" y="336">dropped</text>
+
+  <text class="t b" x="32" y="360">strip Word and Outlook markup</text>
+  <text class="t nn" x="330" y="360">zero occurrences</text>
+  <text class="t b" x="556" y="360">dropped</text>
+
+  <text class="t b" x="32" y="384">map status taxonomy drift</text>
+  <text class="t nn" x="330" y="384">6 values, no drift at all</text>
+  <text class="t b" x="556" y="384">dropped</text>
+
+  <text class="t b" x="32" y="408">a signature is &gt;80% of an author</text>
+  <text class="t nn" x="330" y="408">no author exceeds 80%</text>
+  <text class="t b red" x="556" y="408">wrong shape</text>
+
+  <text class="t b" x="32" y="432">weight "closed" at 0.25</text>
+  <text class="t nn" x="330" y="432">99.8% are closed</text>
+  <text class="t b" x="556" y="432">discriminates nothing</text>
+
+  <text class="t b" x="32" y="456">a budget of 123,000 chunks</text>
+  <text class="t nn" x="330" y="456">≈75,000</text>
+  <text class="t b" x="556" y="456">corrected</text>
+
+  <text class="t b" x="32" y="480">route attachment text elsewhere</text>
+  <text class="t nn" x="330" y="480">57.5% of tickets carry a file</text>
+  <text class="t b red" x="556" y="480">overruled</text>
+
+  <text class="t b" x="32" y="504">roughly twenty years of history</text>
+  <text class="t nn" x="330" y="504">2011-2026, so fifteen</text>
+  <text class="t b" x="556" y="504">corrected</text>
+
+  <!-- the corpus -->
+  <rect class="card" x="16" y="548" width="668" height="84" rx="6"/>
+  <text class="t lbl" x="32" y="572">THE JOINED EXTRACT</text>
+  <text class="t b" x="32" y="594">14,728 tickets · 102,625 comments · 59 authors, of whom ten write 93.2%</text>
+  <text class="t b" x="32" y="612">median 5 comments per ticket, p90 15, max 166 · 2.9% have none · 99.9% HTML</text>
+</svg>

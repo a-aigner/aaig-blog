@@ -1,0 +1,215 @@
+---
+title: "The certificate that did not exist, twice, and three unauthenticated servers that used to be safe"
+summary: "Splitting the stack across two hosts turned three loopback-bound model servers into three unauthenticated services on a LAN. The mutual-TLS log transport needed a certificate the firm cannot issue, which is the same wall that killed SOAP nine articles ago. What replaced it is a container that refuses to start."
+date: "2026-09-01"
+tags: ["deployment", "security", "ssh", "docker", "arm64"]
+part: "II · replai"
+---
+
+## Why this exists
+
+The whole product ran on one host. Then the models moved to an NVIDIA Spark and
+the application stayed on a Linux server, and a set of decisions that had cost
+nothing suddenly cost something.
+
+This article is about what a topology change does to security properties that
+were never explicitly designed. They were just true, because of where the
+ports happened to be bound.
+
+<Figure
+  src="/diagrams/replai/17-split-host-tunnel.svg"
+  alt="Three cards. The first shows two host boxes: the Linux server holding the application, the log aggregator and the tunnel container which dials out and holds a private key; and the Spark, marked arm64, holding an embedder, reranker and sparse embedder each outlined in red and labelled no authentication, with a note that their only callers are now on the other machine so all three binds must widen. A red arrow runs left to right labelled SSH out, and a black arrow right to left labelled logs in. The second card explains that --host 0.0.0.0 inside a container is not the exposure, that is the bind inside the container and what makes any published port work, and that the exposure is the left-hand side of the port mapping. The third names two failures that report success: a widening bind that sshd will honour, refused at container start where a restart loop is visible; and a tunnel carrying nothing, which stayed healthy with zero traffic."
+  caption="The transport dials one way and the data travels the other. Both red items are failures that report success."
+/>
+
+## The hardware note I would want before designing anything
+
+Short and worth its own paragraph, because it is the kind of thing that
+invalidates a week of planning.
+
+The Spark is **arm64** (Grace, not x86), and its GPU generation is new enough
+that **many prebuilt CUDA images ship no matching kernels.** So an image that
+is the obvious choice on paper may simply not run.
+
+The note that went into the handoff document: *verify the image runs before
+designing around it.* Not "check the architecture", actually start the
+container on the actual machine, because the failure is not at pull time and not
+at build time, it is when a kernel is dispatched.
+
+## Three servers that were safe because of where they were bound
+
+replai runs three llama.cpp containers. The embedder, the reranker and the
+sparse embedder. All three run the same image, and their entire command is the
+model, the mode and the bind.
+
+**None of them authenticates anybody.** No API key on any of the three, no
+environment variable of any kind on any of the three. There is no credential to
+configure and nowhere to put one.
+
+On one host that cost nothing, because their published ports were on loopback
+and nothing off the box could reach them.
+
+The split puts them on the Spark and their only callers, two containers, on a
+second machine. The compose hostnames do not resolve from there. So **all three
+binds have to widen**, and the absence of authentication stops being academic:
+widening these three puts three unauthenticated model servers on the LAN.
+
+## What is exposed, and what only looks like it
+
+A distinction worth stating because it trips people up in code review, and it
+tripped me:
+
+```
+--host 0.0.0.0 --port 8000
+```
+
+**That is not the exposure.** That is the bind *inside* the container, and it is
+what makes any published port work at all. A container that bound its own
+loopback internally could not be published to the host either.
+
+The exposure is the **left-hand side of the port mapping**, which on one host
+was a loopback address and which the split changes.
+
+Reading `0.0.0.0` in a command and concluding a service is exposed is a very
+easy mistake, and it produces the opposite error too: somebody "fixes" the
+container's internal bind and breaks the publish while changing nothing about
+what the LAN can reach.
+
+## The document that refuses to recommend anything
+
+The page recording all of this is the one I'm most pleased with, and it's
+pleasing because of what it does *not* do.
+
+It records what is exposed, established by reading the compose file rather than
+by assumption. It records what the private network is and is not doing. It
+records which sentences in the compliance annex the change reaches. It records
+what each option would cost.
+
+**And it does not decide.** In its own words: the decision is a human's, and
+writing a plausible recommendation into a document that a signed annex then
+inherits is the specific failure this document set exists to avoid.
+
+There is a second discipline in it I've started copying. **Nothing described
+there has happened yet**, the topology is decided and not deployed, and every
+claim is written in the tense that says so. The reason: *a compliance page that
+reads "this is false" about something still true is its own defect.*
+
+A document that describes an intention in the present tense becomes, the moment
+somebody reads it six weeks later, a document that lies about the system. And
+compliance documents are read by people with no way to check.
+
+## The certificate wall, for the second time
+
+Now the part I didn't expect, which is that this project hit the same wall
+twice, nine articles and two products apart.
+
+The log transport between the two hosts was specified as **mutual TLS**. Both
+ends present a certificate, both verify the other, the aggregator is
+authenticated, done.
+
+**The firm issues no certificates and none will be issued.**
+
+Which is exactly the wall that killed the SOAP route into the legacy CRM in the
+second article of this series: an NTLM channel binding needed a certificate the
+customer's side could not present, and every way around it required a change on
+their infrastructure that was never going to happen.
+
+Same organisational constraint, a completely different technical context,
+sixteen articles apart. I find that genuinely instructive: the binding
+constraint on this project was never a technical one, and it showed up as a
+technical dead end both times.
+
+## What replaced it, and which end dials
+
+Mutual TLS came out, both TLS blocks gone, no verification settings, no file
+paths, and an **SSH tunnel** went in.
+
+The direction is the interesting bit. **The collector opens the tunnel.** The
+container on the Linux server dials *out* to the Spark, and the log lines still
+flow Spark → Linux server, back down a connection that was established in the
+opposite direction.
+
+So at the log layer nothing authenticates anyone, and the tunnel underneath is
+what does. And the aggregator is never on any LAN. The tunnel reaches it over
+the compose network, and the container that dials out publishes nothing at all.
+
+There is a comment in that file recording that it *used* to say the far address
+was the Linux server's, and that this was wrong; and that the obvious next guess
+is also **measurably wrong**, because inside a container on a bridge network,
+loopback is the *container's* loopback. Three plausible values, one correct.
+The two wrong ones are written down beside it, which is the only reason the
+next person will not try them.
+
+## The container that refuses to start
+
+Here is my favourite piece of code in the whole deployment.
+
+For a reverse forward to work, the SSH server on the far side must let the
+client choose the bind address. With that option set, **sshd honours whatever
+the client asks for, including every interface.**
+
+Which would put the log aggregator's port on the Spark's LAN, unauthenticated:
+the precise thing the whole topology exists to avoid.
+
+And **nothing downstream would notice.** The forward succeeds. The tunnel is
+healthy. The port is simply public.
+
+So the container refuses to start if its bind address is one that widens, with
+an error naming what would have happened, and because it restarts unless
+stopped, that refusal becomes **a restart loop somebody can see** rather than a
+silent success.
+
+That is the pattern: when a misconfiguration produces a *working* system with a
+worse property, the check has to be at start-up and it has to be loud, because
+there is no later moment at which anything will complain.
+
+## Why that image is built rather than pulled
+
+Four lines of Alpine plus a script. There are community images for this and
+none of them is pinned by anybody this project can name, and this container
+**holds a private key and is the one process in the stack that dials out of the
+firm's network**, so its attack surface is the point.
+
+Building it costs less than auditing somebody else's tag.
+
+Two pinning details, because they are the sort of thing that gets "tidied" into
+a bug:
+
+The base is a specific Alpine minor version, **not** the major tag, which moves.
+Every other image in the stack is pinned for the same reason, and there is a
+test asserting that nothing floats on a moving tag.
+
+And the packages inside are **not** version-pinned, deliberately. Alpine
+serves one version of each package per release branch, so **the branch is the
+pin**, and pinning a package version on top of it would break the build the day
+the branch ships a patch, while protecting nothing.
+
+## The tunnel that was healthy and carried nothing
+
+The failure that closes this article, and the reason the commissioning
+instructions read the way they do.
+
+The tunnel came up. The container was running. And **no traffic had ever
+crossed it.**
+
+Nothing reported that. There is no health check that distinguishes "connected"
+from "connected and useful", because from the tunnel's point of view an idle
+forward and a working forward are the same state.
+
+There is also a structural asymmetry in who notices: the Linux server's own log
+agent reaches the aggregator over the compose network with no tunnel in front
+of it, so **its** lines keep arriving whatever happens. A broken aggregator
+therefore fails visibly, on the operator's own machine. A broken *tunnel* is
+only visible on the host nobody is watching.
+
+So the commissioning check doesn't look at the tunnel. It looks at **the
+agent**, on the agent's own host, and asks what is actually listening, because
+the tunnel cannot tell you.
+
+And the documentation says, plainly, that no log traffic has yet crossed it.
+Which is the right way to write that sentence: not "the transport is
+configured", but "here is what has and has not been observed to work".
+
+Next: the last piece of replai, and the reason it exists. The customer has no
+IT department, and until this shipped, the only administration surface was a
+Python shell.

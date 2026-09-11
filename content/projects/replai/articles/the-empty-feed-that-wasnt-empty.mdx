@@ -1,0 +1,176 @@
+---
+title: "The empty feed that wasn't empty"
+summary: "The collection that lists attachments returns HTTP 200, an empty feed and zero properties, on a corpus where 57.5% of tickets carry a file. Plus the quote that has to be doubled but must not be encoded, and why a 200 is not proof that you received a file."
+date: "2026-07-28"
+tags: ["odata", "sharepoint", "etl", "data-integrity", "python"]
+part: "I · The pipeline"
+---
+
+## Why this exists
+
+I spent a week believing this CRM had no attachments. A whole week.
+
+The evidence was good. There is a collection for them. I queried it. It
+returned HTTP 200 and an empty feed. I noted "no attachments" in the design
+document and moved on to something else, and the specification we had been
+given happened to route attachment content away from this pipeline anyway, so
+nothing contradicted me.
+
+Then somebody opened a ticket in the browser and it had a file on it.
+
+## What that response actually meant
+
+```
+GET …/_vti_bin/ListData.svc/Attachments
+→ 200, an empty feed, and zero properties
+```
+
+Zero properties is the tell, and it's the part I didn't look at. An empty
+collection of a known type still describes its type. You get the shape with no
+rows in it. A feed with no properties at all isn't a collection with nothing
+in it. It is a collection that **isn't enumerable on this build**, answering in
+the only way OData gives it to answer.
+
+Those two states are semantically miles apart and syntactically almost
+identical, and the difference lives in a field I wasn't reading because I was
+reading the row count.
+
+The fix in the extractor is a commit called *"Do not read an empty Attachments
+feed as no attachments"*, and it's one of my favourite commits in the project
+because the code change is small and the belief change was a week.
+
+<Figure
+  src="/diagrams/replai/05-attachment-addressing.svg"
+  alt="Four stacked cards connected by arrows. The first, outlined in red dashes and labelled the wrong door: a GET to the standalone Attachments collection returning HTTP 200, an empty feed and zero properties, which means not enumerable rather than none. The second: reach them through the item instead, with a GET to Ticket(3)/Attachments, noting the entity carries which list, item and filename but never the bytes. The third: the two URL forms the bytes may live at, a media $value form and a direct Lists path, with a note that a quote must be doubled and stay literal. The fourth: a 200 is not proof of a file (an OData envelope or HTML means reject, only bytes are stored by sha256), with measured sampling figures beneath."
+  caption="The addressing, and the gate. Three of the four cards exist because something returned a success status and no file."
+/>
+
+## Reaching them the other way
+
+The attachment entity is a media link entry. It is keyed on
+*(which list, which item, which filename)* and it carries exactly those three
+things. The bytes live at a separate media resource. So the entity is a
+pointer, and the standalone collection of pointers is the thing that will not
+enumerate.
+
+But you can walk to them from the item:
+
+```
+GET …/_vti_bin/ListData.svc/Ticket(3)/Attachments
+```
+
+That works. Which means the inventory is not one query, it is one query
+*per ticket*, 14,729 of them at three requests a second, roughly eighty
+minutes just to find out what exists. That is the cost of the empty feed:
+not a missing feature, a linear scan where there should have been a lookup.
+
+Worth knowing before you scan: the attachment entity **hangs off tickets only**.
+There is no attachments association on a comment at all, so files never need to
+be resolved per comment, which removes a hundred thousand requests from the
+problem before it starts.
+
+## What sampling said
+
+Rather than run the full scan to find out whether it was worth running the full
+scan, I sampled 200 tickets spread evenly across the id range, evenly, not the
+first 200, because a fifteen-year corpus has eras and the first 200 ids are all
+from one of them.
+
+**223 attachments on 115 tickets. 57.5% of tickets carry a file.**
+Extrapolated: roughly 8,500 tickets and 16,400 files.
+
+So the week I spent believing there were none was a week spent believing that
+more than half the corpus had no evidence attached to it. And it directly
+contradicted a specification decision: the document routed attachment content
+to a separate filesystem pipeline, which would have separated 57.5% of tickets
+from their own attachments at retrieval time. That decision got overruled, and
+the sampling number is the entire argument.
+
+## Two encoding traps, both silent
+
+The bytes are retrievable at one of two URL forms, and which one a given build
+serves is not knowable in advance, so both are worth trying:
+
+```
+…/Attachments(EntitySet='Ticket',ItemId=3,Name='report.pdf')/$value
+…/Lists/Ticket/Attachments/3/report.pdf
+```
+
+The first is where the interesting failures live, because a filename is
+user-supplied text inside an OData string literal.
+
+**A single quote terminates the literal, so it must be doubled**. A file
+called `O'Brien.pdf` is addressed as `O''Brien.pdf`. Standard, fine.
+
+**And the doubled pair must stay literal.** Percent-encoding it to `%27%27` is
+the instinct (it is a URL, you encode special characters), and it leaves the
+service to decode and then un-double, which key parsers do not reliably do.
+Spaces and umlauts, meanwhile, *must* be percent-encoded, in both forms. So the
+rule is inconsistent by necessity: encode the whitespace and the diacritics,
+leave the quote-doubling alone.
+
+Both failure modes are silent. Not a 404. The wrong thing, or nothing, with a
+good status.
+
+## A 200 is not proof of a file
+
+This is the guard I'd carry into any project that fetches binaries over
+HTTP, and it exists because two different non-files arrive with HTTP 200.
+
+An unsupported media request returns an **OData envelope**, valid, well-formed,
+successful, and not your document. A session that has quietly expired returns
+the **sign-in page as HTML**, also with a good status. Write either of those to
+disk under the filename you asked for and you have a blob store full of
+plausible-looking garbage, discoverable only when something downstream tries to
+parse it, which might be weeks later.
+
+So the fetch validates before it stores: an OData envelope is rejected, HTML is
+rejected, and only bytes that are neither get stored, content-addressed by
+their hash, with an inventory row recording which ticket and filename they came
+from.
+
+## The full pass, and what it needed
+
+Turning the sample into a real pass, walk every ticket, fetch every
+attachment, needed four things that a happy-path implementation does not have,
+and every one of them came from the run failing:
+
+**Torn lines get repaired.** The inventory is append-only JSONL written across
+an eighty-minute run over an unreliable connection. A kill mid-write leaves a
+partial final line, and the next run has to recognise and repair that rather
+than either crashing or appending after it.
+
+**A dropped connection is survivable mid-walk**, because over 14,729 sequential
+requests it is not an edge case, it is a certainty.
+
+**The continuation loop is capped.** A paginated listing that keeps handing back
+a next link is an infinite loop waiting for a server bug, and a bounded one
+fails loudly instead of quietly running until somebody notices.
+
+**The blob store and the inventory are checked for having separated.** They are
+two artefacts that must agree, every inventory row should have bytes, every
+blob should be referenced, and a pre-flight check that they still do is
+cheaper than discovering the disagreement three stages downstream. The check
+counts *pairs* rather than rows, and refuses only on a total miss, because a
+partial run legitimately has fewer of one than the other.
+
+## What I take from this
+
+The one-line version is: **an empty result and a refused question look the
+same, and only one of them is an answer.**
+
+I've now been caught by that twice in this project. Once here, where an
+unenumerable collection read as an empty one. And once earlier, where a
+successful GET served anonymously read as a working credential. In both cases
+the response was a 200, the parse succeeded, nothing logged a warning, and the
+conclusion I drew was the opposite of the truth.
+
+The habit that comes out of it isn't "distrust 200s". It is: **before
+recording a negative result, check that you asked a question the system can
+answer.** A zero is a measurement. A zero from a question that was declined is
+a mistake wearing a measurement's clothes.
+
+Next: I finally profiled the corpus properly, and it overruled half the
+specification, including a chunking rule that would have shattered the index
+into a hundred thousand fragments while believing it was preventing exactly
+that.

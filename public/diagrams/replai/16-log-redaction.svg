@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 576" width="700" height="576" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .box { fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.12); stroke-width: 1; }
+    .hole{ fill: #ffffff; stroke: #db0a12; stroke-width: 1; stroke-dasharray: 4 3; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .k   { font-size: 11.5px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="576"/>
+
+  <rect class="card" x="16" y="14" width="668" height="182" rx="6"/>
+  <text class="t h" x="32" y="38">Deny by default: a field not named is not logged</text>
+
+  <rect class="box" x="32" y="52" width="150" height="46" rx="5"/>
+  <text class="t k" x="44" y="72">a record</text>
+  <text class="t n" x="44" y="89">fields, an event name</text>
+  <path class="ln" d="M 182 75 L 200 75" marker-end="url(#a)"/>
+
+  <rect class="box" x="204" y="52" width="196" height="46" rx="5"/>
+  <text class="t k" x="216" y="72">the allow-list</text>
+  <text class="t n" x="216" y="89">not on it →</text>
+  <text class="t m red" x="284" y="89">&lt;redacted&gt;</text>
+  <path class="ln" d="M 400 75 L 418 75" marker-end="url(#a)"/>
+
+  <rect class="box" x="422" y="52" width="246" height="46" rx="5"/>
+  <text class="t k" x="434" y="72">the event-name rule</text>
+  <text class="t n" x="434" y="89">a sentence is not untidy, it is the leak</text>
+
+  <line class="rule" x1="16" y1="112" x2="684" y2="112"/>
+  <text class="t lbl" x="32" y="130">AN EVENT NAME MUST MATCH A PATTERN · AND WHOSE RECORD IT IS DECIDES WHAT HAPPENS IF IT DOES NOT</text>
+  <text class="t b" x="32" y="152">ours, non-conforming</text>
+  <text class="t m red" x="300" y="152">&lt;malformed-event&gt;</text>
+  <text class="t b" x="32" y="172">a library's</text>
+  <text class="t n" x="300" y="172">kept as foreign text, name synthesised from the logger</text>
+  <text class="t b" x="32" y="192">no logger at all</text>
+  <text class="t n" x="300" y="192">fails closed</text>
+
+  <!-- the three holes -->
+  <rect class="hole" x="16" y="216" width="668" height="194" rx="6"/>
+  <text class="t h red" x="32" y="240">Three allow-listed fields carry text nobody here wrote</text>
+  <text class="t n" x="32" y="258">Name all three. A reader told there are two will assume the rest is closed.</text>
+
+  <text class="t k" x="32" y="284">the IMAP folder name</text>
+  <text class="t n" x="240" y="284">A mailbox owner types it. A folder named after a client</text>
+  <text class="t n" x="240" y="298">puts that name in a searchable store.</text>
+
+  <text class="t k" x="32" y="324">a rendered traceback</text>
+  <text class="t n" x="240" y="324">Arbitrary third-party text. It has to be allow-listed to be</text>
+  <text class="t n" x="240" y="338">worth having, so the field rule cannot protect it.</text>
+
+  <text class="t k" x="32" y="364">a library's own message</text>
+  <text class="t n" x="240" y="364">Admitted deliberately: on one real startup, 47 of 47 lines</text>
+  <text class="t n" x="240" y="378">said &lt;malformed-event&gt; and nothing else.</text>
+
+  <line class="rule" x1="16" y1="390" x2="684" y2="390"/>
+  <text class="t b" x="32" y="406">All three are scrubbed for email addresses and for nothing else.</text>
+
+  <rect class="card" x="16" y="430" width="668" height="130" rx="6"/>
+  <text class="t h" x="32" y="454">The honest limit, written as the limit</text>
+  <text class="t b" x="32" y="478">An address inside a folder name or a URL path is scrubbed. A client's</text>
+  <text class="t k" x="502" y="478">name is not.</text>
+  <text class="t b" x="32" y="500">So the claim the annex makes is "no direct personal identifiers, and three fields carrying free</text>
+  <text class="t b" x="32" y="516">text that is address-scrubbed and best-effort", not "anonymous".</text>
+  <text class="t n" x="32" y="542">"Anonymous" is the kind of claim that costs more when checked than it ever gained when written.</text>
+</svg>

@@ -1,0 +1,200 @@
+---
+title: "Turning reasoning off was worth 46×, and the cache key that would have thrown it all away"
+summary: "The same prompt, the same answer: 40.68 seconds with a thinking model's reasoning enabled, 0.88 without. Plus the keying mistake that would have computed and paid for every model answer in the corpus and then matched none of them, with nothing anywhere reporting a problem."
+date: "2026-08-05"
+tags: ["local-llm", "llama-cpp", "rag", "caching", "python"]
+part: "I · The pipeline"
+---
+
+## Why this exists
+
+L2 is the only layer in this pipeline that talks to a model, and it makes
+roughly one call per comment. With 102,625 comments and two tasks, that is a
+six-figure call count against a local model on hardware shared with everything
+else.
+
+At which point the engineering problem isn't "how do I call a model". It is
+"how does a run this long survive being interrupted, and what is it actually
+spending its time on". The answer to the second one turned out to be a setting.
+
+<Figure
+  src="/diagrams/replai/08-enrichment-cost.svg"
+  alt="Top card: two horizontal bars for one identical prompt and answer, reasoning on at 40.68 seconds spanning the full width in red, reasoning off at 0.88 seconds as a sliver, annotated 46 times. Middle card: a table of the two enrichment tasks and what each is keyed on. A boilerplate verdict keyed on the cleaned comment before the split and read from L0's current view, a one-sentence context keyed on the segment and read from L1's segments, with a red warning that keying the first off the segments file produces a 100 percent cache miss with no error. Bottom card: four properties that make a six-figure call count survivable, covering the prompt version in the key, safe interruption, counted-not-fatal failures, and bounded concurrency against the server's four request slots."
+  caption="The measurement, the keying trap, and the four properties that make a hundred thousand calls a thing you can walk away from."
+/>
+
+## The 46×
+
+I was benchmarking candidate models for the enrichment tasks and getting
+numbers I couldn't reconcile. A nine-line call taking forty-three seconds
+against a local 27B felt wrong, not impossible, but wrong for the size of the
+output.
+
+The output was the clue. A thinking model with reasoning enabled produces its
+reasoning tokens first, and they are tokens: generated one at a time, at the
+same rate as everything else, and then discarded before the answer is used.
+
+Same prompt, same model, reasoning switched off:
+
+```
+reasoning enabled   40.68 s
+reasoning disabled   0.88 s
+```
+
+**Identical answer.** Forty-six times the cost for output that is thrown away.
+
+For these two tasks that is not a tradeoff, it is waste. The tasks are
+classification and a one-sentence summary. They have no chain of reasoning
+worth having. On the full corpus, 46× is the difference between a run measured
+in hours and a run measured in days, and the day-shaped version is one nobody
+would run twice, which means the cleaning rules above it stop being iterable.
+
+Two things I'd do differently, and they are both about how I found it:
+
+**I found it while benchmarking model *choice*, and it was not about model
+choice at all.** I had set up a harness to compare candidate models through the
+same prompt the pipeline actually uses, rather than arguing about them from
+benchmarks, and the harness surfaced a setting instead of a winner. Which is
+an argument for building the comparison even when you think you know the
+answer: it measures the thing you did not think to ask about.
+
+**The switch is now configuration, not a patch.** It is a system-prompt prefix
+set from the environment, so turning reasoning off does not require editing a
+prompt file, and turning it back on for a task that needs it is a variable
+rather than a code change.
+
+The line I put in the README, because I do not want the next person to find
+this the way I did: *before any long run, turn reasoning off.*
+
+## The keying mistake that would have been invisible
+
+This is the part I want to dwell on, because it's the most dangerous bug I
+have written in a while and it has no symptom.
+
+There are two enrichment tasks. One asks for a **boilerplate verdict** on a
+comment, is this trailing text a quoted reply chain or is it real prose. The
+other asks for a **one-sentence context** situating a segment inside its
+ticket.
+
+The natural implementation reads both off the same file. L1's segments file is
+right there, it is the cleaned data, it is what everything else downstream
+consumes. Read it once, run both tasks, write both answers.
+
+That is wrong for the boilerplate task, in two independent ways:
+
+**The text is post-split.** The consumer looks up a verdict *per raw comment*,
+using the cleaned comment text as it was **before** the boilerplate split. The
+segments file holds the string as it is *after*. So the key computed at write
+time and the key computed at read time are different strings.
+
+**A merged segment has no single string to key on at all.** Adjacent
+same-author turns get merged, and a merged segment's source text is a *list*, one element per raw comment. There is no single string a per-comment key could
+be derived from.
+
+So the boilerplate task has to read **L0's current view** and apply the same
+cleaning the consumer applies, while the context task reads L1's segments. Two
+tasks, two different source layers, in one verb. It reads like an
+inconsistency and it is the only correct arrangement.
+
+Now the failure mode, if you get it wrong: every verdict gets computed. Every
+call gets made. Every answer gets written to the store. And then **every lookup
+misses**, because the keys do not match. A hundred thousand model calls, paid
+for in full, matched zero times.
+
+With **no error anywhere.** Not a warning, not a mismatch count, not an
+exception. The store is full, the pipeline completes, the output is
+well-formed. The only externally visible symptom is that the boilerplate
+verdicts do nothing, which looks exactly like a model that is bad at the task.
+
+I'd have debugged the prompt. For days. That is the part that stays with
+me: the bug would have presented as a quality problem in a completely different
+component.
+
+## The four properties that make it walkable-away-from
+
+Everything else about L2's design is in service of one requirement: a run this
+long has to be interruptible without loss, because it *will* be interrupted.
+
+**The store is content-keyed, and the key carries the prompt version.** Keyed
+per comment, per task, per prompt version, so editing a prompt does not
+silently reuse answers generated under the old one. That last component is
+cheap to add and the reason I added it is that forgetting it produces a subtler
+version of the keying bug above: answers that match, and are wrong.
+
+**A second run pays only for what the first did not finish.** The verb walks
+the corpus, computes each key, skips whatever the store already answers, and
+calls the model for the rest. There is no separate resume mode and no state
+file, because the store *is* the state.
+
+**A single failed call is counted and skipped, never fatal.** One malformed
+answer in a hundred thousand must not end a run that has been going for hours.
+The count plus a non-zero exit code is how an operator learns it happened. This
+is also the guard that made the model-name problem survivable rather than
+catastrophic: point the runtime at a model name it cannot resolve and every
+call 404s, and the verb counts a hundred thousand failures and reports them,
+rather than dying on the first one or, worse, writing a hundred thousand
+error strings into the store as if they were answers.
+
+**Concurrency is bounded, and it is not batching.** The local runtime serves
+four request slots by default, and a strictly serial loop leaves three of them
+idle for the entire run. So there is one knob that bounds calls *in flight*, each call still being exactly one comment over its own request. It defaults to
+one, because turning it on should be a choice an operator makes and not a
+surprise the next run after an upgrade produces.
+
+And a comment in the module that says **do not add batching here.** Batching
+several comments per HTTP request is a real optimisation and it is a cheap
+later change precisely because the store is keyed per comment rather than per
+request. Correctness and resumability came first on purpose, and the note
+exists so that ordering survives someone else's good idea.
+
+## What the context task taught me about prompt length
+
+Small thing, worth its own paragraph because it is counter-intuitive.
+
+The context task writes one or two sentences saying what a segment is about,
+prepended before the segment is embedded. The specification's version was a
+mechanical header naming the ticket's structured fields, where the work
+happened, on what equipment, when.
+
+That says where a chunk *sits*. It does not say what it *means*. The median
+comment is 36 tokens and something like "that worked" carries no retrievable
+meaning on its own; what it needs is a sentence situating it in its own
+ticket's problem.
+
+But it has to be **short**, and the reason is the thing I got wrong first. On a
+36-token body, a long header **dominates the vector**. Every solution chunk
+from a similar situation starts to look alike, because they all share most of
+their tokens with each other rather than with a query. The header stops
+disambiguating and starts homogenising. The exact opposite of what it's for.
+
+So the generation is capped, and an over-long one is **refused rather than
+truncated**, because a truncated German sentence is worse input to an embedder
+than no sentence at all.
+
+## The judge, and why it is one layer of three
+
+One of the enrichment tasks is a judgement with consequences: whether a comment
+is internal-only. If that is wrong in the permissive direction, internal text
+can reach a generated reply.
+
+Three commitments went with it, and I want them recorded because "an LLM
+decides" isn't a design:
+
+**It fails closed.** An unavailable model, a malformed answer, a timeout, all
+of them classify as internal. The expensive direction is the safe one.
+
+**It is gated on a measured false-negative rate**, against a hand-labelled
+sample. Not "it seems to work". A number, produced before it is trusted.
+
+**It is one layer of defence beside two others**: the generation prompt, and
+the human approval step that every draft passes through. It is not the thing
+standing between internal text and a customer. It is the first of three things.
+
+That last one is the important one, because the temptation with a
+good-enough classifier is to let it be load-bearing. Next in this series, when
+replai's drafting arrives, the same structure shows up again, and the reason
+it is a pattern rather than a coincidence is that a probabilistic component
+should never be the only thing holding a guarantee.
+
+Next: 16,400 files somebody emailed in over fifteen years, and the only module
+in this pipeline that processes hostile input.

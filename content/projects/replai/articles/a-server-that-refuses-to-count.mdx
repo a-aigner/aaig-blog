@@ -1,0 +1,140 @@
+---
+title: "A server that refuses to count, and the query that ran at five rows a second"
+summary: "Counting 102,625 rows returns HTTP 500, and the failure is retryable, so asking politely costs you the whole retry ladder. Expanding a lookup on the same list runs an order of magnitude slower than on the list a tenth its size, because one of those expansions is a subquery per row."
+date: "2026-07-25"
+tags: ["odata", "sharepoint", "performance", "etl", "python"]
+part: "I · The pipeline"
+---
+
+## Why this exists
+
+With the credential working and the property names resolving, the extraction
+should have been a loop. It was, eventually. In between were three separate
+occasions where the server said no in a way that looked like the client's
+fault.
+
+None of them are bugs, exactly. They are what a fifteen-year-old list-based
+system does when you ask it questions it was never sized for, and the useful
+part is that each one has a cheap answer once you stop treating it as an error
+to retry.
+
+<Figure
+  src="/diagrams/replai/04-paging-and-refusals.svg"
+  alt="Left card: a vertical ladder of page sizes (500 halving through 250, 125, 62, 31 down to a bordered floor of 25), each step labelled as following a timeout or a 500. Right card: two things that are not retries, falling back to the server's own __next links when key paging is refused, and resuming by the highest key on disk while refusing to resume a file written under a different Accept-Language. Bottom card of measured figures: tickets with one expansion at 42 to 53 rows per second completing, the same expansion on comments at 5 rows per second dying on page 5, counting 102,625 rows returning HTTP 500, and 59 distinct authors."
+  caption="Three refusals and one measurement, all of which changed the design rather than the retry policy."
+/>
+
+## Refusal one: it will not count
+
+`/$count` returns HTTP 500. So does `?$top=0&$inlinecount=allpages`. Both of
+them, reliably, on the comment list.
+
+This is the list view threshold. A list-based store will happily serve you page
+after page of a hundred thousand rows, and will refuse to tell you how many
+there are, because counting them is a single query over the whole thing and
+that query is what the threshold exists to prevent.
+
+The expensive part isn't the refusal. It is that **a 500 is a retryable
+status**, and my transport treated it as one, correctly, because a 500 usually
+is. So a request nobody could ever satisfy burned `max_retries × timeout`
+before failing, at a 300-second timeout, that's a wall-clock cost measured in
+minutes, paid before the extraction has read a single row, every single run.
+
+The fix is a flag that skips the count, and a code path that reports
+`unknown (count refused)` rather than pretending. Which sounds trivially
+obvious written down, and took a while to see, because "the server is slow" and
+"the server is failing a request I didn't need to make" look identical from the
+outside when both of them just make the program sit there.
+
+The general shape: **retry policy is about transient failures, and a
+capability the server does not have is not transient.** Anything that can fail
+permanently with a retryable status needs a way to be asked once.
+
+## Refusal two: the expansion that never finishes
+
+OData lets you resolve a navigation stub inline with `$expand`, which is
+exactly what you want when a ticket's assignee is a link rather than a value.
+
+On tickets it works: **42 to 53 rows per second**, and it completes.
+
+On comments it ran at **five rows per second** and never completed. A 500-row
+page exceeded even a 120-second read timeout, and the run died on page five
+with a read timeout.
+
+The reason isn't size, although comments are seven times more numerous. It is
+kind. A **collection-valued** expansion is a subquery per row. The server
+resolves a lookup individually, a hundred thousand times. A **single-valued**
+one is a cheap join. Those are two completely different operations behind one
+piece of query syntax, and nothing in the syntax tells you which one you just
+asked for.
+
+So I read the seven navigation stubs on a ticket and priced each:
+
+| stub | kind | verdict |
+|---|---|---|
+| the assignee | collection | **expand it**. There is no scalar alternative, so there is no other way |
+| attachments | collection | no, reachable far more cheaply through the item |
+| status, priority | single | no. The scalar values are already on the row |
+| created by, modified by | single | no. The scalar foreign key is already there, plus the user list |
+| comment count | single | no, already a scalar |
+
+One of seven is worth expanding. The convenience option that expands all seven
+runs two expensive ones and six redundant ones, which is a nice illustration of
+why `--expand auto` is a trap: it optimises for not having to think, and
+thinking here is worth about an hour per run.
+
+**And comments are never expanded at all.** Not tuned, removed. Because 102,625
+comments have only **59 distinct authors**. Pull the user list once, in one
+request, and join on the author foreign key locally. That converts a hundred
+thousand server-side subqueries into a single request and a dictionary lookup,
+which is the entire optimisation and it took reading a distinct-count to find.
+
+That is worth stating as a rule, because I keep meeting it: **before optimising
+a per-row lookup, count the distinct values.** A join is only expensive when the
+right-hand side is large.
+
+## Refusal three: pages that stop arriving
+
+Requests against this farm sometimes just do not complete. Not an error. A
+timeout, or a 500 that means "that was too much", with no indication of how
+much would have been fine.
+
+The answer is that the page size is a variable, not a constant. On any request
+that does not complete, **halve it**: 500, 250, 125, 62, 31, and a floor of 25.
+Below the floor the extractor gives up and says so, because if 25 rows will not
+come back the problem is not the page size.
+
+Two more properties sit alongside it, and they are the ones that make the
+extraction actually usable rather than merely correct:
+
+**A refused query option degrades rather than failing the run.** If the server
+declines the key-based paging the extractor prefers, it falls back to
+server-driven continuation links. Slower, and it finishes.
+
+**Resume is by the highest key already on disk.** A killed run costs one page,
+not an afternoon, which matters a great deal when a full pass is measured in
+tens of minutes and the connection is not reliable.
+
+And the small refusal that protects the resume, which comes straight out of the
+previous article: it **will not resume a file written under a different
+language**. Under another `Accept-Language` the key column has a different name,
+so "resume from the highest key" would be reading one schema's ids out of
+another schema's file. It would appear to work.
+
+## What this cost, and what it bought
+
+Total wall clock for the pair of full pulls, once all of this was in place:
+minutes. Tickets are minutes. Comments carry no expansion at all now, so they
+are minutes too. The thing I'd been treating as the expensive part of the
+project turned out to be cheap, once it stopped doing three things it didn't
+need to do.
+
+The genuinely expensive stage is attachments, 16,400 files at three requests
+per second, and that is the subject of the next article, which opens with a
+collection that returns an empty feed on a corpus where more than half of all
+tickets carry a file.
+
+The habit worth taking from this one: when a server refuses, ask *what kind of
+no* it is. A transient no wants a retry. A capability no wants a flag. A
+too-much no wants a smaller question. Treating all three as the first is how a
+loop that should take four minutes takes forty and then dies.

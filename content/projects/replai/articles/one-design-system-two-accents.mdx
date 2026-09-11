@@ -1,0 +1,173 @@
+---
+title: "One design system, two products, and the colour they deliberately do not share"
+summary: "Porting a nine-step palette into a forked chat product, with every lilac step inheriting the relative luminance of its brass predecessor so the contrast ratios survive the switch. Plus the two places the derivation stops on purpose, and the fonts that were never loading."
+date: "2026-09-07"
+tags: ["design-systems", "tailwind", "accessibility", "colour", "frontend"]
+part: "III · The fork"
+---
+
+## Why this exists
+
+Two products, shipped together, running on one identity. They have to look like
+one suite and be distinguishable at a glance, which are two requirements in
+tension, and the resolution is where the interesting decisions live.
+
+The design system is called Classical. One CSS file in the replai repository is
+its source of truth; it feeds replai's own token file and component styles, and
+the chat fork's theme converts it into the RGB triplets that registry
+validates.
+
+<Figure
+  src="/diagrams/replai/21-classical-palette.svg"
+  alt="Top card: three nine-step colour ramps with hex labels. A shared neutral ramp from near-white to near-black, labelled as the source of truth. A brass ramp labelled replai, described as the source palette's own accent. A lilac ramp labelled chatty, described as Softy's hue carried across the same nine steps. Below a rule: every lilac step inherits the relative luminance of its brass predecessor so every contrast ratio survives the switch, measured, deviation at most 0.03. Bottom card, headed 'Two places the derivation deliberately stops': the gold ramp stays and does not become lilac, serving only the warning colours, because a signal colour that borrows the accent stops signalling; and the hover shade is not luminance-faithful, because derived that way it sat delta-E 2.8 from the accent and would have been invisible as a state change."
+  caption="The shared ramp and the two accents. Everything in the bottom card is a place where the obvious rule produces the wrong result."
+/>
+
+## What is shared, and what is not
+
+**The neutral ramp is shared**, and it is the source of truth. Nine steps,
+generated in OKLCH on one shared lightness scale, so the same step of any role
+matches the others in visual value. That last property is what makes a design
+system rather than a colour list: step 400 of any ramp is *the same lightness*
+as step 400 of every other, so substituting one for another does not disturb a
+layout's visual weight.
+
+**The accent is deliberately not shared, and that is a decision rather than
+drift.** replai keeps the brass from the source palette. The chat product
+carries a lilac, so the two can be told apart at a glance.
+
+The theme file says so out loud, in capitals, because the failure mode here is
+somebody "fixing" an inconsistency: `THE ACCENT IS NO LONGER SHARED, AND THAT
+IS A DECISION RATHER THAN DRIFT.` And the test pins **both halves separately** (the neutrals against the source file, the accent against its own intent), so a
+silent return to the shared colour still fails a test.
+
+That is the pattern I'd reuse for any intentional divergence: an assertion
+that the *difference* is still there. A test that only checks the shared half
+lets a well-meaning refactor collapse the two products into one look.
+
+## Where the lilac came from, and what was not taken from it
+
+The hue was **measured from the product's own mascot**. The median over the
+saturated body of the image, excluding highlights and outline.
+
+The lightness was **not** taken from the image, and this is the part worth the
+article. The mascot's mean is a pastel, and a pastel accent on a light
+background is invisible.
+
+So: **every value carries the relative luminance of its brass predecessor.**
+Step by step, nine times. Which means every contrast ratio in the entire
+interface survives the switch, measured, with a deviation of at most 0.03.
+
+That is a genuinely satisfying constraint to work under. It converts "pick a
+brand colour", an aesthetic argument with no resolution, into "pick a hue,
+and the accessibility properties come along for free." The hue is taste. The
+luminance is arithmetic, and it is already solved.
+
+## Two places the derivation deliberately stops
+
+Both of these are cases where applying the rule consistently produces something
+worse, and both are documented in the file at the point of exception.
+
+**The gold ramp stays, and does not become lilac.** After the switch it serves
+only the warning colours, because **a signal colour that borrows the accent
+stops signalling.** A lilac warning beside a lilac submit button would no longer
+be a warning; it would be another instance of the brand.
+
+That is the sort of rule that is obvious once stated and very easy to violate
+while doing a mechanical find-and-replace of an accent, because a warning colour
+*looks* like just another use of the palette.
+
+**The hover shade is not luminance-faithful.** Derived that way, the accent and
+its hover state sat ΔE 2.8 apart, which would have been **invisible as a state
+change**.
+
+The reason is specific and I like it a lot: in the brass, that separation came
+from **saturation**, and at a fixed hue saturation is no longer available to
+spend. So the shipped value restores the gold pair's distance at ΔE 7.1, and
+comes out slightly *ahead* on contrast, 3.39 against 3.18.
+
+One exception recorded with its measurement beats a consistent rule that makes
+a button's hover state undetectable.
+
+## The status colours had to be invented, and at the right saturation
+
+The source palette has no error, success or info colour, because a
+seven-token brand palette does not need one and a product does.
+
+So they are derived, and the note beside them names the trap: they are chosen
+to sit at **Classical's own saturation** rather than at the default web-bright
+values, *so a warning does not look like a different product's warning.*
+
+That is the tell of a bolted-on design system, and I've shipped it myself: a
+carefully restrained neutral interface with a fire-engine-red error message
+that clearly came from a framework. The palette is quiet; the alarm has to be
+quiet in the same way, or it reads as a foreign element rather than as this
+product raising its voice.
+
+Same reasoning for the seven-step series ramp for charts, and for the entire
+dark mode, which is the neutral ramp inverted with the accent **held
+constant**, so the brand survives the switch. Classical is a light design
+system; its dark mode is derived, and the file says which groups are derived
+rather than sourced.
+
+## The fonts were never loading
+
+A small bug with a good reason behind its fix.
+
+The upstream source file opens by importing fonts from a public CDN. That
+import is **deliberately omitted**, and the fonts are self-hosted, because
+serving them from a CDN **leaks every user's IP address to a third party and
+breaks offline.**
+
+For an on-premises product whose entire premise is that nothing leaves the
+customer's network, a font request is a small hole in exactly the same wall as
+an embeddings API call. It is the same class of problem as the five inherited
+defaults in the previous article, and it arrives through a stylesheet rather
+than through configuration.
+
+The commit that fixed it is titled *"Classical's spacing, radii and type, and
+the fonts that were never loading"*, which is honest: the self-hosting was
+correct and the wiring was not, so the tokens were in place and the typefaces
+were silently falling back to system faces. A design system that specifies
+three typefaces and renders in none of them looks like a design system that was
+never applied.
+
+## Tailwind 3 to 4, and repairing what the codemod broke
+
+The chat client shipped on Tailwind 3.4.1 and replai's frontend was already on
+4. Porting the design system across a major version gap is a rewrite unless you
+close the gap first, so the client was migrated.
+
+The commit is titled *"migrate the client to Tailwind 4, and repair what the
+codemod broke"*, and I include it because that title is the whole experience of
+a framework codemod. It does the mechanical 90% correctly and leaves a residue
+that's invisible until somebody looks at a screen, and the residue isn't
+distributed evenly, it clusters in whatever the codemod's authors didn't have
+in their test fixtures.
+
+The order that made it survivable: migrate first, then port the design system.
+Doing the design work on the old version and migrating afterwards would have
+meant the codemod running over freshly written token plumbing, and any breakage
+would have been indistinguishable from a mistake in the port.
+
+## What the two products actually share
+
+Worth ending on, because it turned out to be more than the palette:
+
+- the **neutral ramp**, from one source file
+- the **identity realm**, and the group that decides who administers
+- the **embedder**, one container, running for the mail product, reused rather
+  than duplicated
+- the **logging path**, including the redaction transform every container's
+  output passes through
+
+And what they deliberately do not share: the accent, the datastore, and the
+retrieval corpus.
+
+That list is the actual architecture of a two-product suite, and none of it is
+visible in either product's repository on its own, which is why the sharing is
+recorded in the file that owns each shared thing, pointing outward, rather than
+in a document about the suite that nobody would open.
+
+Next, and last: what all of this has to be written down as, before it is a
+compliance artefact rather than a design intention.

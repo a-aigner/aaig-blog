@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 596" width="700" height="596" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .wrong{ fill: #ffffff; stroke: #db0a12; stroke-width: 1; stroke-dasharray: 4 3; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .mg  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .n   { font-size: 11px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .code{ fill: rgb(10 10 10 / 0.05); }
+    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="596"/>
+
+  <!-- the wrong door -->
+  <rect class="wrong" x="16" y="14" width="668" height="86" rx="6"/>
+  <text class="t lbl red" x="32" y="36">THE WRONG DOOR</text>
+  <text class="t m" x="32" y="58">GET …/ListData.svc/Attachments</text>
+  <text class="t b" x="32" y="78">HTTP 200, an empty feed, and zero properties. Which is not "no attachments",</text>
+  <text class="t b" x="32" y="94">it is "this collection is not enumerable on this build". It was read as the first.</text>
+
+  <path class="ln" d="M 350 100 L 350 126" marker-end="url(#a)"/>
+
+  <!-- the right door -->
+  <rect class="card" x="16" y="126" width="668" height="76" rx="6"/>
+  <text class="t lbl" x="32" y="148">REACH THEM THROUGH THE ITEM</text>
+  <text class="t m" x="32" y="170">GET …/ListData.svc/Ticket(3)/Attachments</text>
+  <text class="t n" x="32" y="192">The entity carries which list, which item, which filename. Never the bytes.</text>
+
+  <path class="ln" d="M 350 202 L 350 228" marker-end="url(#a)"/>
+
+  <!-- two url forms -->
+  <rect class="card" x="16" y="228" width="668" height="132" rx="6"/>
+  <text class="t h" x="32" y="252">The bytes live somewhere else, in one of two forms</text>
+  <text class="t n" x="32" y="270">Which one a build serves is not knowable in advance, so both are tried.</text>
+  <rect class="code" x="32" y="280" width="636" height="24" rx="4"/>
+  <text class="t m" x="42" y="296">…/Attachments(EntitySet='Ticket',ItemId=3,Name='report.pdf')/$value</text>
+  <rect class="code" x="32" y="310" width="636" height="24" rx="4"/>
+  <text class="t m" x="42" y="326">…/Lists/Ticket/Attachments/3/report.pdf</text>
+  <text class="t n" x="32" y="352">A quote in a filename must be doubled, and must stay literal. Percent-encode the pair and it fails silently.</text>
+
+  <path class="ln" d="M 350 360 L 350 386" marker-end="url(#a)"/>
+
+  <!-- the gate -->
+  <rect class="card" x="16" y="386" width="668" height="194" rx="6"/>
+  <text class="t h" x="32" y="410">A 200 is not proof of a file</text>
+  <line class="rule" x1="16" y1="424" x2="684" y2="424"/>
+
+  <circle cx="40" cy="444" r="3" class="red"/>
+  <text class="t b" x="54" y="448">An OData envelope came back</text>
+  <text class="t n" x="380" y="448">unsupported media request · reject</text>
+
+  <circle cx="40" cy="474" r="3" class="red"/>
+  <text class="t b" x="54" y="478">HTML came back</text>
+  <text class="t n" x="380" y="478">a sign-in redirect · reject</text>
+
+  <circle cx="40" cy="504" r="3" fill="#0a0a0a"/>
+  <text class="t b" x="54" y="508">Bytes came back</text>
+  <text class="t n" x="380" y="508">store by sha256, record the inventory row</text>
+
+  <line class="rule" x1="16" y1="526" x2="684" y2="526"/>
+  <text class="t n" x="32" y="546">Sampled over 200 tickets spread evenly across the id range: 223 files on 115 tickets, 57.5%,</text>
+  <text class="t n" x="32" y="562">extrapolating to roughly 8,500 tickets and 16,400 files. At three requests a second, that is the</text>
+  <text class="t n" x="32" y="578">one stage measured in hours rather than minutes.</text>
+</svg>

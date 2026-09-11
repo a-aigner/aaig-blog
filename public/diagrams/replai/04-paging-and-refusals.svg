@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 528" width="700" height="528" role="img">
+  <style>
+    .bg  { fill: #f4f4f1; }
+    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
+    .h   { font-size: 13px; font-weight: 700; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .b   { font-size: 11.5px; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+    .mg  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
+    .n   { font-size: 11px; fill: rgb(10 10 10 / 0.6); }
+    .red { fill: #db0a12; }
+    .pill{ fill: rgb(10 10 10 / 0.05); stroke: rgb(10 10 10 / 0.12); stroke-width: 1; }
+    .floor{ fill: #ffffff; stroke: #0a0a0a; stroke-width: 1.4; }
+    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="528"/>
+
+  <!-- the ladder -->
+  <rect class="card" x="16" y="14" width="318" height="272" rx="6"/>
+  <text class="t h" x="32" y="38">A request that does not complete</text>
+  <text class="t n" x="32" y="56">halves the page rather than giving up</text>
+
+  <rect class="pill" x="32" y="70" width="90" height="26" rx="4"/><text class="t m" x="44" y="87">500</text>
+  <rect class="pill" x="32" y="104" width="90" height="26" rx="4"/><text class="t m" x="44" y="121">250</text>
+  <rect class="pill" x="32" y="138" width="90" height="26" rx="4"/><text class="t m" x="44" y="155">125</text>
+  <rect class="pill" x="32" y="172" width="90" height="26" rx="4"/><text class="t m" x="44" y="189">62</text>
+  <rect class="pill" x="32" y="206" width="90" height="26" rx="4"/><text class="t m" x="44" y="223">31</text>
+  <rect class="floor" x="32" y="240" width="90" height="26" rx="4"/><text class="t m" x="44" y="257">25</text>
+
+  <path class="ln" d="M 77 96 L 77 100" marker-end="url(#a)"/>
+  <path class="ln" d="M 77 130 L 77 134" marker-end="url(#a)"/>
+  <path class="ln" d="M 77 164 L 77 168" marker-end="url(#a)"/>
+  <path class="ln" d="M 77 198 L 77 202" marker-end="url(#a)"/>
+  <path class="ln" d="M 77 232 L 77 236" marker-end="url(#a)"/>
+  <text class="t n" x="132" y="87">timeout, or a 500</text>
+  <text class="t n" x="132" y="121">halve again</text>
+  <text class="t n" x="132" y="257">the floor. Below this,</text>
+  <text class="t n" x="132" y="271">the farm is the problem.</text>
+
+  <!-- escape hatches -->
+  <rect class="card" x="350" y="14" width="334" height="272" rx="6"/>
+  <text class="t h" x="366" y="38">Two things that are not retries</text>
+
+  <text class="t lbl" x="366" y="64">WHEN KEY PAGING IS REFUSED</text>
+  <text class="t b" x="366" y="84">Fall back to the server's own</text>
+  <text class="t b" x="366" y="101"><tspan class="mg">__next</tspan> links. Slower, and it works.</text>
+
+  <line class="rule" x1="350" y1="120" x2="684" y2="120"/>
+
+  <text class="t lbl" x="366" y="142">RESUME</text>
+  <text class="t b" x="366" y="162">By the highest key already on disk,</text>
+  <text class="t b" x="366" y="178">so a killed run costs one page, not</text>
+  <text class="t b" x="366" y="194">an afternoon.</text>
+  <text class="t b" x="366" y="220">And it refuses to resume a file</text>
+  <text class="t b" x="366" y="236">written under a different</text>
+  <text class="t b" x="366" y="253"><tspan class="mg">Accept-Language</tspan>, because the</text>
+  <text class="t b" x="366" y="270">key column would have moved.</text>
+
+  <!-- measured -->
+  <rect class="card" x="16" y="306" width="668" height="200" rx="6"/>
+  <text class="t h" x="32" y="330">Measured against the real farm</text>
+  <line class="rule" x1="16" y1="344" x2="684" y2="344"/>
+
+  <text class="t b" x="32" y="366">tickets, one navigation stub expanded</text>
+  <text class="t m" x="400" y="366">42-53 rows/s</text>
+  <text class="t n" x="520" y="366">completes</text>
+
+  <text class="t b" x="32" y="392">the same expansion on comments</text>
+  <text class="t m red" x="400" y="392">5 rows/s</text>
+  <text class="t n" x="520" y="392">died on page 5</text>
+
+  <text class="t b" x="32" y="418">counting 102,625 rows</text>
+  <text class="t m red" x="400" y="418">HTTP 500</text>
+  <text class="t n" x="520" y="418">view threshold</text>
+
+  <text class="t b" x="32" y="444">distinct authors across all of them</text>
+  <text class="t m" x="400" y="444">59</text>
+  <text class="t n" x="520" y="444">join locally</text>
+
+  <line class="rule" x1="16" y1="462" x2="684" y2="462"/>
+  <text class="t n" x="32" y="482">A collection-valued expansion is a subquery per row. A single-valued one is a cheap join.</text>
+  <text class="t n" x="32" y="498">The count's failure is retryable, so skipping it also skips the whole retry ladder.</text>
+</svg>
