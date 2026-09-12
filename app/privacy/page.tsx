@@ -21,18 +21,17 @@ export const metadata = {
  *    visitor may choose to click.
  *
  * What Vercel does with request data on its own servers cannot be verified
- * from here, so that part is attributed to Vercel rather than asserted.
+ * from here, so that part is attributed to Vercel rather than asserted. Two
+ * such facts are quoted from Vercel's own documents rather than guessed: the
+ * transfer instrument comes from its DPA, which incorporates the 2021 SCCs
+ * (Module Two) and makes no Data Privacy Framework claim, and the collected
+ * fields and 24-hour hash lifetime come from its Web Analytics privacy page.
+ *
+ * Retention is stated as the criteria rather than a figure, which Art. 13(2)(a)
+ * permits, because the plan's reporting window is a guarantee about how long
+ * the data stays viewable and Vercel says it may hold data longer. Writing
+ * "deleted after one month" would have been the easy sentence and a false one.
  */
-
-const FILL_IN = "TO BE COMPLETED";
-
-function Fill({ what }: { what: string }) {
-  return (
-    <mark className="bg-[rgb(219_10_18/0.1)] px-1 font-medium text-[var(--color-active-red)]">
-      [{FILL_IN}: {what}]
-    </mark>
-  );
-}
 
 function H({ children }: { children: React.ReactNode }) {
   return <h2 className="mt-10 text-xl font-bold tracking-tight">{children}</h2>;
@@ -101,9 +100,12 @@ export default function PrivacyPage() {
         <p>
           The legal basis is Art. 6(1)(f) GDPR, my legitimate interest in operating a
           working and reasonably secure website. Vercel acts as a processor under a data
-          processing agreement. Because Vercel Inc. is established in the United States,
-          this data may be transferred there; that transfer relies on{" "}
-          <Fill what="the transfer mechanism named in Vercel's current DPA, e.g. EU-US Data Privacy Framework certification or Standard Contractual Clauses; confirm which applies today" />.
+          processing agreement. Because Vercel Inc. is a Delaware corporation, this data
+          may be transferred to the United States. That transfer is covered by the European
+          Commission&rsquo;s Standard Contractual Clauses, Module Two (controller to
+          processor), under Commission Decision 2021/914, which Vercel&rsquo;s data
+          processing agreement incorporates. It does not rely on the EU-US Data Privacy
+          Framework.
         </p>
 
         <H>Counting page views</H>
@@ -122,16 +124,34 @@ export default function PrivacyPage() {
           Vercel does on its own servers is Vercel&rsquo;s description, not my measurement.
         </p>
         <p>
-          What I see is aggregate: page, count, country, browser, referrer. I cannot see
-          individuals, cannot follow one person between pages, and there is no profile of
-          you anywhere in this.
+          What is recorded per page view, per Vercel&rsquo;s own documentation: a
+          timestamp, the URL and its route pattern, the referrer, filtered query
+          parameters, an approximate location down to city level, your device type, and
+          your browser and operating system with their versions. The hash that lets two
+          views in one day count as one visitor is discarded after 24 hours.
+        </p>
+        <p>
+          What I see is the aggregate of that. I cannot see individuals, cannot follow one
+          person between pages or across days, and there is no profile of you anywhere in
+          this.
         </p>
         <p>
           Legal basis: Art. 6(1)(f) GDPR. My interest is knowing whether the writing is
-          read; the intrusion is a page count without a cookie. Retention is{" "}
-          <Fill what="the retention period for your Vercel plan's analytics data" />. You
-          can object to this processing at any time under Art. 21 GDPR, by email, and I
-          will act on it.
+          read; the intrusion is a page count without a cookie.
+        </p>
+        <p>
+          On how long it is kept, the mechanism is more honest than a single number.
+          Vercel guarantees the figures stay viewable for its plan&rsquo;s reporting
+          window, which is one month on the free tier and twelve or twenty-four months on
+          the paid ones. That is a promise about how long I can read the data, not about
+          when Vercel erases it: Vercel says it may hold data beyond the window so that a
+          plan can be upgraded without losing history. So the accurate statement is that
+          the aggregate figures persist for at least the reporting window and possibly
+          longer, on Vercel&rsquo;s side, and that nothing in them identifies you.
+        </p>
+        <p>
+          You can object to this processing at any time under Art. 21 GDPR, by email, and
+          I will act on it.
         </p>
 
         <H>If you email me</H>

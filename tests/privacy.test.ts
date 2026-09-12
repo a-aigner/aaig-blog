@@ -11,8 +11,29 @@ describe("privacy notice", () => {
   // build with one still marked.
   it("has no unfilled placeholders left in it", () => {
     const src = fs.readFileSync(PAGE, "utf8");
-    const marks = src.match(/<Fill what="([^"]+)"/g) ?? [];
+    // Written against a <Fill> helper that has since been removed, because
+    // every fact it marked is now answered. Kept as a marker check so that
+    // anything added by hand later is caught the same way.
+    const marks = src.match(/<Fill what="[^"]+"|TO BE COMPLETED|TODO|FIXME|TBD/g) ?? [];
     expect(marks, `still to fill in:\n${marks.join("\n")}`).toEqual([]);
+  });
+
+  it("names the transfer mechanism rather than gesturing at one", () => {
+    // Taken from Vercel's DPA, which incorporates the 2021 SCCs and makes no
+    // Data Privacy Framework claim. Naming the wrong instrument is worse than
+    // naming none, so it is pinned.
+    const src = fs.readFileSync(PAGE, "utf8");
+    expect(src).toContain("Standard Contractual Clauses");
+    expect(src).toContain("2021/914");
+    expect(src).toContain("Module Two");
+  });
+
+  it("does not present the reporting window as a deletion promise", () => {
+    // Vercel guarantees visibility for the window and says it may keep data
+    // beyond it. A notice claiming erasure at the window would be false.
+    const src = fs.readFileSync(PAGE, "utf8");
+    expect(src).toContain("reporting window");
+    expect(src).toMatch(/not about\s+when Vercel erases it|may hold data beyond the window/);
   });
 
   it("names the supervisory authority and the objection right", () => {
