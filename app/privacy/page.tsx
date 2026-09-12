@@ -73,20 +73,20 @@ export default function PrivacyPage() {
 
         <H>Who is responsible</H>
         <p>
-          ARSoftware UG (haftungsbeschränkt)
+          {contact.name}
           <br />
           Johannisweg 3
           <br />
           84030 Ergolding, Deutschland
-          <br />
-          Geschäftsführer: Andre Aigner
           <br />
           <a href={`mailto:${contact.email}`} className="underline underline-offset-2 hover:opacity-70">
             {contact.email}
           </a>
         </p>
         <p className="text-sm text-secondary">
-          Amtsgericht Landshut, HRB 15048 · USt-IdNr. DE459104738. Full details on the{" "}
+          I run this site as a private individual. ARSoftware UG, the company I founded,
+          is written about here but does not operate this site and is not the controller
+          for it. Postal details are repeated on the{" "}
           <a href="/impressum" className="underline underline-offset-2 hover:opacity-70">
             Impressum
           </a>
