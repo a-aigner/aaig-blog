@@ -6,13 +6,19 @@ export const metadata = {
 };
 
 /**
- * The company details here are taken from ARSoftware UG's own Impressum at
- * arsoftware.tech rather than retyped from memory, so the two pages cannot
- * disagree about a register number. The legal fields use the spelling the
- * register carries ("Andre Aigner"); the site's own prose keeps the accent.
+ * This site is operated by a natural person, not by ARSoftware UG. The company
+ * is named in the writing where it is the subject, and nowhere in the legal
+ * pages: it neither operates this site nor carries the data-protection
+ * obligation for it. See /privacy for the same split.
  *
- * The contact address is deliberately the iCloud one this site already uses,
- * not the company address, because that is the mailbox that is actually read.
+ * That removes the register entry, the VAT number and the managing-director
+ * line, which are facts about a company and not about a person. What § 5 DDG
+ * wants from a natural person is a name, a postal address and a route to
+ * rapid electronic contact, which is what is left.
+ *
+ * The address is the one the company is registered at, because it is also the
+ * operator's own. If that ever stops being true, this page and /privacy both
+ * need the private one instead.
  */
 
 function H({ children }: { children: React.ReactNode }) {
@@ -27,7 +33,7 @@ export default function ImpressumPage() {
       <div className="mt-6 space-y-4 leading-relaxed text-[rgb(10_10_10/0.78)]">
         <H>Angaben gemäß § 5 DDG</H>
         <p>
-          ARSoftware UG (haftungsbeschränkt)
+          {contact.name}
           <br />
           Johannisweg 3
           <br />
@@ -36,8 +42,6 @@ export default function ImpressumPage() {
           Deutschland
         </p>
 
-        <H>Vertreten durch</H>
-        <p>Geschäftsführer: Andre Aigner</p>
 
         <H>Kontakt</H>
         <p>
@@ -49,21 +53,11 @@ export default function ImpressumPage() {
           </a>
         </p>
 
-        <H>Registereintrag</H>
-        <p>
-          Registergericht: Amtsgericht Landshut
-          <br />
-          Registernummer: HRB 15048
-        </p>
 
-        <H>Umsatzsteuer-Identifikationsnummer</H>
-        <p>
-          Gemäß § 27 a Umsatzsteuergesetz: DE459104738
-        </p>
 
         <H>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</H>
         <p>
-          Andre Aigner
+          {contact.name}
           <br />
           Johannisweg 3
           <br />
@@ -74,21 +68,21 @@ export default function ImpressumPage() {
 
         <H>Verbraucherstreitbeilegung</H>
         <p>
-          Wir sind weder bereit noch verpflichtet, an Streitbeilegungsverfahren vor einer
+          Ich bin weder bereit noch verpflichtet, an Streitbeilegungsverfahren vor einer
           Verbraucherschlichtungsstelle teilzunehmen.
         </p>
 
         <H>Haftung für Inhalte</H>
         <p>
-          Die Inhalte dieser Seiten werden mit Sorgfalt erstellt. Soweit gesetzlich
-          zulässig, übernehmen wir keine Haftung für Schäden, die aus der Nutzung oder
-          Nichtnutzung dieser Website entstehen.
+          Die Inhalte dieser Seiten erstelle ich mit Sorgfalt. Soweit gesetzlich zulässig,
+          übernehme ich keine Haftung für Schäden, die aus der Nutzung oder Nichtnutzung
+          dieser Website entstehen.
         </p>
 
         <H>Haftung für Links</H>
         <p>
-          Diese Website verlinkt auf externe Seiten, auf deren Inhalte wir keinen Einfluss
-          haben. Für diese Inhalte ist stets der jeweilige Anbieter verantwortlich. Zum
+          Diese Website verlinkt auf externe Seiten, auf deren Inhalte ich keinen Einfluss
+          habe. Für diese Inhalte ist stets der jeweilige Anbieter verantwortlich. Zum
           Zeitpunkt der Verlinkung waren keine rechtswidrigen Inhalte erkennbar.
         </p>
 

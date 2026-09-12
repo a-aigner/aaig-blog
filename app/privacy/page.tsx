@@ -27,10 +27,14 @@ export const metadata = {
  * (Module Two) and makes no Data Privacy Framework claim, and the collected
  * fields and 24-hour hash lifetime come from its Web Analytics privacy page.
  *
- * Retention is stated as the criteria rather than a figure, which Art. 13(2)(a)
- * permits, because the plan's reporting window is a guarantee about how long
- * the data stays viewable and Vercel says it may hold data longer. Writing
- * "deleted after one month" would have been the easy sentence and a false one.
+ * The one-month retention figure is the HOBBY PLAN's reporting window. It is
+ * plan-dependent, so it has to be revisited if this site ever moves to Pro,
+ * where the window is twelve months, or twenty-four with the add-on.
+ *
+ * And it is deliberately not phrased as deletion. The reporting window is a
+ * guarantee about how long the data stays viewable, and Vercel says it may
+ * hold data beyond it so a plan can be upgraded without losing history.
+ * "Deleted after one month" would have been the easy sentence and a false one.
  */
 
 function H({ children }: { children: React.ReactNode }) {
@@ -69,20 +73,20 @@ export default function PrivacyPage() {
 
         <H>Who is responsible</H>
         <p>
-          ARSoftware UG (haftungsbeschränkt)
+          {contact.name}
           <br />
           Johannisweg 3
           <br />
           84030 Ergolding, Deutschland
-          <br />
-          Geschäftsführer: Andre Aigner
           <br />
           <a href={`mailto:${contact.email}`} className="underline underline-offset-2 hover:opacity-70">
             {contact.email}
           </a>
         </p>
         <p className="text-sm text-secondary">
-          Amtsgericht Landshut, HRB 15048 · USt-IdNr. DE459104738. Full details on the{" "}
+          I run this site as a private individual. ARSoftware UG, the company I founded,
+          is written about here but does not operate this site and is not the controller
+          for it. Postal details are repeated on the{" "}
           <a href="/impressum" className="underline underline-offset-2 hover:opacity-70">
             Impressum
           </a>
@@ -140,14 +144,13 @@ export default function PrivacyPage() {
           read; the intrusion is a page count without a cookie.
         </p>
         <p>
-          On how long it is kept, the mechanism is more honest than a single number.
-          Vercel guarantees the figures stay viewable for its plan&rsquo;s reporting
-          window, which is one month on the free tier and twelve or twenty-four months on
-          the paid ones. That is a promise about how long I can read the data, not about
-          when Vercel erases it: Vercel says it may hold data beyond the window so that a
-          plan can be upgraded without losing history. So the accurate statement is that
-          the aggregate figures persist for at least the reporting window and possibly
-          longer, on Vercel&rsquo;s side, and that nothing in them identifies you.
+          This site runs on Vercel&rsquo;s free tier, where the reporting window is
+          <strong> one month</strong>: after that the figures are no longer visible to me.
+          That is a promise about how long I can read the data, not about when Vercel
+          erases it. Vercel says it may hold data beyond the window so that a plan can be
+          upgraded without losing history, so the accurate statement is that the aggregate
+          figures stay readable to me for one month and may persist longer on
+          Vercel&rsquo;s side. Nothing in them identifies you either way.
         </p>
         <p>
           You can object to this processing at any time under Art. 21 GDPR, by email, and
