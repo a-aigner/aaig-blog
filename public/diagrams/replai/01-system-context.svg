@@ -1,26 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 580" width="700" height="580" role="img">
   <style>
-    .bg   { fill: #f4f4f1; }
-    .box  { fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
-    .dead { fill: none; stroke: #db0a12; stroke-width: 1; stroke-dasharray: 4 3; }
-    .side { fill: none; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; stroke-dasharray: 4 3; }
-    .chip { fill: rgb(10 10 10 / 0.05); stroke: none; }
-    .t    { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
-    .h    { font-size: 13px; font-weight: 700; }
+    .bg   { fill: #fbfbfa; }
+    .box  { fill: #ffffff; stroke: rgb(26 26 26 / 0.16); stroke-width: 1; }
+    .dead { fill: none; stroke: #1f3a2c; stroke-width: 1; stroke-dasharray: 4 3; }
+    .side { fill: none; stroke: rgb(26 26 26 / 0.16); stroke-width: 1; stroke-dasharray: 4 3; }
+    .chip { fill: rgb(26 26 26 / 0.05); stroke: none; }
+    .t    { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .h    { font-size: 13px; font-weight: 600; }
     .b    { font-size: 11.5px; }
-    .s    { font-size: 11px; fill: rgb(10 10 10 / 0.5); }
-    .m    { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(10 10 10 / 0.62); }
-    .red  { fill: #db0a12; }
-    .ln   { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
-    .lnd  { stroke: rgb(10 10 10 / 0.3); stroke-width: 1; fill: none; stroke-dasharray: 4 3; }
-    .lnr  { stroke: #db0a12; stroke-width: 1.25; fill: none; stroke-dasharray: 5 3; }
+    .s    { font-size: 11px; fill: rgb(26 26 26 / 0.5); }
+    .m    { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(26 26 26 / 0.62); }
+    .acc  { fill: #1f3a2c; }
+    .ln   { stroke: #1a1a1a; stroke-width: 1.25; fill: none; }
+    .lnd  { stroke: rgb(26 26 26 / 0.3); stroke-width: 1; fill: none; stroke-dasharray: 4 3; }
+    .lnr  { stroke: #1f3a2c; stroke-width: 1.25; fill: none; stroke-dasharray: 5 3; }
   </style>
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
     </marker>
     <marker id="ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(10 10 10 / 0.3)"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(26 26 26 / 0.3)"/>
     </marker>
   </defs>
 
@@ -34,11 +34,11 @@
 
   <!-- the SOAP dead end -->
   <rect class="dead" x="470" y="22" width="190" height="80" rx="6"/>
-  <text class="t h red" x="486" y="46">SOAP endpoint</text>
+  <text class="t h acc" x="486" y="46">SOAP endpoint</text>
   <text class="t b" x="486" y="66">Client certificate never</text>
   <text class="t b" x="486" y="82">issued. Ruled out.</text>
-  <path class="lnr" d="M 420 62 L 462 62" marker-end="url(#a)" stroke="#db0a12"/>
-  <text class="t s red" x="428" y="53" font-size="14">✕</text>
+  <path class="lnr" d="M 420 62 L 462 62" marker-end="url(#a)" stroke="#1f3a2c"/>
+  <text class="t s acc" x="428" y="53" font-size="14">✕</text>
 
   <!-- arrow 1 -->
   <path class="ln" d="M 230 102 L 230 142" marker-end="url(#a)"/>

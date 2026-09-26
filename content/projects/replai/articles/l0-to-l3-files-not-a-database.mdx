@@ -22,7 +22,7 @@ cheap enough to run again.
 <Figure
   src="/diagrams/replai/07-layers-and-verbs.svg"
   alt="A vertical pipeline diagram. From the extract on disk, the ingest verb feeds L0, raw and append-only, holding revisions.jsonl and a derived current.jsonl. The l1 verb produces L1, cleaned, holding tickets, segments and attachment text, with the attachments verb entering from the side. The enrich verb, marked as needing a model runtime, produces L2, the model-call store keyed per comment per task per prompt version. The chunks and pairs verbs produce L3, embedding-ready, a pure function of L1 and L2 with no database above it. The embed verb, needing the embedder and Qdrant, fills a Qdrant collection with dense and sparse vectors and nine payload indexes, and the query verb returns hits grouped by ticket. Five of eight verbs are marked offline."
-  caption="Eight verbs. The three with a red dot need something running; the other five open no socket at all."
+  caption="Eight verbs. The three with a green dot need something running; the other five open no socket at all."
 />
 
 ## The two properties

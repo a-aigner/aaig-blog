@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 430" width="700" height="430" role="img">
+  <style>
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .box { fill: rgb(26 26 26 / 0.035); stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .gbox{ fill: rgb(31 58 44 / 0.08); stroke: #1f3a2c; stroke-width: 1.2; }
+    .off { fill: #ffffff; stroke: #1a1a1a; stroke-width: 1; stroke-dasharray: 3 3; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.45); }
+    .k   { font-size: 11.5px; font-weight: 600; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+    .n   { font-size: 10.5px; fill: rgb(26 26 26 / 0.6); }
+    .g   { fill: #1f3a2c; }
+    .ln  { stroke: #1a1a1a; stroke-width: 1.2; fill: none; }
+    .dl  { stroke: rgb(26 26 26 / 0.4); stroke-width: 1.2; fill: none; stroke-dasharray: 4 3; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="430"/>
+
+  <!-- GPU host -->
+  <rect class="card" x="16" y="14" width="210" height="236" rx="8"/>
+  <text class="t lbl" x="30" y="36">THE GPU HOST</text>
+  <rect class="box" x="30" y="48" width="182" height="44" rx="5"/>
+  <text class="t k" x="40" y="67">model servers, Qdrant</text>
+  <text class="t n" x="40" y="83">print to their own output</text>
+  <path class="ln" d="M 121 92 L 121 106" marker-end="url(#a)"/>
+  <rect class="box" x="30" y="110" width="182" height="44" rx="5"/>
+  <text class="t k" x="40" y="129">Docker keeps a copy</text>
+  <text class="t n" x="40" y="145">three files, then it forgets</text>
+  <path class="ln" d="M 121 154 L 121 168" marker-end="url(#a)"/>
+  <rect class="gbox" x="30" y="172" width="182" height="64" rx="5"/>
+  <text class="t k g" x="40" y="191">collector on this host</text>
+  <text class="t n" x="40" y="207">reads every container,</text>
+  <text class="t n" x="40" y="221">scrubs before sending</text>
+
+  <!-- tunnel -->
+  <path class="ln" d="M 212 204 L 262 204" marker-end="url(#a)"/>
+  <text class="t lbl" x="232" y="192">SSH</text>
+  <text class="t n" x="222" y="224">tunnel</text>
+
+  <!-- app host -->
+  <rect class="card" x="266" y="14" width="210" height="236" rx="8"/>
+  <text class="t lbl" x="280" y="36">THE APPLICATION HOST</text>
+  <rect class="box" x="280" y="48" width="182" height="44" rx="5"/>
+  <text class="t k" x="290" y="67">replai's own services</text>
+  <text class="t n" x="290" y="83">write structured lines</text>
+  <path class="ln" d="M 371 92 L 371 168" marker-end="url(#a)"/>
+  <rect class="box" x="280" y="172" width="182" height="64" rx="5"/>
+  <text class="t k" x="290" y="191">collector, and the store</text>
+  <text class="t n" x="290" y="207">30 days or 4 GB, whichever</text>
+  <text class="t n" x="290" y="221">comes first</text>
+
+  <!-- portal -->
+  <path class="ln" d="M 462 204 L 512 204" marker-end="url(#a)"/>
+  <text class="t lbl" x="478" y="192">SSH</text>
+  <rect class="gbox" x="516" y="140" width="168" height="110" rx="8"/>
+  <text class="t k g" x="530" y="164">the log portal</text>
+  <text class="t n" x="530" y="184">a search page on the</text>
+  <text class="t n" x="530" y="198">engineer's own laptop,</text>
+  <text class="t n" x="530" y="212">through a tunnel. No login,</text>
+  <text class="t n" x="530" y="226">because nothing outside</text>
+  <text class="t n" x="530" y="240">the host can reach it.</text>
+
+  <!-- the side branch -->
+  <text class="t lbl" x="16" y="286">AND THE PART THAT NEVER ARRIVES</text>
+  <rect class="off" x="16" y="298" width="668" height="116" rx="8"/>
+  <text class="t k" x="32" y="322">the nightly pipeline job</text>
+  <text class="t n" x="32" y="342">Runs from cron, directly on the GPU host, not in a container. So the collector never sees it.</text>
+  <text class="t n" x="32" y="360">Its output goes to a folder of files per run, and everything it prints is also mailed by cron</text>
+  <text class="t n" x="32" y="376">to a local account on the host.</text>
+  <text class="t k" x="32" y="400">The most important job on the machine is the one the log portal can't show.</text>
+</svg>

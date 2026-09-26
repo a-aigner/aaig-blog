@@ -1,0 +1,225 @@
+---
+title: "A mailbox that belongs to the firm, and a refactor that changed no SQL and still made the letters say \"du\""
+summary: "A firm that answers mail from info@ could not use the product, because every row belonged to exactly one person and a hundred places assumed so. Giving the firm a mailbox of its own meant one gatekeeper for every read, and then learning the hard way that 'who may see this' and 'whose is this' are different questions."
+date: "2026-09-19"
+tags: ["django", "multi-tenancy", "postgres", "imap", "privacy"]
+part: "IV · Ready to hand over"
+---
+
+## Why this exists
+
+**A firm that answers mail from `info@` cannot use this product.** That's the
+first line of the proposal, and for two months it had been true without anyone
+saying it out loud.
+
+Every mailbox in replai belonged to exactly one person. So did every message,
+thread, contact and company derived from it. That's fine for personal
+addresses. It's hopeless for the address most small firms actually run on,
+the one on the website and the letterhead, which three people read and whoever
+has a free minute answers.
+
+Two people sharing that address had two options, and both were bad. They could
+share one login, which destroys the record of who did what. Or each could enter
+the same mailbox credentials, and then the product would read every message
+twice, draft two replies, and send whichever one somebody confirmed first.
+
+A second, smaller problem came along for the ride. Nobody could choose which
+folders were read. It was the inbox plus two folder names typed as free text.
+Firms that file mail by project, which the construction trade does a lot, had
+mail sitting in folders the product simply couldn't see. The mail client had
+always been able to list the server's real folders. Nothing had ever asked it
+to.
+
+## The part that isn't the feature
+
+Here's the honest cost, which I measured before writing anything. Keeping one
+person's rows away from another's was, in the words of the code's own
+documentation, "a convenience for the common case, not a chokepoint". I counted
+the places that decided which rows a person could read. **A hundred and one.**
+Thirty-three hand-written filters, sixty-eight calls to a helper, every one of
+them assuming a row belongs to exactly one person.
+
+Get one of those wrong once shared mailboxes exist, and one employee reads
+another's mail. So the proposal said it plainly. This change is mostly about the
+scoping model, and the mailbox feature is what forces it.
+
+In plain terms, "scoping" is the question software has to ask on every single
+read: *which of these rows is this person allowed to see?* Before, a hundred
+places each asked it their own way. After, there would be one function that
+answers it, called `visible_to`, and an automated check that fails the build if
+any code goes around it.
+
+<Figure
+  src="/diagrams/replai/28-who-sees-which-mailbox.svg"
+  alt="Two people, Member A and Member B, both of whom also answer info@. On the right, three mailboxes: A's own, personal and belonging to exactly one person; info@example.de, which belongs to the firm and which only named members may read; and B's own. Each member has an arrow to their own mailbox and a green arrow to the shared one. A dashed line from A to B's mailbox is labelled 404. A footer says a person may read their own mail plus every mailbox they are a member of, and that a refusal says 'not found', never 'forbidden', so it does not reveal the other mailbox exists."
+  caption="The rule itself fits in one sentence. Making all hundred and one places obey it is the work."
+/>
+
+Membership is explicit. Someone has to be added to `info@` by name. I
+considered making shared mail readable by the whole firm, because the document
+store already worked that way, and rejected it in one line of the design notes:
+**`info@` is correspondence.** Deciding that every employee may read it would
+be making a privacy decision on the customer's behalf.
+
+## Step one: build the gatekeeper, and change nothing
+
+I wrote the check first and made sure it failed against the untouched code,
+because a guard that starts green is one nobody has tested. It named 47 call
+sites across 21 files. Thirty were mechanical renames; the rest I rewrote by
+hand.
+
+Then the proof that nothing had changed. No existing test was modified, and the
+SQL the new function produced was compared, as text, with the SQL the old one
+produced. Byte for byte identical. I also deliberately left the "and mailboxes
+you're a member of" half switched off for now. Otherwise the refactor and the
+feature land together, and if something leaks, nothing tells you which of the
+two leaked.
+
+Clean story. It has a flaw, which I found two days later by reading my own
+diff back. One of those mechanical conversions replaced "the id already
+sitting on this row" with "the person object this row points to". Same SQL.
+But fetching the person costs a trip to the database, once per row, and the
+evaluation job runs it two hundred times by default. That's a classic N+1: one
+query for the list, plus one more for each item in it, like walking back to the
+archive for every folder instead of carrying the box once. Nothing failed. It
+was just two hundred wasted round trips a run. The regression test compares
+query counts with and without the change, and doesn't assert a magic number.
+
+## Step two: give the firm a mailbox
+
+A row's owner became a pair. It is either a person or a shared mailbox,
+exactly one of the two, and the database enforces that with a constraint. Three
+surprises came out of that.
+
+Threads, contacts and companies needed the pair too, which I hadn't expected.
+Postgres treats two empty values as different from each other, so a uniqueness
+rule on "(no person, this e-mail address)" would constrain nothing, and every
+sync would have created every contact again.
+
+An older safety check compared the owner of a row with the owner of its parent.
+For rows of two *different* shared mailboxes, that compared "nobody" with
+"nobody", found them equal, and **accepted every cross-mailbox link**. It now
+compares the pair.
+
+And the nightly job that fetches mail went through people, one by one. Nothing
+would ever have fetched `info@`. It got its own step.
+
+Then I measured, because a code comment claimed the obvious query was
+"obviously cheaper". I built a test corpus of 162,000 messages, six personal
+mailboxes and three shared ones, and timed fetching the newest fifty.
+
+| Query | Median of 7 runs |
+|---|---|
+| owner only, before this feature | 1.7 ms |
+| join to membership, remove duplicates | 40.2 ms |
+| look up the member's mailbox ids first | 25.3 ms |
+
+The "obvious" one was the slow one. Removing duplicates made the database sort
+every column of every candidate row, mail bodies included, and it spilled 15 MB
+to disk to do it. The other version needs no de-duplication at all and sorted
+in 126 kB of memory. The remaining slowdown is mostly real work, since that
+member now sees 72,000 messages instead of 12,000. The comment was replaced by
+the table. And when I deleted the de-duplication to see which test would catch
+it, none did. So that test got rewritten too.
+
+## Step three: the day it said "du"
+
+This is the part I'd tell anyone designing permissions, so bear with the detail.
+
+German has two ways to say "you". *Sie* is what a firm writes to a customer.
+*Du* is for friends. replai learns, per contact, which one to use, from how the
+firm has written to them before.
+
+With shared mailboxes switched on, a customer who happened to be a personal
+acquaintance of one member would have got a letter from `info@` that opened
+with *du*.
+
+The member's personal address book had that contact marked informal, and the
+firm's address book had the same person marked formal. The code that decides
+looked up the contact through `visible_to`, which now correctly returned **both
+rows**, since the member may see both. Then it took whichever came first. **The
+firm's letter would have been written on the strength of one employee's private
+address book.** I reproduced it against a running database before believing it,
+and before anything was sent.
+
+Three more had the same shape, and none of them was loud. A member's personal
+writing style was being learned partly from up to forty of the firm's letters.
+Another job tallied both owners' replies together. And the nightly indexing job
+raised an error for every member, so their own mail stopped being indexed and
+the firm's never was.
+
+The refactor behind all four was the byte-identical one from step one. It was
+harmless right up until shared mailboxes existed, because until then "what may
+this person see" and "whose is this" always had the same answer.
+
+<Figure
+  src="/diagrams/replai/29-three-questions.svg"
+  alt="Three cards. 'May this person see it?' is answered by a union, their own mail plus every mailbox they belong to, via visible_to, for screens and search. 'Whose exactly is this?' is answered by one owner, a person or the firm's mailbox and never both, via Owner.rows and voice_of, for tone, contacts and signatures. 'May this row point at that?' is answered by an entitlement, checked on save: a draft may hang off a message its author may read, not 'is B the same as A'. Below, a dashed box lists what went wrong when the first answer was used for the second question: the firm's letters said 'du' because of one member's private address book, a member's own style was learned from up to forty of the firm's letters, and the nightly index refused every member's mail. None of it failed loudly, and the SQL of the refactor that caused it was identical."
+  caption="visible_to is a read scope. Four places were computing with it."
+/>
+
+The fix was to stop using one answer for three questions. `visible_to` answers
+the first one, for screens and search. A separate `Owner.rows` answers the
+second, returning only rows that belong to exactly this owner. The third is
+checked when a row is saved. A draft may attach to a message its author is
+*entitled to read*, which is a different test from "has the same owner". The
+old version would have asked, in effect, whether Bernd is Anna. That is never
+the question.
+
+## Step four: the firm's voice, and the firm's address
+
+Replies to `info@` had one more problem. The drafting code looked up the tone
+and signature of whoever the nightly job happened to be processing. So a reply
+from the firm's address could go out in one employee's voice, **signed with their
+name and their direct line**. Fixed. The voice now comes from the mailbox the
+message arrived in, and the firm has a writing style and signature of its own.
+
+Learning the firm's style needs a language model, and model settings are
+per person, which a mailbox isn't. So the nightly job borrows one member's
+settings: the longest-standing member who has any, ties broken by id. The
+choice is arbitrary, but it's stable, and that's the point. If the firm's
+learned style drifts from one night to the next, it should be because the mail
+changed, not because a different member won a lottery. My first two tests for
+this passed for the wrong reason, because in the test data the oldest member
+also had the lowest id. Real firms don't work that way. Someone who's been
+there for years joins `info@` today. The fixture now says so.
+
+Sending had the same flaw one layer down. A confirmed reply went out through
+the confirming member's own account, from their own address. Mail providers
+check that the sender's server is allowed to speak for the address in the
+From line, and this one wasn't, so **a correctly written reply would be filed
+as spam**. The product now picks the sending account from the draft, and the
+one function that ever writes a From header refuses a mismatch, in both
+directions.
+
+Every step is recorded. Who drafted, who edited, who sent, who added whom to
+the mailbox and who removed them. In the acceptance run, the record for one
+reply read: A accepted, B edited, B sent.
+
+## What disabling somebody does not do
+
+One screen detail I think is quietly the most important line of UI in the
+change.
+
+When an administrator suspends a person, the screen now lists the shared
+mailboxes that person reads, right next to the Suspend button, and says that
+those are not theirs and don't go with them. Without it, "suspend" reads as
+"and their mail goes too". That's wrong in the direction that gets a mailbox
+deleted.
+
+## Did it work?
+
+I ran the acceptance test on real mail servers. One stood in for the firm and
+one for a customer. Both members saw their own mail plus the firm's. Removing a
+member ended their access on the very next page load, with no sync in between.
+A folder three levels deep with an umlaut in its name synced correctly. And I
+read the finished reply from inside the customer's mailbox, to see what they'd
+see. From the firm's address, with the firm's signature.
+
+The whole change took four working days. Most of the last one was spent on
+bugs where the product was quietly wrong but gave no sign of it, and every one
+of them came from treating two questions as one.
+
+Next: the chat learns to read the firm's knowledge, fifty green tests describe
+a server that can't start, and eleven cloud services leave a product whose
+whole premise is that nothing leaves.

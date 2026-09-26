@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 440" width="700" height="440" role="img">
+  <style>
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .rule{ stroke: rgb(26 26 26 / 0.08); stroke-width: 1; }
+    .gbox{ fill: rgb(31 58 44 / 0.08); stroke: #1f3a2c; stroke-width: 1.2; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.45); }
+    .k   { font-size: 11.5px; font-weight: 600; }
+    .n   { font-size: 10.5px; fill: rgb(26 26 26 / 0.6); }
+    .b   { font-size: 10.5px; fill: #1a1a1a; }
+    .g   { fill: #1f3a2c; }
+  </style>
+  <rect class="bg" x="0" y="0" width="700" height="440"/>
+
+  <rect class="card" x="16" y="14" width="668" height="300" rx="8"/>
+  <text class="t lbl" x="32" y="38">WHAT CRON HANDS OVER</text>
+  <text class="t lbl" x="228" y="38">WHAT THE JOB NEEDS</text>
+  <text class="t lbl" x="440" y="38">WHAT FIXED IT</text>
+  <line class="rule" x1="16" y1="50" x2="684" y2="50"/>
+
+  <text class="t b" x="32" y="72">no settings at all</text>
+  <text class="t b" x="228" y="72">the three service addresses</text>
+  <text class="t g k" x="440" y="72">ask the same settings the check uses</text>
+  <text class="t n" x="440" y="86">26 Sep. Before that, nothing changed at night.</text>
+  <line class="rule" x1="16" y1="98" x2="684" y2="98"/>
+
+  <text class="t b" x="32" y="120">"the server is up"</text>
+  <text class="t b" x="228" y="120">a free slot to do real work</text>
+  <text class="t g k" x="440" y="120">send one real request first</text>
+  <line class="rule" x1="16" y1="134" x2="684" y2="134"/>
+
+  <text class="t b" x="32" y="156">no idea what ran yesterday</text>
+  <text class="t b" x="228" y="156">nobody else still running</text>
+  <text class="t g k" x="440" y="156">a lock that dies with its owner</text>
+  <line class="rule" x1="16" y1="170" x2="684" y2="170"/>
+
+  <text class="t b" x="32" y="192">no clock</text>
+  <text class="t b" x="228" y="192">done before the working day</text>
+  <text class="t g k" x="440" y="192">eight hours per stage, then stop</text>
+  <line class="rule" x1="16" y1="206" x2="684" y2="206"/>
+
+  <text class="t b" x="32" y="228">whatever survived a reboot</text>
+  <text class="t b" x="228" y="228">the database and models running</text>
+  <text class="t g k" x="440" y="228">restart policy, plus a boot unit</text>
+  <text class="t n" x="440" y="242">that runs as root, on purpose</text>
+  <line class="rule" x1="16" y1="254" x2="684" y2="254"/>
+
+  <text class="t b" x="32" y="276">everything printed, as mail</text>
+  <text class="t b" x="228" y="276">silence unless broken</text>
+  <text class="t k" x="440" y="276">promised in the script's header</text>
+  <text class="t n" x="440" y="290">not delivered yet: it still copies to the screen</text>
+
+  <rect class="gbox" x="16" y="334" width="668" height="90" rx="8"/>
+  <text class="t k g" x="32" y="358">Every night the job ran, until 26 September</text>
+  <text class="t b" x="32" y="380">fetch from the CRM: ok · attachments: ok · check the services: ok · pipeline: refused, exit 2</text>
+  <text class="t n" x="32" y="400">The check read the settings file. The script it guarded never did. Both were right about what they read,</text>
+  <text class="t n" x="32" y="414">and the search index never changed after its first run.</text>
+</svg>

@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 380" width="700" height="380" role="img">
+  <style>
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .box { fill: rgb(26 26 26 / 0.035); stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .gbox{ fill: rgb(31 58 44 / 0.08); stroke: #1f3a2c; stroke-width: 1.2; }
+    .mail{ fill: #1f3a2c; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.45); }
+    .k   { font-size: 11.5px; font-weight: 600; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .n   { font-size: 10.5px; fill: rgb(26 26 26 / 0.6); }
+    .w   { fill: #ffffff; font-size: 10px; }
+    .g   { fill: #1f3a2c; }
+    .ln  { stroke: #1a1a1a; stroke-width: 1.2; fill: none; }
+    .dl  { stroke: rgb(26 26 26 / 0.35); stroke-width: 1.2; fill: none; stroke-dasharray: 4 3; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="380"/>
+
+  <rect class="card" x="16" y="14" width="668" height="262" rx="8"/>
+  <text class="t lbl" x="32" y="38">THE IDENTITY SERVICE STOPS. THE WATCHDOG LOOKS EVERY 15 MINUTES.</text>
+
+  <!-- windows -->
+  <rect class="box" x="32" y="56" width="112" height="62" rx="6"/>
+  <text class="t k" x="44" y="78">check 1</text>
+  <text class="t n" x="44" y="96">unreachable.</text>
+  <text class="t n" x="44" y="109">Noted, no alarm.</text>
+  <path class="ln" d="M 144 87 L 160 87" marker-end="url(#a)"/>
+
+  <rect class="box" x="164" y="56" width="112" height="62" rx="6"/>
+  <text class="t k" x="176" y="78">check 2</text>
+  <text class="t n" x="176" y="96">still unreachable.</text>
+  <text class="t n" x="176" y="109">Still no alarm.</text>
+  <path class="ln" d="M 276 87 L 292 87" marker-end="url(#a)"/>
+
+  <rect class="gbox" x="296" y="56" width="148" height="62" rx="6"/>
+  <text class="t k g" x="308" y="78">check 3: incident open</text>
+  <text class="t n" x="308" y="96">45 minutes of real outage,</text>
+  <text class="t n" x="308" y="109">not one slow answer</text>
+  <path class="ln" d="M 444 87 L 460 87" marker-end="url(#a)"/>
+
+  <rect class="box" x="464" y="56" width="204" height="62" rx="6"/>
+  <text class="t k" x="476" y="78">check 4 and later</text>
+  <text class="t n" x="476" y="96">the counter goes up.</text>
+  <text class="t n" x="476" y="109">Nobody is mailed again.</text>
+
+  <!-- mails -->
+  <rect class="mail" x="286" y="136" width="168" height="24" rx="12"/>
+  <text class="t w" x="300" y="152">one mail: something is wrong</text>
+  <path class="ln" d="M 370 118 L 370 134" marker-end="url(#a)"/>
+
+  <!-- acknowledged -->
+  <rect class="box" x="32" y="182" width="300" height="62" rx="6"/>
+  <text class="t k" x="44" y="204">someone clicks "I have seen this"</text>
+  <text class="t n" x="44" y="222">The incident stays open. Seen is not fixed,</text>
+  <text class="t n" x="44" y="235">and the screen does not pretend otherwise.</text>
+
+  <rect class="gbox" x="368" y="182" width="300" height="62" rx="6"/>
+  <text class="t k g" x="380" y="204">the service comes back: resolved</text>
+  <text class="t n" x="380" y="222">Exactly one mail says so. If the same fault returns</text>
+  <text class="t n" x="380" y="235">later, it gets a new incident with a new start.</text>
+  <path class="dl" d="M 566 118 L 566 178" marker-end="url(#a)"/>
+
+  <text class="t lbl" x="16" y="302">WHAT IS NEVER MAILED</text>
+  <text class="t n" x="16" y="322">A fault that came and went between two checks. An incident that is still open and was already reported.</text>
+  <text class="t n" x="16" y="340">Three incidents raised in the same window arrive as one message, not three.</text>
+  <text class="t n" x="16" y="358">A mail that could not be sent is recorded as undelivered. The product never claims it told somebody when it did not.</text>
+</svg>

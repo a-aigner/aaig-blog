@@ -47,7 +47,7 @@ enough to 400 a filter.
 
 <Figure
   src="/diagrams/replai/03-property-resolution.svg"
-  alt="Top card: a three-column table mapping a role to its German and English property names, identity is ID versus Id, created is Erstellt versus Created, modified is Geändert versus Modified, author is ErstelltVonId versus CreatedById, plus modified-by, content type, path and attachments. Below a rule, custom columns like Title, Description and TicketNumber are identical in both. Bottom card: a four-step flow from a role, to its ordered aliases, to an exact match over the row's keys, to a single case-insensitive fallback pass, with a red note that $filter=Id gt 0 returned HTTP 400 against the German service."
+  alt="Top card: a three-column table mapping a role to its German and English property names, identity is ID versus Id, created is Erstellt versus Created, modified is Geändert versus Modified, author is ErstelltVonId versus CreatedById, plus modified-by, content type, path and attachments. Below a rule, custom columns like Title, Description and TicketNumber are identical in both. Bottom card: a four-step flow from a role, to its ordered aliases, to an exact match over the row's keys, to a single case-insensitive fallback pass, with a green note that $filter=Id gt 0 returned HTTP 400 against the German service."
   caption="Eight roles, sixteen names. The custom columns are the trap inside the trap."
 />
 

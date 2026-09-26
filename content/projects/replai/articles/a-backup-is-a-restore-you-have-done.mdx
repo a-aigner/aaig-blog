@@ -1,0 +1,218 @@
+---
+title: "A backup is a restore you have already done, and ours had never been done"
+summary: "The appliance ran fortnight-old code and nothing could tell. So it learned to say which build it is, to stop tasks that hang, to open and close incidents instead of writing log lines, and to back itself up. The first real restore failed on its first line, and the backups that passed were being written somewhere that vanished on restart."
+date: "2026-09-13"
+tags: ["operations", "backup", "observability", "celery", "on-premises"]
+part: "IV · Ready to hand over"
+---
+
+## Why this exists
+
+On 12 September I pulled thirty days of logs off the installation, 105,132
+records, and asked them some boring questions. The answers weren't boring.
+
+The worker that does the nightly work had been built on 29 August. A fix it
+needed landed on 31 August. **So for a fortnight the appliance ran without a
+fix it appeared to have**, and there was no way to find that out short of
+comparing image timestamps by hand. The version number, `0.1.0`, sat in three
+files, had never been incremented, and was read by nothing.
+
+The nightly sweep logs an event when it finishes. That event appeared zero
+times in thirty days. The last real failures, on 22 August, happened thirteen
+times across six nights, and nobody was told. And the backup documentation said,
+accurately, that "this product does not have one."
+
+None of this is unusual for software in its second month. What makes it matter
+here is the thing the whole series keeps coming back to. **The customer has no
+IT department.** Nobody reads logs. Nobody would notice a stale container. If
+the product doesn't look after itself, and say plainly when it can't, then
+nobody does.
+
+This article is the four things I built so that it can, in the order they
+depend on each other. Each one starts with what it means in plain terms,
+because none of it is exotic. It is the kind of care a good caretaker takes of
+a building, written down as code.
+
+## Step one: the machine says which build it is running
+
+In plain terms, a build is one specific packaging of the code. If two
+installations run "replai", they might still run different builds, the way two
+people can own the same book in different printings. Any diagnosis
+starts with knowing which printing you have.
+
+The build id is now the output of `git describe`, computed when the images are
+built and baked in. It shows up on every log record, on every background job
+run, on the console's status page, and on a tiny public page, `/health`, that
+answers exactly two things, whether the service is up and which build it is.
+Nothing else, because it needs no login and so must reveal nothing.
+
+My first design put the build id into an environment variable in the image.
+**That would have been a defect.** The customer's own settings file overrides
+image variables, so one stray line there could make the product claim a build
+it isn't running. The id is written into a file inside the package instead, and
+I checked it by starting a container with `DS_BUILD=i-am-lying`. The reported
+build didn't change. A build made without the proper command reports `unknown`,
+which is honest rather than an error.
+
+Once every component reports its build, a new check falls out almost for free.
+If the web process and the last background job disagree, the console says the
+installation is **running two different builds**. That's the fortnight from the
+logs, as a sentence on a screen.
+
+## Step two: nothing runs forever
+
+Background work (fetching mail, indexing documents, drafting replies) runs in
+a task queue. Until September, no task had a time limit. A task that hung, on a
+server that never answered, say, would simply occupy a worker forever, and the
+only symptom would be work quietly not getting done.
+
+Each task now has two limits. A soft one, which politely interrupts the task so
+it can write down why it stopped. And a hard one a little later, which ends it
+regardless. Short tasks get ten and twelve minutes. The nightly sweep gets
+seven hours fifty-five and eight hours.
+
+The soft limit alone would have done nothing, and this is my favourite kind of
+bug because it's invisible from every angle except the right one. The library
+signals the soft limit by raising an exception. The sweep, by design, catches
+exceptions broadly so that one bad mailbox doesn't stop the night's work. **So
+the polite interruption would have been caught, logged as an ordinary error,
+and ignored.** And it's only signalled once.
+
+My design notes predicted two places where that could happen. A test that walks
+the sweep's syntax tree found four. The hard limit is what makes the soft one
+safe, and the test is what makes sure the count stays four and not five.
+
+## Step three: an incident is a fact, not a log line
+
+A log line is a diary entry. You'd have to be reading the diary. An incident is
+more like an open ticket. It has a moment it started, a moment it ended, and
+while it's open it doesn't go away because you stopped looking.
+
+A small job, the watchdog, now wakes every fifteen minutes and checks the
+installation's vital signs. Is the log pipeline flowing? Did the nightly sweep
+finish when it should have? Did a job fail? Is a service the product depends on
+unreachable? Is a disk filling up? Is the last backup too old, or not leaving
+the machine? Every run is recorded, including the ones that find nothing,
+because "nothing was wrong" and "nothing checked" should never look the same.
+A check that itself crashes becomes its own incident.
+
+<Figure
+  src="/diagrams/replai/24-life-of-an-incident.svg"
+  alt="A timeline of four watchdog checks while the identity service is stopped. Checks one and two note the problem without raising an alarm. Check three opens an incident, which means forty-five minutes of real outage rather than one slow answer, and exactly one mail goes out saying something is wrong. Check four and later only increase a counter. Below, two outcomes: someone clicking 'I have seen this' leaves the incident open, because seen is not fixed; the service coming back resolves it and exactly one mail says so. A footer lists what is never mailed: a fault that came and went between two checks, an incident already reported, and three incidents in the same window, which arrive as one message. A mail that could not be sent is recorded as undelivered."
+  caption="One outage, one mail when it starts, one when it ends. Everything in between is a counter on the console."
+/>
+
+The design choices are mostly about not crying wolf, because an alarm people
+learn to ignore is worse than none. A dependency has to fail three checks in a
+row before it's an incident. That's forty-five minutes, long enough to rule out
+a restart. The mail goes out at most once per fifteen-minute window, never once
+per incident, and it doesn't repeat for something already reported. When the
+problem clears, one more mail says so. A fault that came and went between two
+checks isn't mentioned at all.
+
+Two details I'd copy into any product. **Acknowledging doesn't close an
+incident.** Clicking "I've seen this" records who saw it and when, and the
+incident stays open until the condition actually clears. And **the product
+never claims to have told anyone when it didn't.** If the alert mail fails to
+send, the incident is marked undelivered, with a classification of why, and
+the console shows that. An incident record has no free-text field at all, so
+nothing a remote server said can end up quoted in an e-mail.
+
+I tested this the unglamorous way. I stopped the identity service and watched.
+Window one: nothing. Window two: nothing. Window three: an incident and one
+mail. Window four: nothing. I started it again and got one resolution mail.
+
+## Step four: a backup you have never restored is a belief
+
+This is the step the title is about.
+
+Every night at two, the product writes a backup set. It holds a dump of each of
+the two databases (the application's, and the identity service's) plus the
+settings file, which matters more than it sounds. The stored mail passwords are
+encrypted, and the key is in that file. A backup without it restores a database
+full of passwords nobody can read.
+
+<Figure
+  src="/diagrams/replai/25-what-makes-a-backup.svg"
+  alt="A three-step nightly flow. Step one writes the set: the application dump, the identity service dump, and the settings file with the key that unlocks stored passwords. Step two checks it is complete, which proves the files exist but nothing about whether they can be used. Step three verifies it by restoring into a throwaway database, checking the tables are there and deleting that database; only this counts. A card below says the newest seven complete sets are kept and the last verified one is never deleted, with an optional copy off the machine whose failure is its own incident. Two dashed boxes describe what went wrong: the image carried version 17 restore tools against a version 16 database, so restoring failed on its first line and every set would have stayed unverified forever, found by doing a restore; and the backup folder meant for the host also reached the container, which wrote the sets into itself, so they were complete, verified, green and gone at the next restart, found by asking where a set lands."
+  caption="Complete and verified are two separate ticks on the console, on purpose."
+/>
+
+A set is marked **complete** when every file is there. It's marked **verified**
+only after it has been restored into a throwaway database, checked, and that
+database dropped again. Those are separate columns, and separate ticks on the
+screen, because they answer different questions. A checksum can prove a file
+didn't change. It can't prove the file is any use.
+
+The first time the verification ran for real, it failed.
+
+`pg_restore exited 1`. The image shipped the version 17 PostgreSQL client tools
+against a version 16 database. Version 17's restore program opens with a
+setting that version 16 doesn't have, and stops. The Dockerfile had a comment
+saying this pairing was tested, and it was, but only in one direction. **The
+half that worked was the half that had been measured.** Without that first real
+restore, every set on every installation would have been recorded as unverified
+forever, with a fresh incident about it each night, and the likeliest response
+to a nightly alarm nobody understands is to stop reading it.
+
+The second defect was worse, because it reported success.
+
+The backup location is set by one variable, meant as a folder on the host
+machine, the disk you'd actually take a copy of. The same settings file also
+feeds the containers, so the variable reached the backup container too, which
+dutifully wrote its sets into its own filesystem. **The sets were produced,
+verified, marked complete and shown green on the console. And they sat on no
+disk anyone backs up**, and disappeared the next time the stack restarted.
+
+No test found it. I found it while writing the restore instructions, by asking
+the most literal question available: where, physically, does a set land?
+
+With both fixed, I did the whole restore as a drill on a disposable stack. I
+destroyed the volumes, restored both dumps and the settings file, and signed in
+through the normal login flow. The dumps were 147 and 210 kB and came back in
+about four seconds. One surprise was that the identity service demanded a
+password change on sign-in. It had been restored to exactly its own earlier moment,
+including a pending "change your password" flag I'd forgotten about. Correct.
+Also exactly the kind of thing you'd rather meet on a quiet afternoon than
+during an outage.
+
+To make "verified" mean something, I then wrote 2 kB of random bytes into the
+middle of a good dump. The set stayed complete, flipped to unverified, and
+raised an incident. Seven complete sets are kept, and the last verified one is
+never pruned, however old it gets.
+
+## What reading it back found
+
+After the four steps were built and green, I read the day's code back from the
+top, the way you'd review a colleague's. Four defects came out of it that no
+test had caught.
+
+The disk-space check measured the container's working directory, not the backup
+disk. The nightly backup took no lock, so an administrator pressing "Back up
+now" at five past two would have started a second dump alongside the first. An
+error message included the database's host and port, and would have carried
+them into the console and into incident mails. And the sweep's eight-hour limit
+had been typed twice as a number instead of once as a name.
+
+The acceptance run found one more, and it's a nice one. A second copy of the
+stack refused to start on the same machine because the log store published a
+fixed port. That only matters when you try to run two, which is exactly what
+an acceptance run on a developer's machine does, and never what the customer
+does. Fixed anyway, because a test environment you can't start is a test you
+stop running.
+
+## What it still doesn't do
+
+The compliance annex lists each security measure with a status, which is
+provided in code, provided by documentation, or not provided. After this work, backup moved
+from "not provided" to "code". It is, so far, the only marking in the whole
+annex that has ever moved in that direction.
+
+Disaster recovery beyond this one machine, and anyone on call to read the
+mails, stay "not provided", and the annex says so. A watchdog that mails a firm
+with no IT department still needs a person at the other end who knows what to
+do with the mail. That part isn't software.
+
+Next: the other half of "go back to how it was". A backup can take you back to
+yesterday's data. It can't take you back to yesterday's software, and until
+this point nothing could.

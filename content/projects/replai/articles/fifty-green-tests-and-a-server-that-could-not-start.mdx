@@ -1,0 +1,207 @@
+---
+title: "Fifty green tests, a server that could not start, and eleven cloud tools in a product where nothing leaves"
+summary: "The chat learns to search the firm's knowledge through a server that can't even name a person's mailbox. On the way, a test suite supplied the one setting production lacked, a console removed its own access, and a closer look at the chat's built-in tools found eleven ways out of the building."
+date: "2026-09-25"
+tags: ["mcp", "llm", "security", "librechat", "on-premises"]
+part: "IV · Ready to hand over"
+---
+
+## Why this exists
+
+The chat product in this suite is a hard fork of an open-source chat
+application. It runs inside the firm's network, on the firm's login and the
+firm's local models. Until this month it could talk, but it couldn't look
+anything up. It didn't know about fifteen years of CRM history, or about the
+firm's documents, even though both sit indexed a few containers away, because
+the e-mail assistant uses them every night.
+
+The standard way to give a chat model something to look things up with is
+**MCP**, the Model Context Protocol. The model is told "you have a tool called
+*search*", and when a question needs it, the model asks the chat to run the
+tool and reads the result before answering. MCP is just the agreed format for
+that request and that answer. A **corpus**, in this article, is one searchable
+body of the firm's knowledge. CRM tickets are one. The shared document folder
+is another.
+
+The chat already let users register MCP servers of their own, and that's the
+reason its outbound firewall rules couldn't simply be "deny everything". Users
+pick where their tools live, and those places are outside. My plan was that a
+server defined by the deployment itself, inside the network, would make that
+reason go away. The chat would stop choosing where data goes.
+
+That plan turned out to be half wrong, which I'll come to. The server itself
+came first.
+
+## A boundary that isn't a filter
+
+The customer's ruling on 19 September was that corpora are firm-wide only.
+Personal mailboxes and personal documents are never searchable from the chat.
+
+There are two ways to build that. One is a filter: the server can reach
+everything, and a line of code removes the personal rows. The other is to make
+sure the server has **no way to reach them at all**. My design notes have the
+reason in one sentence, and I'd put it on a wall. A filter is a line somebody
+can convert; a missing code path is not.
+
+<Figure
+  src="/diagrams/replai/31-the-boundary.svg"
+  alt="An employee asks the chat a question. Before a search runs, the chat checks whether this person may use this source at all, the person approves with the search text visible, and a record is appended that says a search happened but not what it was for. The chat calls the corpus server, which has one address per source, knows no user at all and has no port outside the internal network. It reaches CRM history and documents, both firm-wide. Below a heavy line labelled 'no code path, not a filter' sit mailboxes and personal documents, which the server cannot name, checked by a test that reads its code. The admin console decides who gets which source, records the decision at once, and a reconciler makes the chat match it; the screen says 'recorded, not yet in force' or 'in force'."
+  caption="Everything about people happens on the left. The server on the right doesn't know people exist."
+/>
+
+So the corpus server is a small separate service that exposes read-only search
+and nothing else. Its guard test reads the server's code as a syntax tree and
+fails if any module names the mail models, or reaches them indirectly through
+the permission function from the last article. I made that guard fail three
+ways before the server existed. A module naming the model. A module reaching it
+without naming it. And an empty folder, because an empty folder passes every
+"nothing forbidden found" check for free. The boundary is also tested by
+behaviour: a person's document and a shared mailbox's message go in, and
+searches come back empty.
+
+The server has no published port and no credentials. Only the chat's container
+can reach it, the same way it reaches the embedding service. That is its entire
+access control, and the compliance annex now says so in those words, because
+"authenticates nobody" is a fact an auditor should read in the document rather
+than discover.
+
+## Fifty green tests
+
+Here's the moment in the title. By the evening of the 19th the corpus server had
+fifty tests, all green, including ones that spoke real MCP over HTTP to a real
+instance. Then the acceptance run started it as a container, as the customer
+would, and within thirty seconds it was in a restart loop:
+
+```
+ImproperlyConfigured: Requested setting INSTALLED_APPS
+```
+
+How do fifty tests pass for a server that can't start? The server uses the
+same database models as the rest of the product, and those
+need one environment variable to know where their configuration lives. The
+product's other entry points set it themselves. This one didn't. **The test
+runner set it for every test**, before collecting a single one, from the
+package's test configuration. So the suite supplied the one missing piece that
+production lacked, and fifty tests truthfully reported that a server which
+could never start worked perfectly.
+
+The guard I added runs the server's startup in a separate process with that
+variable removed. It has to be a separate process. Inside the test process the
+framework has already been set up, and setting it up again is a silent no-op,
+so an in-process test would pass anyway.
+
+That same evening had two more of the same species. The CRM's vector database
+runs in its own stack, reachable through a port on the host, and the other
+services carry a small line that makes the host reachable by name. The corpus
+server didn't, because that was a convention nobody had written down. So the
+source's schema read fine, the settings screen said "queryable", the source was
+offered to the chat, and every search failed. The worker reached the same
+address happily, and my earlier timing had run from the host itself, where the
+line isn't needed. Every check that existed was run from somewhere that
+couldn't see the problem.
+
+And when the embedding service was down, the server told the model "there is no
+corpus called that". Which was false, and worse than an error, because a model
+told a source doesn't exist will cheerfully answer without it. Now there are
+three distinct answers: doesn't exist, deliberately withheld (which still reads
+as unknown, so nobody learns it exists), and exists but can't be reached right
+now.
+
+## Per person, and a console that locked itself out
+
+The first version had one server for all firm-wide sources. Then the customer
+ruled that access should be granted per person, not firm-wide. The chat can already grant a server to a user, a role or a
+group, but only for servers stored in its own database. A server defined in a
+configuration file can't be granted to anyone in particular.
+
+So each source became its own MCP server, and the product's admin console now
+owns them. The console records a decision immediately ("this source, these
+people"), and a **reconciler** makes the chat match it. In plain terms, a
+reconciler is a job that compares what should be true with what is true, fixes
+the difference, and tries again later if it couldn't. It runs after every
+change and on a schedule. The screen tells the administrator which state
+they're in: off, recorded but not yet in force, or in force.
+
+I wrote the chat client from the names of its routes, and that's what it
+deserved to be called out for. Three of four calls were wrong. One path was
+invented. The permissions call takes a list of additions *and* removals, so
+sending only additions would never remove anyone. And the live test found four
+more things, including that the chat's permissions endpoint rejects requests
+that don't look like a browser and logs a security violation against the
+caller.
+
+Then the reconciler removed its own access. It computed "people to remove" as
+everyone currently granted minus everyone wanted, and **the console's own
+service account was among those currently granted**. First reconcile, it
+revoked itself. Every call after that got a "not found", which the console
+dutifully reported as "the chat doesn't have that server". The fix is one line.
+Finding it needed a live chat, because every fake I'd written granted
+permissions the way I assumed they worked.
+
+The end-to-end proof was deliberately small. A test user granted only CRM
+tickets asked a question, and the document source wasn't offered to them.
+
+## Eleven ways out
+
+While tightening the chat's configuration I listed every built-in tool it
+offers the model. Thirteen. Two are local. A calculator, and a tool for asking the
+user a clarifying question. **The other eleven send the question to
+a cloud service**: web search engines, image generators, a weather API,
+Wolfram Alpha. They were offered whether or not anyone had configured a key for them.
+
+<Figure
+  src="/diagrams/replai/30-thirteen-tools-to-two.svg"
+  alt="Two panels. Before: the chat shipped thirteen built-in tools, offered with or without a key. Two are local, calculator and ask_user_question. Eleven send the question to a cloud service: Google, Tavily, Traversaal, DALL·E, OpenAI images, Gemini images, Flux, Stable Diffusion, Wolfram, Azure AI Search and OpenWeather; on a product whose premise is that nothing leaves the building, each is a door through that wall. After: two built-in tools, both local, plus one search tool per knowledge source, CRM tickets and firm documents. Each knowledge search asks the user first and shows what it will send, is offered only to people the console allowed, is recorded in a log nobody can edit, and never leaves the firm's network. A footer says tools are sorted by where the data goes, not by whether they only read."
+  caption="The model's whole tool surface, before and after. Sorted by where the data goes, because a read-only web search still sends your question to someone."
+/>
+
+The allowed list is now exactly the two local tools, and nothing else is
+offered. The chat also won't start at all if the approval policy is missing.
+
+That policy got sharper too. Every call to a knowledge server asks the person
+first, and until now the approval prompt showed the tool's name and hid the
+actual search text behind an "edit" button. You were approving without seeing
+what you approved. The text now sits above the buttons, read-only.
+
+Every knowledge search is also written to the chat's audit chain, a log you
+can only add to. Each entry is linked to the one before, so a deleted or edited
+entry shows. It records who searched, which source, the outcome and how long it
+took. It deliberately does **not** record the question or the answer. It can
+prove that the CRM was searched, never what for. Deleting the conversation
+doesn't remove the record, and appending one costs about two milliseconds.
+
+Two more doors closed the same day. An administrator could withhold a source
+from someone on the console, and that person could still reach it through an
+assistant a colleague shared with them. It's now refused at two independent
+points and logged as a refusal. And an unreachable knowledge server used to
+"succeed" by returning the sentence "temporarily unavailable" as if it were a
+search result, which the model then read as content. It fails properly now.
+
+## The half of the plan that was wrong
+
+Remember the plan: a deployment-defined server would remove the reason users
+need outbound access. That was wrong, and I found it by rereading the chat's own
+specification. It deliberately allows users to register their own servers. So
+the requirement shrank to something narrower and true. A user can't register a
+server that shadows or replaces one of the firm's.
+
+The outbound firewall therefore stays a maintained allow-list. It covers the
+chat's own subnet, the login service, the model runtime and DNS. It matches a
+dedicated subnet instead of container addresses, because those change every
+time a container is recreated. The check script is in the repository. Installing the rule is
+a step on the customer's own server, and until they do, the task stays open,
+written down as open.
+
+## Where it stands
+
+The first half of this, the corpus server, is merged. Everything from the
+per-person registry onwards is on a branch, done and green, including a
+closing round of hardening. Settings the deployment fixes can no longer be
+overridden from inside the chat's admin screens. Chat administrators come from
+the identity service's role, not from a flag in the chat's database. And a
+refresh token lives eight hours instead of upstream's seven days.
+
+What it doesn't do yet is show anyone those audit records. They're written,
+chained and verifiable, and no screen renders them. That's the next piece, and
+until it exists the honest description is that the product can prove who
+searched the firm's knowledge to somebody willing to query a database.

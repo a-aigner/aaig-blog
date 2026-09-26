@@ -63,7 +63,7 @@ describe("content layer", () => {
 
   it("reverses the list for a project that reads as one narrative", () => {
     expect(getProject("gamma", FIXTURES).meta.readingOrder).toBe("oldest-first");
-    expect(getProjectArticles("gamma", FIXTURES).map((a) => a.slug)).toEqual(["one", "two"]);
+    expect(getProjectArticles("gamma", FIXTURES).map((a) => a.slug)).toEqual(["one", "three", "two"]);
   });
 
   it("keeps prev older and next newer whatever order the project displays", () => {
@@ -71,15 +71,24 @@ describe("content layer", () => {
     // reading forward through an oldest-first project means following `next`.
     const first = getAdjacentArticles("gamma", "one", FIXTURES);
     expect(first.prev).toBeNull();
-    expect(first.next?.slug).toBe("two");
+    expect(first.next?.slug).toBe("three");
 
     const last = getAdjacentArticles("gamma", "two", FIXTURES);
-    expect(last.prev?.slug).toBe("one");
+    expect(last.prev?.slug).toBe("three");
     expect(last.next).toBeNull();
   });
 
   it("carries a part label only where an article sets one", () => {
-    expect(getProjectArticles("gamma", FIXTURES).map((a) => a.part)).toEqual(["I · Beginning", "II · Ending"]);
+    expect(getProjectArticles("gamma", FIXTURES).map((a) => a.part)).toEqual(["I · Beginning", "I · Beginning", "II · Ending"]);
+  });
+
+  it("keeps a part together when one of its articles is newer than the next part", () => {
+    // "three" is dated after "two" but belongs to part I, so it closes part I
+    // instead of opening a second part I at the end, and reading walks into it.
+    expect(getProjectArticles("gamma", FIXTURES).map((a) => a.slug)).toEqual(["one", "three", "two"]);
+    const late = getAdjacentArticles("gamma", "three", FIXTURES);
+    expect(late.prev?.slug).toBe("one");
+    expect(late.next?.slug).toBe("two");
     expect(getProjectArticles("alpha", FIXTURES).every((a) => a.part === undefined)).toBe(true);
   });
 });

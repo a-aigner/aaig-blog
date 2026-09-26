@@ -1,21 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 594" width="700" height="594" role="img">
   <style>
-    .bg  { fill: #f4f4f1; }
-    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
-    .svc { fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.12); stroke-width: 1; }
-    .open{ fill: #ffffff; stroke: #db0a12; stroke-width: 1.2; }
-    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
-    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
-    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
-    .k   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; font-weight: 700; }
-    .n   { font-size: 10px; fill: rgb(10 10 10 / 0.6); }
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.16); stroke-width: 1; }
+    .svc { fill: rgb(26 26 26 / 0.04); stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .open{ fill: #ffffff; stroke: #1f3a2c; stroke-width: 1.2; }
+    .rule{ stroke: rgb(26 26 26 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.42); }
+    .k   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; font-weight: 600; }
+    .n   { font-size: 10px; fill: rgb(26 26 26 / 0.6); }
     .b   { font-size: 11px; }
-    .red { fill: #db0a12; }
-    .ln  { stroke: rgb(10 10 10 / 0.4); stroke-width: 1; fill: none; }
+    .acc { fill: #1f3a2c; }
+    .ln  { stroke: rgb(26 26 26 / 0.4); stroke-width: 1; fill: none; }
   </style>
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(10 10 10 / 0.4)"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(26 26 26 / 0.4)"/>
     </marker>
   </defs>
   <rect class="bg" x="0" y="0" width="700" height="594"/>
@@ -97,6 +97,6 @@
   <text class="t b" x="16" y="518">Every port but one is bound to loopback. Every URL and bind is an environment variable, and the</text>
   <text class="t b" x="16" y="534">convention distinguishes them: one names the in-network address, the other the host bind including</text>
   <text class="t b" x="16" y="550">its interface. There is no host or port literal in the code.</text>
-  <circle cx="20" cy="572" r="3.5" class="red"/>
+  <circle cx="20" cy="572" r="3.5" class="acc"/>
   <text class="t b" x="32" y="576">A model endpoint that resolves to a public address does not fail at request time. The process refuses to start.</text>
 </svg>

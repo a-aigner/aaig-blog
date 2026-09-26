@@ -18,7 +18,7 @@ and the assessment at the back, contact no model at all.
 <Figure
   src="/diagrams/replai/13-drafting-pipeline.svg"
   alt="Top card: nine stages down a vertical rail, each marked with a dot showing whether it calls a generative model, a retrieval service, or nothing. Gate is pure SQL so a mail that will never be drafted costs nothing. Classify asks for one of seven intents plus a language code at temperature zero and refuses rather than guessing. Condense turns the mail into a short German search query. Few-shot and gather collect the firm's own past replies, retrieval and the thread tail, sending two different strings to the two arms. Fit drops to the budget in a fixed order. Assemble is deterministic with German prompt text in files. Generate is the one call to the drafting model, capped at 800 output tokens. Assess traces every figure mechanically, computed from the prompt rather than asked of a model. Persist writes a draft at PENDING or HELD with one source row per citation. Bottom card: the fixed drop order and the rule that correctness outranks voice."
-  caption="Nine stages. Three red dots. The gate and the assessment, the two that decide most, are both model-free."
+  caption="Nine stages. Three green dots. The gate and the assessment, the two that decide most, are both model-free."
 />
 
 ## The gate is SQL, and that is the point
