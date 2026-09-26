@@ -48,7 +48,10 @@ export function getProjectArticles(
       const { data, content } = matter(fs.readFileSync(path.join(dir, f), "utf8"));
       return toArticleMeta(slug, articleSlug, data, content);
     })
-    .sort((a, b) => b.date.localeCompare(a.date)); // newest first
+    // Newest first. Two articles on the same day fall back to their slugs, so
+    // the order is the same on every machine rather than whatever order the
+    // filesystem happened to list the directory in.
+    .sort((a, b) => b.date.localeCompare(a.date) || b.slug.localeCompare(a.slug));
 
   // The project decides. Only a project that says so gets the other order, so
   // every existing project keeps the list it had.

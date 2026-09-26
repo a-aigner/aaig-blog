@@ -1,0 +1,151 @@
+---
+title: "Letting the chat look things up in the firm's records, without letting anything out"
+summary: "Employees ask the chat questions whose answers sit in fifteen years of the firm's own records, and the chat couldn't see any of them. Opening that up is easy. Opening it up so that the right people see the right records, and nothing leaves the building, is what this feature is for."
+date: "2026-09-24"
+tags: ["mcp", "rag", "product-design", "privacy", "on-premises"]
+part: "IV · Ready to hand over"
+---
+
+## The problem
+
+Picture someone at the firm on a Tuesday afternoon. A client calls about an
+old issue. What did we tell them last time? How did we solve it? The answer
+exists, somewhere in fifteen years of support tickets and internal documents.
+Finding it means knowing where to look and having an hour to spare.
+
+The firm has a chat assistant for exactly this kind of question. It runs on the
+firm's own server, and it's good at reading and summarising. But it couldn't
+see any of the firm's records. It could explain how to write a polite reply,
+and it had no idea what the firm had actually written before.
+
+The records themselves were already prepared. Earlier parts of this series
+describe how fifteen years of tickets were copied out of an old CRM and indexed
+so a computer can search them by *meaning*, which finds "the printer keeps jamming"
+when you ask about "paper stuck in the copier". The e-mail assistant
+uses that index every day. The chat was simply never connected to it.
+
+Connecting it is a small job. Doing it safely is the actual work, because
+three things must stay true afterwards:
+
+- **Nothing leaves the building.** The whole product exists because the firm's
+  data stays on the firm's own server.
+- **Not everyone sees everything.** Some records are for some people.
+- **Nobody is surprised.** Neither the person asking, nor the firm, should ever
+  wonder what the chat looked at on their behalf.
+
+Everything below is built to keep those three true. I'll show it the way the
+people involved meet it: first the administrator, then the colleague asking a
+question.
+
+## Part one: someone decides, in writing, what the chat may read
+
+The first decision is whether a set of records may be offered to the chat at
+all. That happens on a settings screen where an administrator connects the
+firm's record collections. Most of the screen is plain setup, where the records
+live and which field holds the text.
+
+The important part is a warning, and a checkbox under it.
+
+<Figure
+  src="/screenshots/replai/settings-qdrant-unscoped.png"
+  alt="A settings screen for a record collection named CRM-Tickets, marked Searched. Below the connection fields, two warnings: 'This source is not scoped to a correspondent. A draft written to one client can cite another client's record, by label, in the text that goes out.' and 'Acknowledging it also makes this source searchable from the chat, by everyone who may use it.' A ticked checkbox reads 'I understand, and want this source enabled anyway', followed by 'Acknowledged by a.beispiel on 14.9.2026. The chat can search it.'"
+  caption="The chat can only ever read a collection someone has agreed to here, by name and date. Sample data, real screen."
+/>
+
+The warning says, in plain words, what agreeing means. These records aren't
+tied to one client, so anyone who may use the chat could come across any of
+them. Only when an administrator ticks "I understand, and want this source
+enabled anyway" does the collection become available to the chat. Their name
+and the date are recorded next to it.
+
+Why make this a conscious act instead of a default? Because it's a real
+decision about the firm's information, and it should belong to a person, not
+to whoever happened to install the software. Un-ticking it works the same way
+in reverse, and it takes effect straight away. The screen says so before you
+save.
+
+## Part two: the console decides who may search what
+
+Agreeing that the chat *may* use a collection still doesn't say *who* may. An
+assistant in accounting doesn't need the sales team's ticket history, and the
+other way round. So the administration console has a screen for exactly that
+question.
+
+<Figure
+  src="/screenshots/replai/console-system-mcp.png"
+  alt="The administration screen for the firm's knowledge sources. Its intro says a person in the chat can search what an administrator allows here and can never add or change a source. Three sources are listed. CRM-Tickets is 'In force in the chat', searchable by a.beispiel and b.muster but not c.probe. Handbuch Buchhaltung is 'Recorded, not yet in force', searchable by a.beispiel and c.probe. Vorlagen is 'Off'. In every row, d.test is greyed out as 'never signed in'. Below, one more source is listed as not available yet because nobody has agreed to it on the settings screen."
+  caption="One row per collection, one tick per person, and a status in words. Sample data, real screen."
+/>
+
+Each collection gets a switch, and a row of names to tick. That's the whole
+interface. The care went into the words next to it.
+
+A row doesn't just say on or off. It says **"In force in the chat"** once the
+chat has confirmed the change, and **"Recorded, not yet in force"** in the
+short moment before. That difference is easy to skip and important to keep. A
+decision and its effect are two separate things, and a screen that shows them
+as one is how an administrator ends up certain of something that isn't true
+yet. The console passes each decision to the chat right away and checks again
+every hour, so the two never drift apart for long.
+
+Someone who has never signed in to the chat is shown greyed out, marked "never
+signed in". The chat doesn't know them yet, so there's nothing to give them.
+Leaving them off the list would look like a mistake. Letting you tick them
+would be a promise the product can't keep.
+
+And for the colleague, a collection they weren't given simply isn't there. No
+"access denied" in the middle of a conversation, no hint that something exists
+behind a locked door. It's also not reachable by a side route. A colleague
+sharing their own chat assistant with you doesn't hand over their access along
+with it.
+
+## Part three: the person asking stays in control
+
+Now the Tuesday afternoon again, from the other side.
+
+<Figure
+  src="/diagrams/replai/36-life-of-a-question.svg"
+  alt="The life of one question in eleven steps. In the chat: a person asks what the firm told a client about ticket 112; only the sources this person was given are available; the chat wants to look something up and says what it would search for; the person approves and sees exactly what will be searched for. On the firm's own server, with no connection to the outside: the search service checks the source is still allowed; the question is turned into a form that can be matched by meaning; the twenty closest passages are found in the firm's records; a second model reads each one against the question; the best eight come back, each with where it came from. If the records can't be reached, the search fails and says so, and never pretends it found nothing. The chat answers from those passages and says where each fact came from, and one line is written to a log nobody can edit, saying who searched which source, never the question. A footer: the part inside the network takes well under a second; the slow part, on purpose, is a person reading what is about to be searched for."
+  caption="Everything below the first row happens on the firm's own server. The fourth step is always a person."
+/>
+
+The colleague types a question. When the chat decides it needs to look
+something up, it doesn't just go ahead. It stops and shows a small card: this
+is what I'm about to search for, in these records. The colleague can approve
+it, change the wording, or say no. Nothing is searched until they've seen it.
+
+It can feel like one click too many, and it's there on purpose. It means
+nobody is ever surprised by what the chat looked at on their behalf, and it
+keeps the person, not the software, as the one who decides to open the files.
+
+The answer then comes back with its sources. Not "trust me", but "this came
+from ticket 112". In the first real test, the chat answered from what it found
+and pointed out that the test records were placeholder text, instead of
+inventing something more convincing. That honesty is the point of letting it
+read real records at all.
+
+And when the records can't be reached, say during maintenance, the chat is
+told plainly that the search failed. It never gets an empty result it could
+turn into "the firm has no record of that".
+
+## What the firm can know afterwards
+
+Every search leaves exactly one line in a log that can only ever be added to,
+never edited. It records who searched which collection, when, and whether it
+worked. It deliberately doesn't record the question or the answer.
+
+That balance was a choice. The firm can show that the records were used
+properly, and by whom. It can't read over a colleague's shoulder, and I don't
+think it should be able to.
+
+## What it's for
+
+Put together, the feature does one thing: it lets the firm's own knowledge
+answer the firm's own questions, and keeps the three promises from the start.
+Nothing leaves the server. Each person sees what they were given. And every
+lookup is visible to the person who asked for it, before it happens.
+
+The screens shown here are the real ones, from the version being finished
+now, filled with a sample firm and sample people. For the engineering
+underneath, including a few instructive mistakes on the way, see
+[the companion article](/projects/replai/fifty-green-tests-and-a-server-that-could-not-start).
