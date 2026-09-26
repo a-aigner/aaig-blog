@@ -1,0 +1,194 @@
+---
+title: "From a vector collection to a question in the chat, and who gets to ask it"
+summary: "How the firm's indexed knowledge reaches the chat: a collection becomes a source only once an administrator accepts, in writing, what that means; a source becomes a server with one tool and no idea who is asking; and a console screen decides, person by person, who may search what. Every search is approved by the person who asked, and logged without its question."
+date: "2026-09-24"
+tags: ["mcp", "qdrant", "rag", "product-design", "on-premises"]
+part: "IV · Ready to hand over"
+---
+
+## Why this exists
+
+The firm already had its knowledge indexed. Fifteen years of CRM history sit
+in a vector database called Qdrant, put there by the pipeline from the first
+part of this series, and the e-mail assistant searches it whenever it drafts a
+reply. The chat product, a few containers away on the same machine,
+couldn't see any of it.
+
+Connecting the two is technically a small job. Doing it without opening a door
+you didn't mean to open is most of the work. This article walks through the
+bridge the way an administrator and then an employee meet it, one screen at a
+time. The [companion article](/projects/replai/fifty-green-tests-and-a-server-that-could-not-start)
+has the bugs. This one has the design.
+
+A few words first, since they come up all the way through. A **vector
+database** stores pieces of text together with a list of numbers that places
+each piece by what it means, so a question can find passages that mean
+something similar even when the words differ. A **collection** is one such
+named store. And **MCP**, the Model Context Protocol, is a standard way for a
+chat model to call an outside tool: the model says "run *search* with this
+text", the chat runs it, and the model reads the answer before replying.
+
+## Step one: a collection becomes a source, once someone accepts what that means
+
+Everything starts on a settings screen in replai, where an administrator
+registers a Qdrant collection. Address, collection name, which field holds the
+readable text, which one holds a title. Two buttons do the checking, and both
+say precisely what they check. **Test connection** "dials what is stored, not
+what is typed above", so you save first and then test the thing that will
+actually run. **Read schema** looks at one stored point to see its shape, and
+the screen is careful about what that proves: "One point is evidence, not a
+contract."
+
+Then comes the field that decides everything, the **company key**. For the
+e-mail assistant, every source should be *scoped*: a draft to one client must
+only ever find that client's records. A source without a company key isn't
+scoped, and the screen won't let that pass silently.
+
+<Figure
+  src="/screenshots/replai/settings-qdrant-unscoped.png"
+  alt="The Qdrant sources settings screen for a source named CRM-Tickets, marked Searched. Fields for the URL, collection, vector settings and payload keys are filled in, and the Company key is empty. Below it, two warnings: 'This source is not scoped to a correspondent. A draft written to one client can cite another client's record, by label, in the text that goes out.' and 'Acknowledging it also makes this source searchable from the chat, by everyone who may use it.' A ticked checkbox reads 'I understand, and want this source enabled anyway', followed by 'Acknowledged by a.beispiel on 14.9.2026. The chat can search it.' Further down, the schema check reports four keys found on the sampled point."
+  caption="The one checkbox that connects a collection to the chat, and the two sentences you have to read to tick it. Sample data, real screen."
+/>
+
+Ticking "I understand, and want this source enabled anyway" is a recorded
+decision. The name of the person who ticked it and the date are stored and
+shown, as plain text, so the record survives even if that account is deleted
+later. And the second warning is the reason this matters for the chat: an
+unscoped source is **the only kind that can reach it**. A chat question isn't a letter to one client. There's nothing to scope it to. Either the
+whole firm may know it, and someone said so on this screen, or the chat never
+sees it.
+
+Unticking works the other way, and immediately. The screen says so before you
+save: the chat "stops being offered this source immediately", without waiting for a
+restart. That's not a promise the interface makes on hope. The list of
+offerable sources is worked out fresh on every single request, which costs
+about five milliseconds.
+
+## Step two: a source becomes a server that knows nobody
+
+Between the chat and the collection sits a small service I'll call the corpus
+server. For every source it offers exactly one address, and at that address
+exactly one tool, `search`. The tool takes a question and an optional number
+of results. It deliberately takes **no argument saying which source to
+search**. Which source is fixed by the address the chat was configured with.
+So a model can't talk its way into a collection it wasn't handed, because the
+choice was never offered to it.
+
+The corpus server knows no users at all. It has no login, no token and no
+published port. Only the chat's container can reach it, over the internal
+network, and the code says why that's enough: "A token here would protect
+nothing the network does not." All decisions about *people* happen on the
+chat's side of the line. The corpus server just answers questions about text,
+and it can't name a person's mailbox or personal documents even if asked,
+which is checked by a test that reads its code.
+
+Not every source searches the same way. Qdrant collections are searched by
+meaning, which needs the embedding model running. The firm's plain document
+store is searched by words, with the database's full-text search, so it keeps
+answering even when the model containers are down.
+
+## Step three: the console decides who may ask
+
+Knowing that a source *may* be offered to the chat still isn't the same as
+deciding *who* gets it. That happens in the administration console, on a
+screen that lists every source the chat could be given.
+
+<Figure
+  src="/screenshots/replai/console-system-mcp.png"
+  alt="The System MCPs screen in the replai administration console. Its intro: 'The firm's own knowledge sources, one server each. A person in the chat can search what you allow them here and can never add, edit or re-address one of these.' Three sources are listed. 'Firmenwissen: CRM-Tickets' is 'In force in the chat', searchable by a.beispiel and b.muster but not c.probe. 'Firmenwissen: Handbuch Buchhaltung' is 'Recorded, not yet in force', searchable by a.beispiel and c.probe. 'Firmenwissen: Vorlagen' is 'Off'. In every row, d.test is greyed out as 'never signed in'. Below, under 'Not available yet', one source, Projektdokumente, is registered but not acknowledged, so it cannot be offered."
+  caption="One row per source, one tick per person, and a state in words. Sample data, real screen."
+/>
+
+Each source gets a switch and a grid of people. That's the whole interface,
+and most of the design is in the words next to it. A row doesn't just say on
+or off. It says **"In force in the chat"** when the chat has confirmed it,
+**"Recorded, not yet in force"** when the console has written the decision down
+but the chat hasn't caught up, and it names the error in plain words when
+writing failed. A decision and its effect are different things, and a screen
+that shows them as one is how an administrator ends up certain of something
+that isn't true.
+
+Someone who has never signed in to the chat is shown, greyed out, with "(never
+signed in)". The chat doesn't know them yet, so there's nothing to grant them
+access *to*. Hiding them would look like a bug. Showing them as tickable would
+be a lie.
+
+Why one server per source instead of one server with everything? Because the
+chat's own permission system works per server. Each server has its own list of
+people allowed to use it, and the chat enforces that list itself. Splitting
+the sources is what lets a per-person decision in replai become a per-person
+rule inside the chat.
+
+Getting it there is the job of a **reconciler**, a routine that compares what
+the console decided with what the chat actually has and fixes the difference.
+It runs straight after every change and again every hour. It writes the
+complete list of allowed people each time, not just the changes, so running it
+twice does no harm. And there's one thing it will never do: delete a server it
+didn't create. Those get listed under their own heading, "In the chat, but not
+configured here", because somebody may have added them on purpose.
+
+## Step four: what the person in the chat sees
+
+For the employee, most of this is invisible, which is right. A source they
+weren't granted simply isn't there. The model doesn't see it, can't call it,
+and nobody gets an awkward "access denied" in the middle of a conversation.
+It also can't be reached by the back door. Someone who was refused a source
+can't get at it through an assistant a colleague shared with them either. The
+chat drops that tool when it assembles the person's tools, and refuses the
+call a second time where every tool call passes, and writes the refusal down.
+
+When a question needs a lookup, the model picks the search tool and the chat
+stops before running it. An approval card appears with the tool's name, the
+exact text that will be searched for, and four buttons. Genehmigen, Ablehnen,
+Bearbeiten, Antworten. The person approves, edits, or declines. An approval
+that nobody gives expires after one hour.
+
+<Figure
+  src="/diagrams/replai/36-life-of-a-question.svg"
+  alt="The life of one question in eleven steps. In the chat: a person asks what the firm told a client about ticket 112; only the tools this person was granted are offered; the model picks search with the text it wants to look up; the person approves and sees exactly what will be searched for. Inside the firm's network with no port outside it: the corpus server checks on every call that the source is still allowed; the question becomes a vector in about 21 ms; Qdrant returns the 20 nearest passages and applies a first cut; a reranker reads each against the question; the best 8 come back, each with its source and passage. If a store is down the call fails and says so, never 'found nothing'. The model answers from those passages and says where each fact came from, and one line goes into a log nobody can edit, recording who searched which source and the outcome, never the question. A footer: about 38 ms for the whole search without reranking; the reranker adds roughly 300 ms and changes which passages come back."
+  caption="Steps 5 to 9 happen on a network the internet can't reach. Step 4 is the person, every time."
+/>
+
+What comes back is deliberately plain. Up to eight passages, each carrying the
+source it came from and the text, and nothing else. No scores, no internal ids.
+In the first full test, the question was about a particular ticket. The model
+asked to search for it, I approved, the passages came back, and the model
+answered in German from them, noting that the test data was placeholder text
+instead of inventing something more convincing. That last part is the whole
+point of grounding a model in documents.
+
+And when a store can't be reached, the tool doesn't answer with an empty list.
+It fails, with the words "nothing was read, so nothing was found". An empty
+list would let the model tell someone, confidently, that the firm has no record
+of something it simply couldn't look at.
+
+## What each search leaves behind
+
+Every call to a knowledge source writes one line to the chat's audit log, a
+log that can only be added to, where each entry is chained to the one before
+so a deleted line would show. The line records who searched, which source,
+the outcome and how long it took. It deliberately does **not** record the
+question or the answer. It can show that the CRM was searched on Tuesday
+afternoon by someone in accounts. It can't show what for, and I think that's
+the right amount to know about a colleague.
+
+The whole search, measured on a small test collection of a few hundred
+tickets, takes about 38 milliseconds without the reranker. Turning the question
+into numbers is more than half of that. The reranker, a second model that
+reads each candidate against the question, adds about 300 milliseconds, and in
+three test questions it changed which passages came back every time.
+
+## The trade-off I wrote down
+
+One decision here isn't free, and it's in the compliance documents in so many
+words. For the console to tell the chat who may use which server, it has to
+talk to the chat's own administration interface, and the only way the chat
+accepts that is with a token signed by the chat's own secret key. That key
+signs every user's session. So anything that can read replai's configuration
+could, in principle, sign a session for anyone in the chat. The customer chose
+that on 24 September over the alternatives, and the documentation says exactly
+what it means. I'd rather have a disclosed wide credential than a hidden one.
+
+Most of what's described here lives on a working branch and is finished and
+tested, not yet merged. The screens in this article are the real ones,
+rendered from that branch with sample data.

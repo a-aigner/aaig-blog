@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 440" width="700" height="440" role="img">
+  <style>
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .box { fill: rgb(26 26 26 / 0.035); stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .gbox{ fill: rgb(31 58 44 / 0.08); stroke: #1f3a2c; stroke-width: 1.2; }
+    .p   { fill: #ffffff; stroke: #1a1a1a; stroke-width: 1.3; }
+    .off { fill: #ffffff; stroke: #1a1a1a; stroke-width: 1; stroke-dasharray: 3 3; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.45); }
+    .k   { font-size: 11px; font-weight: 600; }
+    .n   { font-size: 10px; fill: rgb(26 26 26 / 0.6); }
+    .g   { fill: #1f3a2c; }
+    .num { font-size: 10px; font-weight: 600; fill: #1f3a2c; }
+    .ln  { stroke: #1a1a1a; stroke-width: 1.1; fill: none; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="440"/>
+
+  <text class="t lbl" x="16" y="24">IN THE CHAT</text>
+  <rect class="p" x="16" y="34" width="150" height="56" rx="8"/>
+  <text class="t num" x="28" y="54">1</text><text class="t k" x="40" y="54">a person asks</text>
+  <text class="t n" x="28" y="72">"what did we tell the</text>
+  <text class="t n" x="28" y="84">client about ticket 112?"</text>
+  <path class="ln" d="M 166 62 L 184 62" marker-end="url(#a)"/>
+
+  <rect class="box" x="188" y="34" width="150" height="56" rx="8"/>
+  <text class="t num" x="200" y="54">2</text><text class="t k" x="212" y="54">only allowed tools</text>
+  <text class="t n" x="200" y="72">sources not granted to</text>
+  <text class="t n" x="200" y="84">this person aren't there</text>
+  <path class="ln" d="M 338 62 L 356 62" marker-end="url(#a)"/>
+
+  <rect class="box" x="360" y="34" width="150" height="56" rx="8"/>
+  <text class="t num" x="372" y="54">3</text><text class="t k" x="384" y="54">the model picks one</text>
+  <text class="t n" x="372" y="72">search, with the text</text>
+  <text class="t n" x="372" y="84">it wants to look up</text>
+  <path class="ln" d="M 510 62 L 528 62" marker-end="url(#a)"/>
+
+  <rect class="gbox" x="532" y="34" width="152" height="56" rx="8"/>
+  <text class="t num" x="544" y="54">4</text><text class="t k g" x="556" y="54">the person approves</text>
+  <text class="t n" x="544" y="72">and sees exactly what</text>
+  <text class="t n" x="544" y="84">will be searched for</text>
+
+  <path class="ln" d="M 608 90 L 608 124" marker-end="url(#a)"/>
+
+  <text class="t lbl" x="16" y="118">INSIDE THE FIRM'S NETWORK, NO PORT OUTSIDE IT</text>
+  <rect class="card" x="16" y="128" width="668" height="150" rx="8"/>
+
+  <rect class="gbox" x="532" y="144" width="136" height="56" rx="8"/>
+  <text class="t num" x="544" y="164">5</text><text class="t k g" x="556" y="164">corpus server</text>
+  <text class="t n" x="544" y="182">still allowed? checked</text>
+  <text class="t n" x="544" y="194">on every single call</text>
+  <path class="ln" d="M 532 172 L 514 172" marker-end="url(#a)"/>
+
+  <rect class="box" x="370" y="144" width="140" height="56" rx="8"/>
+  <text class="t num" x="382" y="164">6</text><text class="t k" x="394" y="164">into numbers</text>
+  <text class="t n" x="382" y="182">the question becomes a</text>
+  <text class="t n" x="382" y="194">vector, about 21 ms</text>
+  <path class="ln" d="M 370 172 L 352 172" marker-end="url(#a)"/>
+
+  <rect class="box" x="206" y="144" width="142" height="56" rx="8"/>
+  <text class="t num" x="218" y="164">7</text><text class="t k" x="230" y="164">Qdrant</text>
+  <text class="t n" x="218" y="182">the 20 nearest passages,</text>
+  <text class="t n" x="218" y="194">then a first cut</text>
+  <path class="ln" d="M 206 172 L 188 172" marker-end="url(#a)"/>
+
+  <rect class="box" x="32" y="144" width="152" height="56" rx="8"/>
+  <text class="t num" x="44" y="164">8</text><text class="t k" x="56" y="164">a second opinion</text>
+  <text class="t n" x="44" y="182">a reranker reads each one</text>
+  <text class="t n" x="44" y="194">against the question</text>
+
+  <path class="ln" d="M 108 200 L 108 222" marker-end="url(#a)"/>
+  <rect class="box" x="32" y="226" width="300" height="40" rx="8"/>
+  <text class="t num" x="44" y="250">9</text><text class="t k" x="56" y="250">the best 8, each with its source and passage</text>
+
+  <rect class="off" x="370" y="220" width="298" height="46" rx="8"/>
+  <text class="t k" x="382" y="240">if a store is down</text>
+  <text class="t n" x="382" y="256">the call fails and says so. Never "found nothing".</text>
+
+  <path class="ln" d="M 182 266 L 182 300" marker-end="url(#a)"/>
+  <rect class="p" x="16" y="304" width="332" height="56" rx="8"/>
+  <text class="t num" x="28" y="324">10</text><text class="t k" x="44" y="324">the model answers from those passages</text>
+  <text class="t n" x="28" y="342">and says where each fact came from</text>
+
+  <rect class="card" x="364" y="304" width="320" height="60" rx="8"/>
+  <text class="t num" x="376" y="324">11</text><text class="t k" x="392" y="324">one line in a log nobody can edit</text>
+  <text class="t n" x="376" y="342">who searched which source, and the outcome.</text>
+  <text class="t n" x="376" y="354">Never the question.</text>
+
+  <text class="t n" x="16" y="392">Measured on a test collection: the whole search about 38 ms without reranking. The reranker adds roughly</text>
+  <text class="t n" x="16" y="408">300 ms and changes which passages come back, which is the point of having it.</text>
+</svg>

@@ -1,0 +1,193 @@
+---
+title: "Who may do what, and one place to answer it for two products"
+summary: "Two products, one small firm, nobody in IT, and about eight different kinds of 'may they?'. The rule I held to: every answer lives in exactly one place, and the screen says which. On the way, a chat administrator nobody had appointed, a suspend button that needed a sentence next to it, and a console that is part of the product on purpose."
+date: "2026-09-26"
+tags: ["identity", "keycloak", "permissions", "product-design", "on-premises"]
+part: "IV · Ready to hand over"
+---
+
+## Why this exists
+
+The suite is two products for one small firm: replai, the e-mail assistant,
+and a chat that runs next to it. Both need to know who's allowed to do what.
+And "allowed" turns out to mean at least eight different things. May this
+person sign in at all? Use the chat? Run the administration screens? Run the
+*chat's* administration? Read the firm's shared `info@` mailbox? Search the CRM
+from the chat? Change which AI models the chat uses? See how often colleagues
+use the product?
+
+In a company with an IT department, each of those has an owner who knows
+where it's set. Here there's nobody, so I held to one rule: **every answer
+lives in exactly one place, and the screen tells you which place that is.**
+This article goes through the answers, and through the administration console
+where most of them are visible.
+
+<Figure
+  src="/diagrams/replai/35-who-decides-what.svg"
+  alt="A table titled by its columns: the question, where the answer lives, what a no looks like, and when it takes effect. May this person sign in: the directory, Keycloak; the login page; next sign-in. May they use the chat: a role, via a group; not admitted; next sign-in. May they run the console: a permission, via a group; 403; next request. May they run the chat: a role, via the same group; 403; eight hours at most. May they read info@: a membership, in the console; 404; next request. May they search the CRM from the chat: the console decides and the chat's own list enforces; not offered, then refused; at once, rechecked every hour. Which models, how long chats are kept, which tools: deployment files; 'Not changeable here'; next deployment. Figures about the whole firm: a rule in the code; withheld below five people; always. A green box: one group, two products. Putting someone in suite-admins makes them an administrator of replai and of the chat, and taking them out undoes both."
+  caption="Eight questions, and not one of them answered in two places."
+/>
+
+## One application, not two
+
+I'll start with a decision about the console itself, because it shapes
+everything below. It would have been natural to build administration as its
+own separate portal. The design notes say why I didn't: a separate application
+"would need its own authentication, its own build and its own place in
+`compose.yaml`'s bind table, and every one of those is a second copy of
+something that already works."
+
+So the console is a section of replai, under `/console`, reachable only with
+its own permission. Same address, same login, same design. That last part
+matters more to me than it might sound. The console uses the same warm paper
+background, the same serif type and the same brass accent as the rest of the
+product, so an administrator never feels they've been dropped into a
+different, scarier tool. It *is* the same tool, with more responsibility.
+
+<Figure
+  src="/screenshots/replai/console-people.png"
+  alt="The People screen in the replai administration console. Three columns: the product's navigation with Administration selected, the console's own menu from Incidents to Usage, and the content. The intro reads 'Accounts and groups live in the identity provider. Passwords stay there too, this screen never sets one.' followed by 'Disabling an account ends access. It deletes nothing.' Five people are listed, each with checkboxes for /chat-users, /replai-users and /suite-admins. Three show 'Reads the firm's info@example.de. That correspondence belongs to the firm and remains when this account is suspended.' Each has a Suspend button with 'Ends access within 15 minutes.' One person, e.muster, is marked Suspended with a Restore button. An 'Add someone' form starts at the bottom."
+  caption="Every heading comes with a sentence that says what the screen can and can't do. Sample data, real screen."
+/>
+
+Two habits run through every console screen, and they're design decisions, not
+decoration. First, **each screen opens by saying what it can't do.** The People screen says, before anything else, that passwords stay in the
+directory and that "this screen never sets one."
+Second, **states are written as words, not colours.** "Suspended." "Recorded,
+not yet in force." "Not changeable here." A colour tells you something is
+different. Only a word tells you what.
+
+## Step one: the directory decides who you are
+
+Both products ask the same **directory**, Keycloak, who someone is. Engineers
+call such a directory a *realm*. Inside it, people sit in **groups**, which are
+like folders, and groups carry **roles**, which are named permissions a product
+checks. Put someone in a group and they get its roles.
+
+There are three groups. `chat-users` may use the chat. `replai-users` may use
+the e-mail assistant. And `suite-admins` are the people who run the thing.
+Membership of `suite-admins` is the single switch for administration in *both*
+products at once, and taking someone out undoes both.
+
+Neither product keeps its own password. replai's login form was removed in
+August. The chat's local login, registration and password-reset routes were
+removed too, not switched off, and the chat refuses to start if a setting would
+bring them back. One door, and it's the directory's.
+
+Group membership is copied into replai at every sign-in, and it's *replaced*,
+not added to. That sounds like a detail. It's the difference between "leaving
+a department revokes access" and "leaving a department changes nothing, quietly,
+forever". A background job also checks the directory every fifteen minutes, so
+a deactivated person loses access within that window, which is the figure the
+customer's data protection officer was given.
+
+The People screen is where an administrator does this without ever seeing
+Keycloak. They can add someone, tick their groups, suspend them and restore
+them. There's no password field and, deliberately, **no Delete button**.
+Removing someone from the directory doesn't delete what replai stores about
+them, and the screen says so in full. What's kept and for how long is the
+firm's decision under its deletion policy, not a button's side effect.
+
+And next to the Suspend button, the screen lists the shared mailboxes that
+person reads, with a sentence: their correspondence "belongs to the firm and
+remains when this account is suspended." Without that line, "suspend" reads as
+"and their mail goes too". An administrator who believes that might delete the
+mailbox to be thorough, and that mistake can't be undone.
+
+## Step two: the chat administrator nobody appointed
+
+On 26 September I asked the running system a simple question: who is an
+administrator in the chat? The answer was exactly one account. **The console's
+own robot account**, made administrator by a database update I'd written by
+hand to get the console working. No person at the firm was one. None could become one, either.
+
+The chat can read administrator status from the directory, but only if three
+settings are all present. With two of three it silently behaves as if none were
+set. Now all three are required, and the chat refuses to start without them.
+Administration comes from the realm role `chat-admin`, which the `suite-admins`
+group carries. The chat's own "make this person an admin" routes are gone.
+They answer "not found", not "forbidden", because they don't exist anymore.
+
+There was a second half to it. The chat keeps trusting a sign-in until its
+refresh token expires. Upstream's default was **seven days**, so an
+administrator removed on Monday could stay administrator until the following
+Monday. It's now eight hours, one working day, and the chat refuses to start
+with anything over twenty-four.
+
+## Step three: a mailbox membership is a permission
+
+The firm's shared mailboxes, `info@` and the like, have members, and being a
+member is what lets someone read it.
+
+<Figure
+  src="/screenshots/replai/console-shared-mailboxes.png"
+  alt="The Shared mailboxes screen. The intro says these are mailboxes that belong to the firm rather than to one person, that replies go out from their own address in the firm's voice, and that the record names which member answered. info@example.de shows 1284 messages and its last sync, the folders to read, and 'Who may read it': a.beispiel and b.muster, each added by a.beispiel, and e.muster 'added by an earlier administrator', each with a Remove button and a person picker to add someone. Below, rechnungen@example.de carries the warning 'Nobody can read this mailbox. Its mail is being fetched and is waiting for the first person added below, the correspondence is not lost, but no one is answering it.' and a note that no signature is configured."
+  caption="Membership is explicit, and a mailbox nobody can read says so in the accent colour. Sample data, real screen."
+/>
+
+Membership is always explicit. I could have made shared mail readable by the
+whole firm, and rejected it in one line: `info@` is correspondence, and
+deciding that everyone may read it would be making a privacy decision on the
+customer's behalf.
+
+Asking for mail you're not allowed to see gets a **404, "not found"**, never a
+403, "forbidden". The difference is small and it matters. "You may not read
+this thread" confirms that the thread exists, and that alone says who the firm
+is writing to. "Not found" says nothing. The chat had the same leak on
+conversations, telling you "forbidden" for someone else's and "not found" for
+a missing one, and got the same fix.
+
+Every change to a membership is recorded with who made it, and the name is
+kept as text, so the record outlives the administrator's own account. Look at
+the third member in the screenshot, "added by an earlier administrator".
+
+## Step four: what nobody can change from inside
+
+Some settings shouldn't be changeable by anyone clicking around, administrator
+included. Which AI models the chat may use. How long conversations are kept.
+Which tools the model is offered. How people sign in. Those are fixed when the
+software is deployed, and the product says so.
+
+<Figure
+  src="/screenshots/replai/console-chat-service.png"
+  alt="The Chat service screen. Its intro: 'These settings are fixed by the deployment and cannot be changed here, or from inside the chat product, where an attempt to override one is refused. Each row names the file it is set in; the values are what the chat service reports it is running with.' Rows, each tagged 'Not changeable here': how a person signs in, Keycloak only with local registration and password login off; the realm role that grants access, chat-user; the realm role that grants administration, chat-admin, carried by the suite-admins group; how long a withdrawn claim stays in force, 8 hours; model runtimes; and how long conversations are kept, 365 days. Each row names the file it is fixed in."
+  caption="Read-only on purpose, and showing what the service is actually running with, not what a file says. Sample data, real screen."
+/>
+
+This screen existed as a promise before it was true. The chat's own admin interface could override several of these settings per
+role, group or person, the model runtimes, the retention and the tool list
+among them, skipping every check the chat runs at startup. An override could have brought
+back the eleven cloud tools the [companion article](/projects/replai/fifty-green-tests-and-a-server-that-could-not-start)
+removed. Those overrides are now refused when someone tries to save one, and
+dropped when older saved settings are loaded.
+
+Each row shows the value the chat service *reports it is running with*, not
+what the file says. They should match. If they ever don't, this is where you'd
+see it.
+
+## Two permissions that are about restraint
+
+Two last decisions are permissions in the other direction, limits on what even
+an administrator can see.
+
+Firm-wide usage figures, how many drafts were accepted and how much people
+edited them, exist so someone can decide whether the product earns its place.
+They must never become a way to watch one employee. So no setting selects a
+person, the period is one of three fixed lengths, and a figure is withheld when
+fewer than five people are behind it. A deployment can raise that number. The
+code won't let it go below two.
+
+And for the day the directory itself is down, there's an emergency way in. It
+isn't a switch that stays on. Someone with access to the server itself creates
+a one-time link that expires after thirty minutes, and both creating and using
+it are recorded. A flag left on after an incident looks exactly like one that
+was never set. An expired link can't be left on.
+
+## Where it stands
+
+The sign-in groundwork has been in the product since August. The console
+screens, the chat's administrator role and the fixed settings are on a working
+branch, finished and tested, not yet merged. The screens in this article are the real ones from that branch,
+rendered with sample people and a sample firm. None of it is a separate admin tool. After writing this, I'm more convinced it
+shouldn't be. Every permission question above got easier to answer because there was
+only one product asking it.
