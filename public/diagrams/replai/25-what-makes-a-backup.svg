@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 400" width="700" height="400" role="img">
+  <style>
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .box { fill: rgb(26 26 26 / 0.035); stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .gbox{ fill: rgb(31 58 44 / 0.08); stroke: #1f3a2c; stroke-width: 1.2; }
+    .bad { fill: #ffffff; stroke: #1a1a1a; stroke-width: 1; stroke-dasharray: 3 3; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.45); }
+    .k   { font-size: 11.5px; font-weight: 600; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .n   { font-size: 10.5px; fill: rgb(26 26 26 / 0.6); }
+    .g   { fill: #1f3a2c; }
+    .ln  { stroke: #1a1a1a; stroke-width: 1.2; fill: none; }
+    .dl  { stroke: rgb(26 26 26 / 0.35); stroke-width: 1; fill: none; stroke-dasharray: 3 3; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="400"/>
+
+  <text class="t lbl" x="16" y="26">EVERY NIGHT AT 02:00</text>
+
+  <!-- step 1 -->
+  <rect class="box" x="16" y="40" width="200" height="104" rx="6"/>
+  <text class="t k" x="28" y="62">1 · write the set</text>
+  <text class="t m" x="28" y="82">application.dump</text>
+  <text class="t m" x="28" y="98">keycloak.dump</text>
+  <text class="t m" x="28" y="114">env</text>
+  <text class="t n" x="28" y="132">the key that unlocks the passwords</text>
+  <path class="ln" d="M 216 92 L 238 92" marker-end="url(#a)"/>
+
+  <!-- step 2 -->
+  <rect class="box" x="242" y="40" width="200" height="104" rx="6"/>
+  <text class="t k" x="254" y="62">2 · complete?</text>
+  <text class="t n" x="254" y="82">every file is there and whole.</text>
+  <text class="t n" x="254" y="100">This proves the files exist.</text>
+  <text class="t n" x="254" y="118">It proves nothing about</text>
+  <text class="t n" x="254" y="132">whether they can be used.</text>
+  <path class="ln" d="M 442 92 L 464 92" marker-end="url(#a)"/>
+
+  <!-- step 3 -->
+  <rect class="gbox" x="468" y="40" width="216" height="104" rx="6"/>
+  <text class="t k g" x="480" y="62">3 · verified?</text>
+  <text class="t n" x="480" y="82">restore it into a throwaway</text>
+  <text class="t n" x="480" y="96">database, check the tables are</text>
+  <text class="t n" x="480" y="110">there, then delete that database.</text>
+  <text class="t k" x="480" y="132">Only this counts.</text>
+
+  <!-- keep -->
+  <rect class="card" x="16" y="166" width="668" height="58" rx="8"/>
+  <text class="t k" x="32" y="190">Keep the newest seven complete sets, and never delete the last verified one.</text>
+  <text class="t n" x="32" y="208">Optionally copy each set off the machine. A copy that fails is its own incident, not a footnote.</text>
+
+  <!-- what went wrong -->
+  <text class="t lbl" x="16" y="252">WHAT THE FIRST REAL RESTORE AND ONE HONEST QUESTION FOUND</text>
+
+  <rect class="bad" x="16" y="264" width="330" height="118" rx="6"/>
+  <text class="t k" x="28" y="286">the wrong restore program</text>
+  <text class="t n" x="28" y="306">The image carried the version 17 tools against a</text>
+  <text class="t n" x="28" y="320">version 16 database. Dumping worked. Restoring</text>
+  <text class="t n" x="28" y="334">failed on its first line. Every set, on every install,</text>
+  <text class="t n" x="28" y="348">would have stayed "unverified" forever.</text>
+  <text class="t k" x="28" y="370">Found by doing a restore.</text>
+
+  <rect class="bad" x="354" y="264" width="330" height="118" rx="6"/>
+  <text class="t k" x="366" y="286">a backup folder inside the container</text>
+  <text class="t n" x="366" y="306">The folder name meant for the host also reached</text>
+  <text class="t n" x="366" y="320">the container, which wrote the sets into itself.</text>
+  <text class="t n" x="366" y="334">Complete, verified, green on the console, and gone</text>
+  <text class="t n" x="366" y="348">at the next restart.</text>
+  <text class="t k" x="366" y="370">Found by asking where a set lands.</text>
+</svg>

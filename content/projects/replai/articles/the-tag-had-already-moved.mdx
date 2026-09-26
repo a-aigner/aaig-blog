@@ -1,0 +1,198 @@
+---
+title: "The tag had already moved, and a sentence I could only rewrite after a rollback"
+summary: "Forty-five dependency floors and zero pins, six of eight images on moving labels, and a document that admitted a rollback was not available. Locking found a Django 6 upgrade hiding inside 'lock dependencies', pinning found a Redis that had already changed underneath us, and the first real rollback quietly tested nothing."
+date: "2026-09-14"
+tags: ["release-engineering", "docker", "ci", "supply-chain", "on-premises"]
+part: "IV · Ready to hand over"
+---
+
+## Why this exists
+
+The last article ended on a gap. A backup takes you back to yesterday's
+**data**. If an upgrade breaks something, what you usually want is yesterday's
+**software** with today's data, which is a different operation. Engineers call
+the first a restore and the second a rollback.
+
+The backup documentation already told an operator which one to reach for. And
+then it said, honestly, that a bit-exact rollback "is not available today". My
+proposal put the problem in one line: an operator at two in the morning is told
+"this is a rollback, not a restore", **and then has nothing to roll back to.**
+
+So I made that sentence the finish line. It could only be rewritten once a
+rollback had actually been performed, end to end, and a test guards it either
+way. Before starting, I measured how far away that was.
+
+The three Python project files declared 45 dependencies, every one as a floor
+("this version or newer") and not one pinned. The cryptography library, the one
+that decrypts the stored mail passwords, was declared as version 42 or newer.
+Version 49 was installed. Six of the eight third-party container images were
+named by a label that can move. None was pinned to exact contents.
+
+Put plainly: if the customer's server had to be rebuilt next month, nobody
+could say what software it would end up running. Not me, not the customer, not
+the build.
+
+## Step one: write down exact versions, and check them
+
+A dependency is someone else's code that yours uses. A floor like
+`django>=5.1` is a promise to accept any newer version, including ones that
+don't exist yet. A **lockfile** replaces that with an exact shopping list, every
+package at one version, and ideally with a fingerprint for each so a swapped
+package is refused at install time.
+
+The naive way to make one is a single command, and I ran it. Then I compared
+its result with what was actually installed, the versions all our tests had
+been passing against. **Forty of 110 packages had moved.** Django went from
+5.2.16 to 6.1.1. Cryptography went from 49 to 50. All of it perfectly legal,
+since the floors allowed it. That commit would have shipped a major upgrade of
+the web framework, and of the library holding the keys, inside a change whose
+message said "lock dependencies".
+
+So I seeded the lock from the installed set of packages instead, with temporary
+constraints, and got zero differences across all 110. The images now install
+with `--require-hashes`, which refuses any package whose fingerprint isn't in
+the lock. I checked a built image afterwards. Ninety-two packages, zero
+differences.
+
+## Step two: stop naming images by labels that move
+
+This step is easiest to see as a picture, so here it is first.
+
+<Figure
+  src="/diagrams/replai/26-label-and-fingerprint.svg"
+  alt="Two panels. The left, 'a tag is a label', shows redis:7-alpine pointing at bytes A weeks ago, what the install runs, and at bytes B today, what a rebuild pulls, with the note that the publisher moved it, which it is allowed to do, and nothing on the customer's side said so; six of eight images were named like this. The right, 'a digest is a fingerprint', shows redis:7-alpine followed by an sha256 digest that always means bytes A, because it is computed from the contents themselves; the tag stays next to it for humans, the digest is what Docker fetches, a digest for the wrong processor is refused, and all eleven third-party images are now pinned. A footer compares a tag to 'the current edition' of a book and a digest to the exact printing on your shelf."
+  caption="A tag says what the publisher currently means by a name. A digest says what you actually have."
+/>
+
+A container image is a packaged program. Its **tag**, like `redis:7-alpine`, is
+a label that the publisher can move to newer contents whenever they like, and
+they do. A **digest** is a fingerprint computed from the exact bytes. It can't
+point at anything else, ever.
+
+I pinned all eleven third-party images across three registries by digest, with
+the human-readable tag kept beside it. And the first pin proved the point of
+the whole exercise. **The Redis tag had already moved.** The registry now served
+different bytes under `redis:7-alpine` than the image the installation had been
+running for weeks. Nothing had said so, and nothing would have, until a rebuild
+quietly brought in the new one.
+
+Two details from that afternoon. The pinning tool refuses digests that only
+cover one processor type, because pinning my laptop's ARM image would hand the
+customer's Intel server a program it can't run. And my first version of the
+tool had two bugs of its own: it read `redis:7-alpine` as a host called `redis`
+on a port called `7-alpine`, and a naive text replacement appended the digest
+again on every run. `@sha256:…@sha256:…@sha256:…`. Docker Compose accepted that
+without complaint, which I still find a little alarming.
+
+## Step three: a machine runs the checks, not whoever remembers
+
+Continuous integration, CI, is a fresh rented computer that runs every check on
+every change. The value isn't the automation. It's that **nobody ever worked on
+that computer**, so it can't inherit the quiet assumptions of the one you did
+work on.
+
+The first run went red and found two such assumptions within minutes. One test
+only passed if a settings file existed, and every developer's checkout had one
+while a fresh checkout doesn't. Another relied on a container image already
+being downloaded, which it had been on my machine since August. Then my own fix
+for the first went red too. I'd copied the example settings file, which turns
+secure cookies off, so three cookie tests began checking the example file
+instead of the code's real defaults. The fix was an empty file.
+
+None of this was visible before there was a machine that hadn't been used to
+develop on. Two smaller rot findings came along. A tool two tests needed had
+never been declared, because I'd installed it by hand. And a file count quoted
+in five places in the docs was wrong in all five. It now lives in one file that
+a script checks.
+
+## Step four: a release is a box you can carry in
+
+<Figure
+  src="/diagrams/replai/27-what-is-in-a-release.svg"
+  alt="A crate labelled 'release 9651efe', one release named by its commit, containing four files: images.tar with every program the system runs, fifteen images, 1.87 GB, not compressed; manifest.json, the label for machines with fingerprints, the test run, the lock and a checksum; MANIFEST.txt, the same label written for a person at two in the morning; and sbom.json, the packing list made by opening the box and counting. To the right, the build refuses if the code is not committed, the checks did not pass, not one image could be fetched, or the packing list and the lock disagree about any version, and there is no bypass flag. At the customer, verify_release checks the bytes are unchanged, docker load needs no internet, and rollback_check answers whether you can go back to this one. A footer says to keep at least three boxes, about 5.6 GB."
+  caption="The customer's server is deliberately not on the internet, so the release has to be something you can carry in."
+/>
+
+A **release** is now a sealed box, named after the exact commit it was built
+from. Inside is every program image the system runs, saved to one file, plus a
+label for machines, the same label for humans, and a packing list. The build
+script refuses to make one from uncommitted code, from a commit whose checks
+didn't pass, or when it can't obtain the images. An early version had a flag
+to skip the check. I deleted it instead of documenting it.
+
+At the customer, loading a box needs no internet at all. I proved that by
+deleting two images from Docker, loading the archive, and bringing up all ten
+services with network pulls forbidden. They all came up healthy.
+
+The first real release failed, instructively. The script **guessed** the image
+names from the folder name, and the project's own configuration declared a
+different one, so all five of our own images were "could not obtain". The fix
+was to stop guessing and ask Docker Compose. Then the script aborted after
+building everything, the most expensive possible moment, because the old bash
+on macOS treats an empty list as an undefined variable.
+
+Two more things only showed up by looking at the finished box. The manifest
+recorded a checksum of the archive, and the human label printed it under the
+words "the checksum above proves the bytes are unchanged". Nothing ever read
+it. Now `verify_release` recomputes it, and I tested that by writing 2 kB of
+random bytes into the middle of the 1.87 GB file without changing its length.
+It named both fingerprints and refused.
+
+And the **packing list** (engineers say SBOM, a software bill of materials) is
+made by scanning the finished image, not by copying the lockfile. That
+difference is the whole point. The scan of the worker image found 108 Python
+packages, 106 operating-system packages and 15 standalone programs. Among them
+was the PostgreSQL client the product needs to restore its own backups. It is
+in the image and in no Python lockfile, so a list built from the lock would
+never mention it. The build then cross-checks the scan against the lock and
+refuses if they disagree on any version.
+
+## Step five: the rollback, performed
+
+The last missing piece was a way to ask "can I go back to that build?" before
+doing it. `rollback_check --to <build>` answers from two sides. Is there a
+database change since then that can't be undone? (Every migration now declares
+itself reversible, data-only, or irreversible with a reason. A person has to
+say which, because code that looks reversible can still throw information
+away.) And is that build's box still here, complete?
+
+Two releases, then, one commit apart, where the newer one added a reversible
+database column. I brought up a stack from the newer box with network pulls
+and local builds forbidden, gave it a mail account with an encrypted password,
+some job history and a backup set, and ran the check. It named the one
+migration, its classification, found the older box, and said "rollback". I
+reversed the migration and loaded the older images.
+
+Afterwards, every component reported the older build. The column was gone.
+Every row was intact, the password still decrypted, and a normal login worked.
+
+It was the second attempt. **The first one had quietly tested nothing.** Docker
+Compose, given a project name, had built its own images from my working copy
+and picked up a stale build id, so the stack I "rolled back" was neither the
+archive nor either release. And a fresh database stamps all of its migrations
+within the same second, so the check reported four irreversible changes
+between two releases one commit apart. It was right, too, about a database no
+real installation will ever have.
+
+Then I rewrote the sentence. The documentation now says a bit-exact rollback
+**is available, and it reaches exactly as far back as the releases that were
+kept.** The test that guarded the old sentence wasn't deleted. It changed sides.
+
+## What it does not promise
+
+Nothing is signed yet, so the checksum proves the bytes didn't change, not who
+made them. Keeping old boxes is the customer's job, and nothing watches how many
+are left. I recommend three, about 5.6 GB, because one is the version already
+running and two isn't enough when a broken upgrade is only noticed after the
+next one replaced it. And the exercise ran on one machine, without the chat
+service, and never crossed an irreversible migration. Those are written down
+where the operator will read them, in the same document.
+
+Same day, the chat service moved into the repository as a single squashed
+folder. Its 5,403 commits of history became one, because only 44 of them were
+ours, and it's now built from that folder into its own pinned image. Which
+matters for the next article but one, where the chat learns to read the firm's
+knowledge.
+
+Next: a mailbox that belongs to the firm instead of to a person, and a
+refactor that changed no SQL and still made the firm's letters say "du".

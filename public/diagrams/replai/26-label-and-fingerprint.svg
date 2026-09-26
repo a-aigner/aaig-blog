@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 330" width="700" height="330" role="img">
+  <style>
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .box { fill: rgb(26 26 26 / 0.035); stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .gbox{ fill: rgb(31 58 44 / 0.08); stroke: #1f3a2c; stroke-width: 1.2; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .h   { font-size: 13px; font-weight: 600; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.45); }
+    .k   { font-size: 11.5px; font-weight: 600; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .n   { font-size: 10.5px; fill: rgb(26 26 26 / 0.6); }
+    .g   { fill: #1f3a2c; }
+    .ln  { stroke: #1a1a1a; stroke-width: 1.2; fill: none; }
+    .dl  { stroke: rgb(26 26 26 / 0.35); stroke-width: 1.2; fill: none; stroke-dasharray: 4 3; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="330"/>
+
+  <!-- left: tag -->
+  <rect class="card" x="16" y="14" width="326" height="250" rx="8"/>
+  <text class="t lbl" x="32" y="38">A TAG IS A LABEL</text>
+  <text class="t m" x="32" y="58">redis:7-alpine</text>
+
+  <rect class="box" x="32" y="84" width="130" height="64" rx="6"/>
+  <text class="t k" x="44" y="106">weeks ago</text>
+  <text class="t n" x="44" y="124">points at bytes A</text>
+  <text class="t n" x="44" y="138">(what the install runs)</text>
+
+  <rect class="box" x="196" y="84" width="130" height="64" rx="6"/>
+  <text class="t k" x="208" y="106">today</text>
+  <text class="t n" x="208" y="124">points at bytes B</text>
+  <text class="t n" x="208" y="138">(what a rebuild pulls)</text>
+
+  <path class="dl" d="M 162 116 L 192 116" marker-end="url(#a)"/>
+  <text class="t n" x="32" y="180">Same name, different contents. The publisher</text>
+  <text class="t n" x="32" y="195">moved it, which it is allowed to do, and nothing</text>
+  <text class="t n" x="32" y="210">on the customer's side said so.</text>
+  <text class="t k" x="32" y="242">Six of eight images were named like this.</text>
+
+  <!-- right: digest -->
+  <rect class="card" x="358" y="14" width="326" height="250" rx="8"/>
+  <text class="t lbl" x="374" y="38">A DIGEST IS A FINGERPRINT</text>
+  <text class="t m" x="374" y="58">redis:7-alpine@sha256:ff02b58f…</text>
+
+  <rect class="gbox" x="374" y="84" width="294" height="64" rx="6"/>
+  <text class="t k g" x="386" y="106">always bytes A</text>
+  <text class="t n" x="386" y="124">computed from the contents themselves, so it</text>
+  <text class="t n" x="386" y="138">cannot be pointed at anything else</text>
+
+  <text class="t n" x="374" y="180">The tag stays next to it for humans to read.</text>
+  <text class="t n" x="374" y="195">The digest is what Docker actually fetches, and</text>
+  <text class="t n" x="374" y="210">a digest for the wrong processor is refused.</text>
+  <text class="t k g" x="374" y="242">All eleven third-party images, pinned.</text>
+
+  <text class="t n" x="16" y="296">A tag is like "the current edition" of a book. A digest is the exact printing you have on your shelf.</text>
+  <text class="t n" x="16" y="314">Only the second one lets you promise that next month's reinstall is the same software as today's.</text>
+</svg>

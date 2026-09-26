@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 420" width="700" height="420" role="img">
+  <style>
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .box { fill: rgb(26 26 26 / 0.035); stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .gbox{ fill: rgb(31 58 44 / 0.08); stroke: #1f3a2c; stroke-width: 1.2; }
+    .crate{ fill: none; stroke: #1f3a2c; stroke-width: 1.6; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .h   { font-size: 13px; font-weight: 600; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.45); }
+    .k   { font-size: 11.5px; font-weight: 600; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+    .n   { font-size: 10.5px; fill: rgb(26 26 26 / 0.6); }
+    .g   { fill: #1f3a2c; }
+    .ln  { stroke: #1a1a1a; stroke-width: 1.2; fill: none; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="700" height="420"/>
+
+  <!-- the crate -->
+  <rect class="crate" x="16" y="14" width="440" height="330" rx="10"/>
+  <text class="t lbl" x="34" y="38">ONE RELEASE, NAMED BY ITS COMMIT</text>
+  <text class="t h" x="34" y="58">release 9651efe</text>
+
+  <rect class="box" x="34" y="76" width="404" height="56" rx="6"/>
+  <text class="t m" x="46" y="97">images.tar</text>
+  <text class="t n" x="46" y="116">every program the system runs, 15 images, 1.87 GB, not compressed</text>
+
+  <rect class="box" x="34" y="142" width="404" height="56" rx="6"/>
+  <text class="t m" x="46" y="163">manifest.json</text>
+  <text class="t n" x="46" y="182">the label for machines: fingerprints, the test run, the lock, a checksum</text>
+
+  <rect class="box" x="34" y="208" width="404" height="56" rx="6"/>
+  <text class="t m" x="46" y="229">MANIFEST.txt</text>
+  <text class="t n" x="46" y="248">the same label, written for a person reading it at two in the morning</text>
+
+  <rect class="box" x="34" y="274" width="404" height="56" rx="6"/>
+  <text class="t m" x="46" y="295">sbom.json</text>
+  <text class="t n" x="46" y="314">the packing list, made by opening the box and counting what is inside</text>
+
+  <!-- right side: refusals and use -->
+  <rect class="card" x="474" y="14" width="210" height="150" rx="8"/>
+  <text class="t lbl" x="490" y="38">THE BUILD REFUSES IF</text>
+  <text class="t n" x="490" y="62">the code is not committed</text>
+  <text class="t n" x="490" y="82">the checks did not pass</text>
+  <text class="t n" x="490" y="102">not one image could be fetched</text>
+  <text class="t n" x="490" y="122">the packing list and the lock</text>
+  <text class="t n" x="490" y="136">disagree about any version</text>
+  <text class="t k" x="490" y="156">There is no bypass flag.</text>
+
+  <rect class="gbox" x="474" y="180" width="210" height="164" rx="8"/>
+  <text class="t lbl" x="490" y="204">AT THE CUSTOMER</text>
+  <text class="t m" x="490" y="228">verify_release</text>
+  <text class="t n" x="490" y="244">are these still the same bytes?</text>
+  <text class="t m" x="490" y="270">docker load</text>
+  <text class="t n" x="490" y="286">no internet connection needed</text>
+  <text class="t m" x="490" y="312">rollback_check</text>
+  <text class="t n" x="490" y="328">can I go back to this one?</text>
+
+  <path class="ln" d="M 456 262 L 470 262" marker-end="url(#a)"/>
+
+  <text class="t n" x="16" y="376">Keep at least three of these boxes, about 5.6 GB. One is the version already running, and two is not enough</text>
+  <text class="t n" x="16" y="394">when an upgrade is broken in a way nobody notices until the next one has replaced it.</text>
+</svg>
