@@ -11,6 +11,8 @@ export default function Home() {
   return (
     <div className="pb-12">
       <section className="mx-auto max-w-3xl px-6 pt-10 pb-16">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/avatar.svg" alt="" className="mb-6 size-14 rounded-full" />
         <h1 className="text-2xl font-medium leading-snug tracking-tight">
           Software engineer &amp; founder.
         </h1>
