@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 706" width="700" height="706" role="img">
   <style>
-    .bg  { fill: #f4f4f1; }
-    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
-    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
-    .vr  { stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
-    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
-    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
-    .obs { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; fill: #0a0a0a; }
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(26 26 26 / 0.1); stroke-width: 1; }
+    .vr  { stroke: rgb(26 26 26 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.42); }
+    .obs { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; fill: #1a1a1a; }
     .b   { font-size: 11.5px; }
-    .n   { font-size: 11px; fill: rgb(10 10 10 / 0.62); }
-    .k   { font-size: 11.5px; font-weight: 700; }
-    .red { fill: #db0a12; }
-    .f   { font-size: 11px; fill: rgb(10 10 10 / 0.5); }
+    .n   { font-size: 11px; fill: rgb(26 26 26 / 0.62); }
+    .k   { font-size: 11.5px; font-weight: 600; }
+    .acc { fill: #1f3a2c; }
+    .f   { font-size: 11px; fill: rgb(26 26 26 / 0.5); }
   </style>
   <rect class="bg" x="0" y="0" width="700" height="706"/>
   <rect class="card" x="16" y="14" width="668" height="620" rx="6"/>
@@ -82,8 +82,8 @@
   <line class="rule" x1="16" y1="560" x2="684" y2="560"/>
 
   <!-- coda -->
-  <circle cx="36" cy="578" r="3" class="red"/>
-  <text class="t obs red" x="46" y="582">HTTP 200</text>
+  <circle cx="36" cy="578" r="3" class="acc"/>
+  <text class="t obs acc" x="46" y="582">HTTP 200</text>
   <text class="t n" x="32" y="600">not a 401 at all</text>
   <text class="t b" x="312" y="582">An access-denied page, served with a good</text>
   <text class="t b" x="312" y="597">status, and read as a successful login until</text>

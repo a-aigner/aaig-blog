@@ -1,23 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 604" width="700" height="604" role="img">
   <style>
-    .bg  { fill: #f4f4f1; }
-    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
-    .box { fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.12); stroke-width: 1; }
-    .human{ fill: #ffffff; stroke: #0a0a0a; stroke-width: 1.4; }
-    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
-    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
-    .h   { font-size: 13px; font-weight: 700; }
-    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.16); stroke-width: 1; }
+    .box { fill: rgb(26 26 26 / 0.04); stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
+    .human{ fill: #ffffff; stroke: #1a1a1a; stroke-width: 1.4; }
+    .rule{ stroke: rgb(26 26 26 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .h   { font-size: 13px; font-weight: 600; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.42); }
     .b   { font-size: 11.5px; }
-    .k   { font-size: 11.5px; font-weight: 700; }
+    .k   { font-size: 11.5px; font-weight: 600; }
     .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
-    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
-    .red { fill: #db0a12; }
-    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+    .n   { font-size: 10.5px; fill: rgb(26 26 26 / 0.6); }
+    .acc { fill: #1f3a2c; }
+    .ln  { stroke: #1a1a1a; stroke-width: 1.25; fill: none; }
   </style>
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
     </marker>
   </defs>
   <rect class="bg" x="0" y="0" width="700" height="604"/>
@@ -89,7 +89,7 @@
 
   <!-- the inversion -->
   <rect class="card" x="16" y="478" width="668" height="112" rx="6"/>
-  <circle cx="40" cy="502" r="3.5" class="red"/>
+  <circle cx="40" cy="502" r="3.5" class="acc"/>
   <text class="t k" x="54" y="506">The codes invert against HTTP</text>
   <text class="t b" x="32" y="528">In SMTP, 4xx is the transient one and 5xx is the permanent refusal. A greylister answers 450 at the</text>
   <text class="t b" x="32" y="544">recipient step, so "every recipient was refused" is not the same as "refused permanently", only</text>

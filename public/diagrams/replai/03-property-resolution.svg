@@ -1,21 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 586" width="700" height="586" role="img">
   <style>
-    .bg  { fill: #f4f4f1; }
-    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
-    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
-    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
-    .h   { font-size: 13px; font-weight: 700; }
-    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(26 26 26 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .h   { font-size: 13px; font-weight: 600; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.42); }
     .b   { font-size: 11.5px; }
     .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
-    .mg  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; fill: rgb(10 10 10 / 0.6); }
-    .n   { font-size: 11px; fill: rgb(10 10 10 / 0.6); }
-    .red { fill: #db0a12; }
-    .step{ fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.12); stroke-width: 1; }
+    .mg  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; fill: rgb(26 26 26 / 0.6); }
+    .n   { font-size: 11px; fill: rgb(26 26 26 / 0.6); }
+    .acc { fill: #1f3a2c; }
+    .step{ fill: rgb(26 26 26 / 0.04); stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
   </style>
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
     </marker>
   </defs>
   <rect class="bg" x="0" y="0" width="700" height="586"/>
@@ -60,15 +60,15 @@
   <text class="t b" x="534" y="424">else one case-</text>
   <text class="t b" x="534" y="440">insensitive pass</text>
 
-  <path class="ln" d="M 180 430 L 190 430" stroke="#0a0a0a" stroke-width="1.25" marker-end="url(#a)"/>
-  <path class="ln" d="M 344 430 L 354 430" stroke="#0a0a0a" stroke-width="1.25" marker-end="url(#a)"/>
-  <path class="ln" d="M 508 430 L 518 430" stroke="#0a0a0a" stroke-width="1.25" marker-end="url(#a)"/>
+  <path class="ln" d="M 180 430 L 190 430" stroke="#1a1a1a" stroke-width="1.25" marker-end="url(#a)"/>
+  <path class="ln" d="M 344 430 L 354 430" stroke="#1a1a1a" stroke-width="1.25" marker-end="url(#a)"/>
+  <path class="ln" d="M 508 430 L 518 430" stroke="#1a1a1a" stroke-width="1.25" marker-end="url(#a)"/>
 
   <text class="t n" x="32" y="482">The case-insensitive pass logs a warning even though it is documented behaviour: an exact</text>
   <text class="t n" x="32" y="498">miss means the wire spelled a column in a case no alias anticipated, and everything</text>
   <text class="t n" x="32" y="514">downstream then works on a column nobody chose.</text>
-  <circle cx="36" cy="538" r="3" class="red"/>
-  <text class="t m red" x="46" y="542">$filter=Id gt 0</text>
+  <circle cx="36" cy="538" r="3" class="acc"/>
+  <text class="t m acc" x="46" y="542">$filter=Id gt 0</text>
   <text class="t n" x="152" y="542">returned HTTP 400 against the German service, while a bare</text>
   <text class="t n" x="32" y="558">read of the same collection worked fine. That is the whole trap in one request.</text>
 </svg>

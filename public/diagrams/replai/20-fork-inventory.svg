@@ -1,18 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 588" width="700" height="588" role="img">
   <style>
-    .bg  { fill: #f4f4f1; }
-    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
-    .out { fill: #ffffff; stroke: #db0a12; stroke-width: 1; stroke-dasharray: 4 3; }
-    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
-    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
-    .h   { font-size: 13px; font-weight: 700; }
-    .k   { font-size: 11.5px; font-weight: 700; }
-    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.16); stroke-width: 1; }
+    .out { fill: #ffffff; stroke: #1f3a2c; stroke-width: 1; stroke-dasharray: 4 3; }
+    .rule{ stroke: rgb(26 26 26 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .h   { font-size: 13px; font-weight: 600; }
+    .k   { font-size: 11.5px; font-weight: 600; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.42); }
     .b   { font-size: 11.5px; }
     .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
-    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
-    .red { fill: #db0a12; }
-    .v   { font-size: 10.5px; font-weight: 700; }
+    .n   { font-size: 10.5px; fill: rgb(26 26 26 / 0.6); }
+    .acc { fill: #1f3a2c; }
+    .v   { font-size: 10.5px; font-weight: 600; }
   </style>
   <rect class="bg" x="0" y="0" width="700" height="588"/>
 
@@ -33,13 +33,13 @@
   <text class="t v" x="32" y="164">DEFER</text>
   <text class="t n" x="150" y="164">the end-to-end suite, most of it exercises surfaces being withdrawn</text>
 
-  <text class="t v red" x="32" y="190">REVERSED</text>
+  <text class="t v acc" x="32" y="190">REVERSED</text>
   <text class="t n" x="150" y="190">"strip the tracing directory", after measuring, it is not a directory</text>
   <text class="t n" x="150" y="204">at all: the instrumentation is a dependency. Pinned off instead.</text>
 
   <!-- outbound -->
   <rect class="out" x="16" y="232" width="668" height="238" rx="6"/>
-  <text class="t h red" x="32" y="256">Five inherited defaults that pointed out of the customer's network</text>
+  <text class="t h acc" x="32" y="256">Five inherited defaults that pointed out of the customer's network</text>
   <text class="t n" x="32" y="274">In a product whose entire premise is that nothing leaves it.</text>
 
   <text class="t k" x="32" y="300">Three hosted providers, shipped switched on</text>

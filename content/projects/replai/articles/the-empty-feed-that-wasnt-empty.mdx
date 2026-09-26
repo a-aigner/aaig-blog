@@ -41,7 +41,7 @@ because the code change is small and the belief change was a week.
 
 <Figure
   src="/diagrams/replai/05-attachment-addressing.svg"
-  alt="Four stacked cards connected by arrows. The first, outlined in red dashes and labelled the wrong door: a GET to the standalone Attachments collection returning HTTP 200, an empty feed and zero properties, which means not enumerable rather than none. The second: reach them through the item instead, with a GET to Ticket(3)/Attachments, noting the entity carries which list, item and filename but never the bytes. The third: the two URL forms the bytes may live at, a media $value form and a direct Lists path, with a note that a quote must be doubled and stay literal. The fourth: a 200 is not proof of a file (an OData envelope or HTML means reject, only bytes are stored by sha256), with measured sampling figures beneath."
+  alt="Four stacked cards connected by arrows. The first, outlined in green dashes and labelled the wrong door: a GET to the standalone Attachments collection returning HTTP 200, an empty feed and zero properties, which means not enumerable rather than none. The second: reach them through the item instead, with a GET to Ticket(3)/Attachments, noting the entity carries which list, item and filename but never the bytes. The third: the two URL forms the bytes may live at, a media $value form and a direct Lists path, with a note that a quote must be doubled and stay literal. The fourth: a 200 is not proof of a file (an OData envelope or HTML means reject, only bytes are stored by sha256), with measured sampling figures beneath."
   caption="The addressing, and the gate. Three of the four cards exist because something returned a success status and no file."
 />
 

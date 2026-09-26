@@ -1,30 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 596" width="700" height="596" role="img">
   <style>
-    .bg  { fill: #f4f4f1; }
-    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
-    .wrong{ fill: #ffffff; stroke: #db0a12; stroke-width: 1; stroke-dasharray: 4 3; }
-    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
-    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
-    .h   { font-size: 13px; font-weight: 700; }
-    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.16); stroke-width: 1; }
+    .wrong{ fill: #ffffff; stroke: #1f3a2c; stroke-width: 1; stroke-dasharray: 4 3; }
+    .rule{ stroke: rgb(26 26 26 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .h   { font-size: 13px; font-weight: 600; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.42); }
     .b   { font-size: 11.5px; }
     .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
-    .mg  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
-    .n   { font-size: 11px; fill: rgb(10 10 10 / 0.6); }
-    .red { fill: #db0a12; }
-    .code{ fill: rgb(10 10 10 / 0.05); }
-    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+    .mg  { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(26 26 26 / 0.6); }
+    .n   { font-size: 11px; fill: rgb(26 26 26 / 0.6); }
+    .acc { fill: #1f3a2c; }
+    .code{ fill: rgb(26 26 26 / 0.05); }
+    .ln  { stroke: #1a1a1a; stroke-width: 1.25; fill: none; }
   </style>
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
     </marker>
   </defs>
   <rect class="bg" x="0" y="0" width="700" height="596"/>
 
   <!-- the wrong door -->
   <rect class="wrong" x="16" y="14" width="668" height="86" rx="6"/>
-  <text class="t lbl red" x="32" y="36">THE WRONG DOOR</text>
+  <text class="t lbl acc" x="32" y="36">THE WRONG DOOR</text>
   <text class="t m" x="32" y="58">GET …/ListData.svc/Attachments</text>
   <text class="t b" x="32" y="78">HTTP 200, an empty feed, and zero properties. Which is not "no attachments",</text>
   <text class="t b" x="32" y="94">it is "this collection is not enumerable on this build". It was read as the first.</text>
@@ -56,15 +56,15 @@
   <text class="t h" x="32" y="410">A 200 is not proof of a file</text>
   <line class="rule" x1="16" y1="424" x2="684" y2="424"/>
 
-  <circle cx="40" cy="444" r="3" class="red"/>
+  <circle cx="40" cy="444" r="3" class="acc"/>
   <text class="t b" x="54" y="448">An OData envelope came back</text>
   <text class="t n" x="380" y="448">unsupported media request · reject</text>
 
-  <circle cx="40" cy="474" r="3" class="red"/>
+  <circle cx="40" cy="474" r="3" class="acc"/>
   <text class="t b" x="54" y="478">HTML came back</text>
   <text class="t n" x="380" y="478">a sign-in redirect · reject</text>
 
-  <circle cx="40" cy="504" r="3" fill="#0a0a0a"/>
+  <circle cx="40" cy="504" r="3" fill="#1a1a1a"/>
   <text class="t b" x="54" y="508">Bytes came back</text>
   <text class="t n" x="380" y="508">store by sha256, record the inventory row</text>
 

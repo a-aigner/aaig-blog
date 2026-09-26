@@ -1,23 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 646" width="700" height="646" role="img">
   <style>
-    .bg  { fill: #f4f4f1; }
-    .card{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
-    .box { fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
-    .soft{ fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
-    .rule{ stroke: rgb(10 10 10 / 0.1); stroke-width: 1; }
-    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
-    .h   { font-size: 13px; font-weight: 700; }
-    .k   { font-size: 12px; font-weight: 700; }
-    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
+    .bg  { fill: #fbfbfa; }
+    .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.16); stroke-width: 1; }
+    .box { fill: #ffffff; stroke: rgb(26 26 26 / 0.16); stroke-width: 1; }
+    .soft{ fill: rgb(26 26 26 / 0.04); stroke: rgb(26 26 26 / 0.16); stroke-width: 1; }
+    .rule{ stroke: rgb(26 26 26 / 0.1); stroke-width: 1; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .h   { font-size: 13px; font-weight: 600; }
+    .k   { font-size: 12px; font-weight: 600; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.42); }
     .b   { font-size: 11.5px; }
-    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(10 10 10 / 0.66); }
-    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
-    .red { fill: #db0a12; }
-    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(26 26 26 / 0.66); }
+    .n   { font-size: 10.5px; fill: rgb(26 26 26 / 0.6); }
+    .acc { fill: #1f3a2c; }
+    .ln  { stroke: #1a1a1a; stroke-width: 1.25; fill: none; }
   </style>
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
     </marker>
   </defs>
   <rect class="bg" x="0" y="0" width="700" height="646"/>
@@ -71,13 +71,13 @@
   <text class="t h" x="32" y="460">The harness refuses four things, on purpose</text>
   <line class="rule" x1="16" y1="472" x2="684" y2="472"/>
 
-  <circle cx="40" cy="492" r="3" class="red"/>
+  <circle cx="40" cy="492" r="3" class="acc"/>
   <text class="t b" x="54" y="496">A query whose known-good answers no arm could possibly cover.</text>
-  <circle cx="40" cy="518" r="3" class="red"/>
+  <circle cx="40" cy="518" r="3" class="acc"/>
   <text class="t b" x="54" y="522">An arm handed no results for a query it was supposed to answer.</text>
-  <circle cx="40" cy="544" r="3" class="red"/>
+  <circle cx="40" cy="544" r="3" class="acc"/>
   <text class="t b" x="54" y="548">Two arms compared over different query sets.</text>
-  <circle cx="40" cy="570" r="3" class="red"/>
+  <circle cx="40" cy="570" r="3" class="acc"/>
   <text class="t b" x="54" y="574">A precision it was never given, it records null and prints "unvalidated" beside every number.</text>
 
   <line class="rule" x1="16" y1="590" x2="684" y2="590"/>

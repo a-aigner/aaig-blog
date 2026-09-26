@@ -1,26 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 772" width="700" height="772" role="img">
   <style>
-    .bg  { fill: #f4f4f1; }
-    .box { fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
-    .src { fill: rgb(10 10 10 / 0.04); stroke: rgb(10 10 10 / 0.16); stroke-width: 1; }
-    .chip{ fill: #ffffff; stroke: #0a0a0a; stroke-width: 1; }
-    .side{ fill: #ffffff; stroke: rgb(10 10 10 / 0.16); stroke-width: 1; stroke-dasharray: 4 3; }
-    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #0a0a0a; }
-    .h   { font-size: 12.5px; font-weight: 700; }
-    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(10 10 10 / 0.42); }
-    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(10 10 10 / 0.66); }
-    .v   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 700; }
-    .n   { font-size: 10.5px; fill: rgb(10 10 10 / 0.6); }
-    .ln  { stroke: #0a0a0a; stroke-width: 1.25; fill: none; }
-    .lnd { stroke: rgb(10 10 10 / 0.35); stroke-width: 1; fill: none; stroke-dasharray: 4 3; }
-    .red { fill: #db0a12; }
+    .bg  { fill: #fbfbfa; }
+    .box { fill: #ffffff; stroke: rgb(26 26 26 / 0.16); stroke-width: 1; }
+    .src { fill: rgb(26 26 26 / 0.04); stroke: rgb(26 26 26 / 0.16); stroke-width: 1; }
+    .chip{ fill: #ffffff; stroke: #1a1a1a; stroke-width: 1; }
+    .side{ fill: #ffffff; stroke: rgb(26 26 26 / 0.16); stroke-width: 1; stroke-dasharray: 4 3; }
+    .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
+    .h   { font-size: 12.5px; font-weight: 600; }
+    .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.42); }
+    .m   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; fill: rgb(26 26 26 / 0.66); }
+    .v   { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 600; }
+    .n   { font-size: 10.5px; fill: rgb(26 26 26 / 0.6); }
+    .ln  { stroke: #1a1a1a; stroke-width: 1.25; fill: none; }
+    .lnd { stroke: rgb(26 26 26 / 0.35); stroke-width: 1; fill: none; stroke-dasharray: 4 3; }
+    .acc { fill: #1f3a2c; }
   </style>
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
     </marker>
     <marker id="ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(10 10 10 / 0.35)"/>
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgb(26 26 26 / 0.35)"/>
     </marker>
   </defs>
   <rect class="bg" x="0" y="0" width="700" height="772"/>
@@ -61,7 +61,7 @@
 
   <path class="ln" d="M 400 310 L 400 348" marker-end="url(#a)"/>
   <rect class="chip" x="300" y="316" width="200" height="24" rx="12"/>
-  <circle cx="315" cy="328" r="3.5" class="red"/>
+  <circle cx="315" cy="328" r="3.5" class="acc"/>
   <text class="t v" x="330" y="332">enrich</text>
   <text class="t n" x="398" y="332">a model runtime</text>
 
@@ -84,7 +84,7 @@
 
   <path class="ln" d="M 400 538 L 400 576" marker-end="url(#a)"/>
   <rect class="chip" x="300" y="544" width="200" height="24" rx="12"/>
-  <circle cx="315" cy="556" r="3.5" class="red"/>
+  <circle cx="315" cy="556" r="3.5" class="acc"/>
   <text class="t v" x="330" y="560">embed</text>
   <text class="t n" x="391" y="560">the embedder · Qdrant</text>
 
@@ -95,7 +95,7 @@
 
   <path class="ln" d="M 400 636 L 400 674" marker-end="url(#a)"/>
   <rect class="chip" x="300" y="642" width="200" height="24" rx="12"/>
-  <circle cx="315" cy="654" r="3.5" class="red"/>
+  <circle cx="315" cy="654" r="3.5" class="acc"/>
   <text class="t v" x="330" y="658">query</text>
   <text class="t n" x="386" y="658">both, + reranker</text>
 
@@ -103,6 +103,6 @@
   <text class="t n" x="156" y="702">Hits with scores, grouped so one ticket cannot fill the results.</text>
 
   <text class="t n" x="16" y="742">Five of the eight verbs open no socket at all, they run on a laptop with nothing else installed.</text>
-  <circle cx="20" cy="760" r="3.5" class="red"/>
+  <circle cx="20" cy="760" r="3.5" class="acc"/>
   <text class="t n" x="32" y="764">The three that need a service are the three that talk to a model or to Qdrant.</text>
 </svg>

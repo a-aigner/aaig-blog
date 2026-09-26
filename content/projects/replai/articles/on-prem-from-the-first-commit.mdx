@@ -21,8 +21,8 @@ target.
 
 <Figure
   src="/diagrams/replai/11-onprem-topology.svg"
-  alt="Five grouped cards. The application holds frontend, outlined in red as the only bind off loopback, plus web, api, worker and beat, noted as four processes with four copies of the settings. Identity holds keycloak with one realm and three clients, noting local account routes are removed rather than disabled. Model runtimes shows one llama.cpp image running three commands: a mandatory embedder, an optional reranker behind a profile, and a sparse embedder using the same weights with pooling off. State holds Postgres with pgvector and Redis with no password, noting mail passwords are encrypted at rest. Logging shows a per-host vector agent feeding an aggregator that scrubs before shipping to VictoriaLogs with 365-day retention. A footer notes every port but one is bound to loopback, and that a public model endpoint stops the process from starting."
-  caption="Fourteen containers. The red outline is the only port bound to anything other than loopback."
+  alt="Five grouped cards. The application holds frontend, outlined in green as the only bind off loopback, plus web, api, worker and beat, noted as four processes with four copies of the settings. Identity holds keycloak with one realm and three clients, noting local account routes are removed rather than disabled. Model runtimes shows one llama.cpp image running three commands: a mandatory embedder, an optional reranker behind a profile, and a sparse embedder using the same weights with pooling off. State holds Postgres with pgvector and Redis with no password, noting mail passwords are encrypted at rest. Logging shows a per-host vector agent feeding an aggregator that scrubs before shipping to VictoriaLogs with 365-day retention. A footer notes every port but one is bound to loopback, and that a public model endpoint stops the process from starting."
+  caption="Fourteen containers. The green outline is the only port bound to anything other than loopback."
 />
 
 ## What the constraint actually decides
