@@ -35,9 +35,9 @@
   <path class="ln" d="M 338 62 L 356 62" marker-end="url(#a)"/>
 
   <rect class="box" x="360" y="34" width="150" height="56" rx="8"/>
-  <text class="t num" x="372" y="54">3</text><text class="t k" x="384" y="54">the model picks one</text>
-  <text class="t n" x="372" y="72">search, with the text</text>
-  <text class="t n" x="372" y="84">it wants to look up</text>
+  <text class="t num" x="372" y="54">3</text><text class="t k" x="384" y="54">the chat wants to look</text>
+  <text class="t n" x="372" y="72">something up, and says</text>
+  <text class="t n" x="372" y="84">what it would search for</text>
   <path class="ln" d="M 510 62 L 528 62" marker-end="url(#a)"/>
 
   <rect class="gbox" x="532" y="34" width="152" height="56" rx="8"/>
@@ -47,43 +47,43 @@
 
   <path class="ln" d="M 608 90 L 608 124" marker-end="url(#a)"/>
 
-  <text class="t lbl" x="16" y="118">INSIDE THE FIRM'S NETWORK, NO PORT OUTSIDE IT</text>
+  <text class="t lbl" x="16" y="118">ON THE FIRM'S OWN SERVER, WITH NO CONNECTION TO THE OUTSIDE</text>
   <rect class="card" x="16" y="128" width="668" height="150" rx="8"/>
 
   <rect class="gbox" x="532" y="144" width="136" height="56" rx="8"/>
-  <text class="t num" x="544" y="164">5</text><text class="t k g" x="556" y="164">corpus server</text>
+  <text class="t num" x="544" y="164">5</text><text class="t k g" x="556" y="164">search service</text>
   <text class="t n" x="544" y="182">still allowed? checked</text>
   <text class="t n" x="544" y="194">on every single call</text>
   <path class="ln" d="M 532 172 L 514 172" marker-end="url(#a)"/>
 
   <rect class="box" x="370" y="144" width="140" height="56" rx="8"/>
   <text class="t num" x="382" y="164">6</text><text class="t k" x="394" y="164">into numbers</text>
-  <text class="t n" x="382" y="182">the question becomes a</text>
-  <text class="t n" x="382" y="194">vector, about 21 ms</text>
+  <text class="t n" x="382" y="182">so it can be matched</text>
+  <text class="t n" x="382" y="194">by meaning, not by words</text>
   <path class="ln" d="M 370 172 L 352 172" marker-end="url(#a)"/>
 
   <rect class="box" x="206" y="144" width="142" height="56" rx="8"/>
-  <text class="t num" x="218" y="164">7</text><text class="t k" x="230" y="164">Qdrant</text>
-  <text class="t n" x="218" y="182">the 20 nearest passages,</text>
-  <text class="t n" x="218" y="194">then a first cut</text>
+  <text class="t num" x="218" y="164">7</text><text class="t k" x="230" y="164">the records</text>
+  <text class="t n" x="218" y="182">the 20 closest passages</text>
+  <text class="t n" x="218" y="194">in the firm's records</text>
   <path class="ln" d="M 206 172 L 188 172" marker-end="url(#a)"/>
 
   <rect class="box" x="32" y="144" width="152" height="56" rx="8"/>
   <text class="t num" x="44" y="164">8</text><text class="t k" x="56" y="164">a second opinion</text>
-  <text class="t n" x="44" y="182">a reranker reads each one</text>
-  <text class="t n" x="44" y="194">against the question</text>
+  <text class="t n" x="44" y="182">another model reads each</text>
+  <text class="t n" x="44" y="194">one against the question</text>
 
   <path class="ln" d="M 108 200 L 108 222" marker-end="url(#a)"/>
   <rect class="box" x="32" y="226" width="300" height="40" rx="8"/>
   <text class="t num" x="44" y="250">9</text><text class="t k" x="56" y="250">the best 8, each with its source and passage</text>
 
   <rect class="off" x="370" y="220" width="298" height="46" rx="8"/>
-  <text class="t k" x="382" y="240">if a store is down</text>
+  <text class="t k" x="382" y="240">if the records can't be reached</text>
   <text class="t n" x="382" y="256">the call fails and says so. Never "found nothing".</text>
 
   <path class="ln" d="M 182 266 L 182 300" marker-end="url(#a)"/>
   <rect class="p" x="16" y="304" width="332" height="56" rx="8"/>
-  <text class="t num" x="28" y="324">10</text><text class="t k" x="44" y="324">the model answers from those passages</text>
+  <text class="t num" x="28" y="324">10</text><text class="t k" x="44" y="324">the chat answers from those passages</text>
   <text class="t n" x="28" y="342">and says where each fact came from</text>
 
   <rect class="card" x="364" y="304" width="320" height="60" rx="8"/>
@@ -91,6 +91,6 @@
   <text class="t n" x="376" y="342">who searched which source, and the outcome.</text>
   <text class="t n" x="376" y="354">Never the question.</text>
 
-  <text class="t n" x="16" y="392">Measured on a test collection: the whole search about 38 ms without reranking. The reranker adds roughly</text>
-  <text class="t n" x="16" y="408">300 ms and changes which passages come back, which is the point of having it.</text>
+  <text class="t n" x="16" y="392">The part inside the firm's network takes well under a second. The slow part, on purpose,</text>
+  <text class="t n" x="16" y="408">is step 4: a person reading what is about to be searched for.</text>
 </svg>

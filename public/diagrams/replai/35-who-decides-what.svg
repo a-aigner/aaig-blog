@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 470" width="700" height="470" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 420" width="700" height="420" role="img">
   <style>
     .bg  { fill: #fbfbfa; }
     .card{ fill: #ffffff; stroke: rgb(26 26 26 / 0.12); stroke-width: 1; }
@@ -6,74 +6,57 @@
     .gbox{ fill: rgb(31 58 44 / 0.08); stroke: #1f3a2c; stroke-width: 1.2; }
     .t   { font-family: ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; fill: #1a1a1a; }
     .lbl { font-size: 9.5px; letter-spacing: 0.08em; fill: rgb(26 26 26 / 0.45); }
-    .k   { font-size: 11px; font-weight: 600; }
-    .b   { font-size: 10.5px; fill: #1a1a1a; }
-    .n   { font-size: 10.5px; fill: rgb(26 26 26 / 0.6); }
+    .k   { font-size: 11.5px; font-weight: 600; }
+    .b   { font-size: 11px; fill: #1a1a1a; }
+    .n   { font-size: 11px; fill: rgb(26 26 26 / 0.6); }
     .g   { fill: #1f3a2c; }
   </style>
-  <rect class="bg" x="0" y="0" width="700" height="470"/>
+  <rect class="bg" x="0" y="0" width="700" height="420"/>
 
-  <rect class="card" x="16" y="14" width="668" height="370" rx="8"/>
-  <text class="t lbl" x="30" y="38">THE QUESTION</text>
-  <text class="t lbl" x="230" y="38">WHERE THE ANSWER LIVES</text>
-  <text class="t lbl" x="430" y="38">A NO LOOKS LIKE</text>
-  <text class="t lbl" x="560" y="38">TAKES EFFECT</text>
+  <rect class="card" x="16" y="14" width="668" height="322" rx="8"/>
+  <text class="t lbl" x="32" y="38">THE QUESTION</text>
+  <text class="t lbl" x="262" y="38">WHAT DECIDES IT</text>
+  <text class="t lbl" x="522" y="38">A CHANGE COUNTS</text>
   <line class="rule" x1="16" y1="50" x2="684" y2="50"/>
 
-  <text class="t k" x="30" y="72">may this person sign in?</text>
-  <text class="t b" x="230" y="72">the directory (Keycloak)</text>
-  <text class="t n" x="430" y="72">the login page</text>
-  <text class="t n" x="560" y="72">next sign-in</text>
-  <line class="rule" x1="16" y1="84" x2="684" y2="84"/>
+  <text class="t k" x="32" y="74">Can this person sign in?</text>
+  <text class="t b" x="262" y="74">being on the firm's list of people</text>
+  <text class="t n" x="522" y="68">15 minutes, the chat</text>
+  <text class="t n" x="522" y="81">within the working day</text>
+  <line class="rule" x1="16" y1="88" x2="684" y2="88"/>
 
-  <text class="t k" x="30" y="106">may they use the chat?</text>
-  <text class="t b" x="230" y="106">a role, via a group</text>
-  <text class="t n" x="430" y="106">not admitted</text>
-  <text class="t n" x="560" y="106">next sign-in</text>
-  <line class="rule" x1="16" y1="118" x2="684" y2="118"/>
+  <text class="t k" x="32" y="112">Can they use the chat?</text>
+  <text class="t b" x="262" y="112">a tick on the People screen</text>
+  <text class="t n" x="522" y="112">at their next sign-in</text>
+  <line class="rule" x1="16" y1="126" x2="684" y2="126"/>
 
-  <text class="t k" x="30" y="140">may they run the console?</text>
-  <text class="t b" x="230" y="140">a permission, via a group</text>
-  <text class="t n" x="430" y="140">403</text>
-  <text class="t n" x="560" y="140">next request</text>
-  <line class="rule" x1="16" y1="152" x2="684" y2="152"/>
+  <text class="t k" x="32" y="150">Can they manage both products?</text>
+  <text class="t b" x="262" y="150">one tick: administrator</text>
+  <text class="t n" x="522" y="150">the same working day</text>
+  <line class="rule" x1="16" y1="164" x2="684" y2="164"/>
 
-  <text class="t k" x="30" y="174">may they run the chat?</text>
-  <text class="t b" x="230" y="174">a role, via the same group</text>
-  <text class="t n" x="430" y="174">403</text>
-  <text class="t n" x="560" y="174">8 hours at most</text>
-  <line class="rule" x1="16" y1="186" x2="684" y2="186"/>
+  <text class="t k" x="32" y="188">Can they read info@?</text>
+  <text class="t b" x="262" y="188">being added to that mailbox</text>
+  <text class="t n" x="522" y="188">immediately</text>
+  <line class="rule" x1="16" y1="202" x2="684" y2="202"/>
 
-  <text class="t k" x="30" y="208">may they read info@?</text>
-  <text class="t b" x="230" y="208">a membership, in the console</text>
-  <text class="t n" x="430" y="208">404</text>
-  <text class="t n" x="560" y="208">next request</text>
-  <line class="rule" x1="16" y1="220" x2="684" y2="220"/>
+  <text class="t k" x="32" y="226">Can they search the CRM</text>
+  <text class="t k" x="32" y="240">from the chat?</text>
+  <text class="t b" x="262" y="226">a tick per person, per source</text>
+  <text class="t n" x="522" y="226">within the hour</text>
+  <line class="rule" x1="16" y1="254" x2="684" y2="254"/>
 
-  <text class="t k" x="30" y="242">may they search the CRM</text>
-  <text class="t k" x="30" y="256">from the chat?</text>
-  <text class="t b" x="230" y="242">the console decides,</text>
-  <text class="t b" x="230" y="256">the chat's own list enforces</text>
-  <text class="t n" x="430" y="242">not offered,</text>
-  <text class="t n" x="430" y="256">then refused</text>
-  <text class="t n" x="560" y="242">at once, rechecked</text>
-  <text class="t n" x="560" y="256">every hour</text>
-  <line class="rule" x1="16" y1="268" x2="684" y2="268"/>
+  <text class="t k" x="32" y="278">Which AI models, how long</text>
+  <text class="t k" x="32" y="292">chats are kept?</text>
+  <text class="t b" x="262" y="278">fixed when it was installed</text>
+  <text class="t n" x="522" y="278">never by a click</text>
+  <line class="rule" x1="16" y1="306" x2="684" y2="306"/>
 
-  <text class="t k" x="30" y="290">which models, how long</text>
-  <text class="t k" x="30" y="304">chats are kept, which tools?</text>
-  <text class="t b" x="230" y="290">deployment files</text>
-  <text class="t n" x="430" y="290">"Not changeable here"</text>
-  <text class="t n" x="560" y="290">next deployment</text>
-  <line class="rule" x1="16" y1="316" x2="684" y2="316"/>
+  <text class="t k" x="32" y="328">How much does one colleague use it?</text>
+  <text class="t b" x="262" y="328">nobody can see that</text>
+  <text class="t n" x="522" y="328">only firm-wide totals</text>
 
-  <text class="t k" x="30" y="338">figures about the whole firm?</text>
-  <text class="t b" x="230" y="338">a rule in the code</text>
-  <text class="t n" x="430" y="338">withheld below 5</text>
-  <text class="t n" x="430" y="352">people</text>
-  <text class="t n" x="560" y="338">always</text>
-
-  <rect class="gbox" x="16" y="398" width="668" height="58" rx="8"/>
-  <text class="t k g" x="32" y="422">One group, two products</text>
-  <text class="t b" x="32" y="442">Putting someone in suite-admins makes them an administrator of replai and of the chat. Taking them out undoes both.</text>
+  <rect class="gbox" x="16" y="350" width="668" height="56" rx="8"/>
+  <text class="t k g" x="32" y="374">Every question has exactly one answer, in exactly one place</text>
+  <text class="t b" x="32" y="394">and the screen that shows it also says where it is decided.</text>
 </svg>
