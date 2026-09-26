@@ -11,6 +11,7 @@ export function Footer() {
         <a href={contact.github} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--color-ink)]">GitHub</a>
         <Link href="/privacy" className="hover:text-[var(--color-ink)]">Privacy</Link>
         <Link href="/impressum" className="hover:text-[var(--color-ink)]">Impressum</Link>
+        <Link href="/ai" className="hover:text-[var(--color-ink)]">AI use</Link>
       </div>
       <p className="mt-4 text-tertiary">© {contact.name} · {contact.location}</p>
     </footer>

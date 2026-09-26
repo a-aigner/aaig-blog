@@ -45,7 +45,14 @@ export default async function ArticlePage({
 
       <div className="mt-6">{body}</div>
 
-      <nav className="mt-12 flex justify-between border-t hairline pt-4 text-sm text-secondary">
+      <p className="mt-12 text-sm text-secondary">
+        Written with AI from my own repositories and notes, reviewed and published by me.{" "}
+        <Link href="/ai" className="underline underline-offset-2 hover:text-[var(--color-ink)]">
+          How this site is written
+        </Link>
+      </p>
+
+      <nav className="mt-6 flex justify-between border-t hairline pt-4 text-sm text-secondary">
         {prev ? (
           <Link href={`/projects/${slug}/${prev.slug}`} className="hover:text-[var(--color-ink)]">← {prev.title}</Link>
         ) : <span />}

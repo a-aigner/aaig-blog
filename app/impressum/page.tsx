@@ -72,6 +72,23 @@ export default function ImpressumPage() {
           Verbraucherschlichtungsstelle teilzunehmen.
         </p>
 
+        <div id="ki" className="scroll-mt-6">
+          <H>Einsatz von KI</H>
+        </div>
+        <p>
+          Texte, Diagramme und Grafiken auf dieser Website sind teilweise oder vollständig
+          mit generativer KI erstellt, überwiegend mit Claude von Anthropic. Grundlage sind
+          ausschließlich meine eigenen Projekte, Quelltexte und Aufzeichnungen. Ich prüfe
+          jeden Beitrag vor der Veröffentlichung und trage die redaktionelle Verantwortung
+          für alle Inhalte (Art. 50 Abs. 4 der Verordnung (EU) 2024/1689). Screenshots
+          zeigen die echte Software, bei Bedarf mit synthetischen Daten. Wie das im
+          Einzelnen abläuft, steht auf{" "}
+          <a href="/ai" className="underline underline-offset-2 hover:opacity-70">
+            How this site is written
+          </a>
+          .
+        </p>
+
         <H>Haftung für Inhalte</H>
         <p>
           Die Inhalte dieser Seiten erstelle ich mit Sorgfalt. Soweit gesetzlich zulässig,
