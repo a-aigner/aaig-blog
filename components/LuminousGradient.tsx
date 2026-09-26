@@ -20,8 +20,8 @@ export function LuminousGradient({
 }) {
   return (
     <div className={`relative overflow-hidden ${gradClass[gradient]} ${className}`}>
-      <div className="pointer-events-none absolute -left-16 -top-20 h-64 w-64 rounded-full bg-white/40 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-16 -right-10 h-72 w-72 rounded-full bg-white/25 blur-3xl" />
+      <div className="pointer-events-none absolute -left-16 -top-20 h-64 w-64 rounded-full bg-white/[0.07] blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-16 -right-10 h-72 w-72 rounded-full bg-black/20 blur-3xl" />
       {children}
     </div>
   );

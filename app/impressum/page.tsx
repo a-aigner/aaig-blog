@@ -22,15 +22,15 @@ export const metadata = {
  */
 
 function H({ children }: { children: React.ReactNode }) {
-  return <h2 className="mt-10 text-xl font-bold tracking-tight">{children}</h2>;
+  return <h2 className="mt-10 text-base font-medium tracking-tight">{children}</h2>;
 }
 
 export default function ImpressumPage() {
   return (
     <section className="mx-auto max-w-2xl px-6 pt-6">
-      <h1 className="text-4xl font-extrabold tracking-tight">Impressum</h1>
+      <h1 className="text-2xl font-medium tracking-tight">Impressum</h1>
 
-      <div className="mt-6 space-y-4 leading-relaxed text-[rgb(10_10_10/0.78)]">
+      <div className="mt-6 space-y-4 leading-relaxed text-[rgb(26_26_26/0.8)]">
         <H>Angaben gemäß § 5 DDG</H>
         <p>
           {contact.name}

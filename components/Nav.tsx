@@ -3,7 +3,7 @@ import Link from "next/link";
 export function Nav() {
   return (
     <nav className="mx-auto flex max-w-3xl items-center justify-between px-6 py-6 text-sm">
-      <Link href="/" className="font-bold tracking-tight">
+      <Link href="/" className="font-medium">
         André Aigner
       </Link>
       <div className="flex gap-5 text-secondary">

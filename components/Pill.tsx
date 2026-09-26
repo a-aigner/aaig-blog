@@ -1,6 +1,7 @@
-export function Pill({ children }: { children: React.ReactNode }) {
+export function Pill({ children, tone = "light" }: { children: React.ReactNode; tone?: "light" | "dark" }) {
+  const colors = tone === "dark" ? "bg-white/10 text-white/80" : "bg-[rgb(26_26_26/0.05)] text-[rgb(26_26_26/0.7)]";
   return (
-    <span className="inline-block rounded-[999px] bg-[rgb(10_10_10/0.06)] px-3 py-1 text-xs font-medium">
+    <span className={`inline-block rounded-[999px] px-2.5 py-0.5 text-xs ${colors}`}>
       {children}
     </span>
   );

@@ -7,7 +7,7 @@ function Rows({ projectSlug, articles }: { projectSlug: string; articles: Articl
       {articles.map((a) => (
         <li key={a.slug} className="border-b hairline py-3">
           <Link href={`/projects/${projectSlug}/${a.slug}`} className="flex items-baseline justify-between gap-4 hover:opacity-70">
-            <span className="text-sm font-medium">{a.title}</span>
+            <span className="text-sm">{a.title}</span>
             <span className="shrink-0 text-xs text-secondary">{a.date}</span>
           </Link>
         </li>
@@ -39,7 +39,7 @@ export function ArticleList({ projectSlug, articles }: { projectSlug: string; ar
     <div className="mt-3">
       {parts.map((part) => (
         <section key={part.name} className="mt-6 first:mt-0">
-          <p className="text-xs uppercase tracking-wide text-secondary">
+          <p className="text-xs text-secondary">
             {part.name} · {part.articles.length} articles
           </p>
           <div className="mt-1">
