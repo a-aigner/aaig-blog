@@ -52,7 +52,26 @@ export function getProjectArticles(
 
   // The project decides. Only a project that says so gets the other order, so
   // every existing project keeps the list it had.
-  return readingOrderFor(slug, root) === "oldest-first" ? articles.reverse() : articles;
+  const ordered = readingOrderFor(slug, root) === "oldest-first" ? articles.reverse() : articles;
+  return keepPartsTogether(ordered);
+}
+
+/**
+ * A part is a chapter, so its articles stay together even when one was written
+ * later than the next part began: a piece added to part I in September belongs
+ * at the end of part I, not in a second "part I" after part IV. Parts keep the
+ * order of their first article, and inside a part the date order stands.
+ * Articles without a part are one group of their own, so a project that uses
+ * no parts comes back exactly as it went in.
+ */
+function keepPartsTogether(articles: ArticleMeta[]): ArticleMeta[] {
+  const groups = new Map<string | undefined, ArticleMeta[]>();
+  for (const a of articles) {
+    const group = groups.get(a.part);
+    if (group) group.push(a);
+    else groups.set(a.part, [a]);
+  }
+  return [...groups.values()].flat();
 }
 
 function readingOrderFor(slug: string, root: string): ReadingOrder {
@@ -74,18 +93,20 @@ export function getAdjacentArticles(
   articleSlug: string,
   root: string = DEFAULT_ROOT,
 ): { prev: ArticleMeta | null; next: ArticleMeta | null } {
-  // Sorted here rather than reused from `getProjectArticles`, which honours the
-  // project's display order. Adjacency is about time, not about presentation:
-  // `prev` is the older article and `next` the newer one in every project, so a
-  // project that displays oldest-first reads forward through `next` and the
-  // footer arrows do not silently invert.
-  const list = [...getProjectArticles(slug, root)].sort((a, b) => b.date.localeCompare(a.date));
+  // Adjacency follows the list the reader sees, read in its direction: `next`
+  // is where reading goes on, which in an oldest-first project is further down
+  // the list and in a newest-first one is the newer article above. So the
+  // footer arrows never invert, and in a project with parts they walk a part to
+  // its end before the next one begins, even when that part's last article is
+  // the newest of all.
+  const list = getProjectArticles(slug, root);
   const i = list.findIndex((a) => a.slug === articleSlug);
   if (i === -1) return { prev: null, next: null };
-  return {
-    next: i > 0 ? list[i - 1] : null,        // newer
-    prev: i < list.length - 1 ? list[i + 1] : null, // older
-  };
+  const before = i > 0 ? list[i - 1] : null;
+  const after = i < list.length - 1 ? list[i + 1] : null;
+  return readingOrderFor(slug, root) === "oldest-first"
+    ? { prev: before, next: after }
+    : { prev: after, next: before };
 }
 
 function toProjectMeta(slug: string, data: Record<string, unknown>): ProjectMeta {
