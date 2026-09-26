@@ -27,7 +27,7 @@ export default async function ArticlePage({
     options: {
       mdxOptions: {
         remarkPlugins: [remarkGfm],
-        rehypePlugins: [[rehypePrettyCode, { theme: "github-dark", keepBackground: false }]],
+        rehypePlugins: [[rehypePrettyCode, { theme: "github-light", keepBackground: false, defaultLang: { block: "plaintext" } }]],
       },
     },
   });
@@ -38,10 +38,10 @@ export default async function ArticlePage({
         ← {project.meta.title}
       </Link>
 
-      <p className="mt-6 text-xs uppercase tracking-wide text-secondary">
+      <p className="mt-6 text-sm text-secondary">
         {meta.tags[0] ?? "article"} · {meta.date} · {meta.readingTime}
       </p>
-      <h1 className="mt-2 text-4xl font-extrabold leading-tight tracking-tight">{meta.title}</h1>
+      <h1 className="mt-2 text-2xl font-medium leading-snug tracking-tight">{meta.title}</h1>
 
       <div className="mt-6">{body}</div>
 

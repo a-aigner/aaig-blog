@@ -11,8 +11,8 @@ export default function Home() {
   return (
     <div className="pb-12">
       <section className="mx-auto max-w-3xl px-6 pt-10 pb-16">
-        <h1 className="text-5xl font-extrabold leading-[0.95] tracking-tight sm:text-6xl">
-          Software<br />engineer &amp;<br />founder.
+        <h1 className="text-2xl font-medium leading-snug tracking-tight">
+          Software engineer &amp; founder.
         </h1>
         <p className="mt-5 max-w-md text-secondary">
           Building AI-driven tools at ARSoftware. M.Sc. Applied AI. Based in {contact.location}.
@@ -26,7 +26,7 @@ export default function Home() {
 
       <section className="mx-auto mt-16 max-w-3xl px-6">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-xl font-bold">Selected projects</h2>
+          <h2 className="text-base font-medium">Selected projects</h2>
           <Link href="/projects" className="text-sm text-secondary hover:text-[var(--color-ink)]">all projects →</Link>
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">

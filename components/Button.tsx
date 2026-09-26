@@ -8,11 +8,11 @@ type Props = {
 };
 
 export function Button({ href, children, variant = "primary", external }: Props) {
-  const base = "inline-block rounded-[999px] px-5 py-2 text-sm font-medium transition-opacity hover:opacity-80";
+  const base = "inline-block rounded-[999px] px-4 py-1.5 text-sm transition-opacity hover:opacity-80";
   const styles =
     variant === "primary"
-      ? "bg-[var(--color-ink)] text-white"
-      : "border border-[rgb(10_10_10/0.15)] text-[var(--color-ink)]";
+      ? "bg-[var(--color-green)] text-white"
+      : "border border-[rgb(26_26_26/0.12)] text-[var(--color-ink)]";
   const cls = `${base} ${styles}`;
   if (external) {
     return (

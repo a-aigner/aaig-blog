@@ -23,13 +23,13 @@ export function GradientCard({ project }: { project: ProjectMeta }) {
     <Link href={`/projects/${project.slug}`} className="group block">
       <LuminousGradient
         gradient={project.gradient}
-        className="rounded-card flex h-full min-h-48 flex-col justify-end p-5 transition-transform group-hover:-translate-y-1"
+        className="rounded-card flex h-full min-h-44 flex-col justify-end p-5 text-white transition-[transform,opacity] duration-200 ease-out group-hover:opacity-95 group-active:scale-[0.99]"
       >
-        <h3 className="relative text-2xl font-extrabold tracking-tight">{project.title}</h3>
-        <p className="relative mt-1 max-w-md text-sm text-[rgb(10_10_10/0.6)]">{project.summary}</p>
+        <h3 className="relative text-lg font-medium tracking-tight">{project.title}</h3>
+        <p className="relative mt-1 max-w-md text-sm text-white/65">{project.summary}</p>
         <div className="relative mt-3 flex flex-wrap gap-1.5">
           {project.stack.slice(0, CARD_PILLS).map((s) => (
-            <Pill key={s}>{s}</Pill>
+            <Pill key={s} tone="dark">{s}</Pill>
           ))}
         </div>
       </LuminousGradient>

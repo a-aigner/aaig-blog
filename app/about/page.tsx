@@ -5,8 +5,8 @@ export const metadata = { title: "About — André Aigner" };
 export default function AboutPage() {
   return (
     <section className="mx-auto max-w-2xl px-6 pt-6">
-      <h1 className="text-4xl font-extrabold tracking-tight">About</h1>
-      <div className="mt-6 space-y-4 leading-relaxed text-[rgb(10_10_10/0.78)]">
+      <h1 className="text-2xl font-medium tracking-tight">About</h1>
+      <div className="mt-6 space-y-4 leading-relaxed text-[rgb(26_26_26/0.8)]">
         <p>
           I’m {contact.name}, a software engineer and founder based in {contact.location}.
           I founded ARSoftware UG to build apps focused on automation and AI-driven tooling,
