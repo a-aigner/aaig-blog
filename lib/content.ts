@@ -137,7 +137,8 @@ function toArticleMeta(
     projectSlug,
     title: String(data.title ?? slug),
     date: String(data.date ?? ""),
-    summary: String(data.summary ?? ""),
+    // Older notemd articles call it `description`; same field, older name.
+    summary: String(data.summary ?? data.description ?? ""),
     tags: (data.tags as string[]) ?? [],
     readingTime: readingTime(body).text, // e.g. "1 min read"
     ...(typeof data.part === "string" && data.part ? { part: data.part } : {}),

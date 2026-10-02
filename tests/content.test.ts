@@ -78,6 +78,10 @@ describe("content layer", () => {
     expect(last.next).toBeNull();
   });
 
+  it("reads an older article's `description` as its summary", () => {
+    expect(getArticle("gamma", "two", FIXTURES).meta.summary).not.toBe("");
+  });
+
   it("carries a part label only where an article sets one", () => {
     expect(getProjectArticles("gamma", FIXTURES).map((a) => a.part)).toEqual(["I · Beginning", "I · Beginning", "II · Ending"]);
   });

@@ -1,9 +1,11 @@
 import { contact } from "@/content/cv";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "Privacy — André Aigner",
   description: "What this site processes, why, and what it does not do.",
-};
+  path: "/privacy",
+});
 
 /**
  * Four facts in this page were verified against the running site rather than

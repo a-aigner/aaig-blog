@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { contact } from "@/content/cv";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "How this site is written — André Aigner",
   description: "How AI is used to write the articles, diagrams and graphics on this site, and who is responsible for them.",
-};
+  path: "/ai",
+});
 
 /**
  * The disclosure the EU AI Act asks for (Art. 50(4) of Regulation (EU)

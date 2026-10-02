@@ -1,9 +1,11 @@
 import { contact } from "@/content/cv";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "Impressum — André Aigner",
   description: "Angaben gemäß § 5 DDG.",
-};
+  path: "/impressum",
+});
 
 /**
  * This site is operated by a natural person, not by ARSoftware UG. The company

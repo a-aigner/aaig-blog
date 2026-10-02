@@ -1,6 +1,11 @@
 import { contact } from "@/content/cv";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = { title: "About — André Aigner" };
+export const metadata = pageMetadata({
+  title: "About — André Aigner",
+  description: "André Aigner, software engineer and founder of ARSoftware UG, studying for an M.Sc. in Applied Artificial Intelligence at TH Rosenheim.",
+  path: "/about",
+});
 
 export default function AboutPage() {
   return (

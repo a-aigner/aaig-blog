@@ -1,7 +1,12 @@
 import { getAllProjects } from "@/lib/content";
 import { GradientCard } from "@/components/GradientCard";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = { title: "Projects — André Aigner" };
+export const metadata = pageMetadata({
+  title: "Projects — André Aigner",
+  description: "Projects by André Aigner, each with long-form engineering write-ups: on-premises AI, LLM integration, retrieval, native apps and developer tools.",
+  path: "/projects",
+});
 
 export default function ProjectsPage() {
   const projects = getAllProjects();

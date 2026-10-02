@@ -1,7 +1,12 @@
 import { skills } from "@/content/cv";
 import { Pill } from "@/components/Pill";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = { title: "Uses — André Aigner" };
+export const metadata = pageMetadata({
+  title: "Uses — André Aigner",
+  description: "Tools and tech André Aigner currently works with.",
+  path: "/uses",
+});
 
 export default function UsesPage() {
   return (

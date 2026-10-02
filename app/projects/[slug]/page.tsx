@@ -8,9 +8,20 @@ import { LuminousGradient } from "@/components/LuminousGradient";
 import { ArticleList } from "@/components/ArticleList";
 import { Pill } from "@/components/Pill";
 import { Button } from "@/components/Button";
+import { pageMetadata } from "@/lib/seo";
 
 export function generateStaticParams() {
   return getAllProjects().map((p) => ({ slug: p.slug }));
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const { meta } = getProject(slug);
+  return pageMetadata({
+    title: `${meta.title} — André Aigner`,
+    description: meta.summary,
+    path: `/projects/${slug}`,
+  });
 }
 
 export default async function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
