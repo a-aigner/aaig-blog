@@ -7,8 +7,8 @@ import { Button } from "@/components/Button";
 import { pageMetadata, jsonLd, personJsonLd, SITE_URL, SITE_NAME } from "@/lib/seo";
 
 export const metadata = pageMetadata({
-  title: "André Aigner — Software Engineer & Founder",
-  description: `Software engineer and founder building AI-driven tools at ARSoftware. M.Sc. Applied AI, based in ${contact.location}. Projects and engineering write-ups.`,
+  title: "André Aigner — Applied AI Engineer",
+  description: `Applied AI engineer: LLM tools, agents and computer vision, taken from idea to production. M.Sc. Applied AI (Feb 2027), based in ${contact.location}. Projects and engineering write-ups.`,
   path: "/",
 });
 
@@ -30,10 +30,12 @@ export default function Home() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/avatar.svg" alt="" className="mb-6 size-14 rounded-full" />
         <h1 className="text-2xl font-medium leading-snug tracking-tight">
-          Software engineer &amp; founder.
+          Applied AI engineer.
         </h1>
         <p className="mt-5 max-w-md text-secondary">
-          Building AI-driven tools at ARSoftware. M.Sc. Applied AI. Based in {contact.location}.
+          I take AI systems from idea to production: LLM tools, agents and computer vision,
+          under real-world constraints. M.Sc. Applied AI (Feb 2027). Based in {contact.location},
+          open to roles from March 2027 in the Nordics and Europe.
         </p>
         <div className="mt-6">
           <Button href={contact.cvPdf} external>Download CV</Button>

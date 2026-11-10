@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono"
 // sets its own through pageMetadata in lib/seo.ts.
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "André Aigner — Software Engineer & Founder",
+  title: "André Aigner — Applied AI Engineer",
   description: "Portfolio, projects, and writing by André Aigner.",
   authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,
